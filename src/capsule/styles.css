@@ -1,5 +1,5 @@
 :root {
-  color: #f8fafc;
+  color: #ffffff;
   background: transparent;
   font-family:
     Inter,
@@ -39,10 +39,10 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  border: 1px solid #27354b;
+  border: 1px solid #404040;
   border-radius: 24px;
   padding: 14px 16px 14px 20px;
-  background: #0b1220;
+  background: #171717;
   box-shadow: 0 18px 44px rgb(0 0 0 / 38%);
 }
 
@@ -51,7 +51,7 @@ button {
 }
 
 .capsule-copy span {
-  color: #8fa3bf;
+  color: #a3a3a3;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -61,7 +61,7 @@ button {
 .capsule-copy p {
   overflow: hidden;
   margin: 6px 0 0;
-  color: #f8fafc;
+  color: #ffffff;
   font-size: 14px;
   line-height: 1.35;
   text-overflow: ellipsis;
@@ -77,11 +77,11 @@ button {
 
 .capsule-actions button {
   min-height: 34px;
-  border: 1px solid #34445d;
+  border: 1px solid #ffffff;
   border-radius: 999px;
   padding: 0 14px;
-  background: #f8fafc;
-  color: #07101d;
+  background: #ffffff;
+  color: #171717;
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
@@ -91,9 +91,9 @@ button {
   width: 34px;
   min-height: 34px;
   padding: 0;
-  border-color: #34445d;
-  background: #111c2c;
-  color: #c8d2e0;
+  border-color: #404040;
+  background: #262626;
+  color: #d4d4d4;
 }
 
 .capsule-close svg {

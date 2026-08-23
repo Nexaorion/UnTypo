@@ -19,7 +19,7 @@ let runtime: DesktopRuntime | undefined;
 
 const createMainWindow = async (): Promise<BrowserWindow> => {
   const window = new BrowserWindow({
-    backgroundColor: '#070b14',
+    backgroundColor: '#171717',
     height: 760,
     minHeight: 600,
     minWidth: 860,

@@ -119,7 +119,7 @@ const Preview = () => {
         <aside className="token-rail">
           <div>
             <h2>Foundation</h2>
-            <p>Deep blue-black surfaces with high-contrast white actions</p>
+            <p>Neutral #171717 surfaces with crisp #ffffff actions</p>
           </div>
           <dl>
             <div>
