@@ -1,6 +1,8 @@
 appId: dev.untypo.client
 productName: UnTypo
 asar: true
+asarUnpack:
+  - node_modules/better-sqlite3/**/*
 compression: maximum
 electronLanguages:
   - en-US
