@@ -2,13 +2,17 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import { IPC_CHANNELS, type PingResponse } from '../shared/ipc.js';
 import { handleAppScheme, registerAppScheme } from './protocol.js';
-import { RecorderWindowController } from './recording/recorder-window.js';
+import { DesktopRuntime } from './runtime/desktop-runtime.js';
 import { assertTrustedSender } from './security.js';
 
 registerAppScheme();
 app.enableSandbox();
+app.setName('UnTypo');
 
 const isSmokeTest = process.argv.includes('--smoke-test');
+let isQuitting = false;
+let mainWindow: BrowserWindow | undefined;
+let runtime: DesktopRuntime | undefined;
 
 const createMainWindow = async (): Promise<BrowserWindow> => {
   const window = new BrowserWindow({
@@ -37,7 +41,24 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
     await window.loadURL('app://renderer/index.html');
   }
 
+  window.on('close', (event) => {
+    if (isQuitting || isSmokeTest) return;
+    event.preventDefault();
+    window.hide();
+  });
+  window.once('closed', () => {
+    if (mainWindow === window) mainWindow = undefined;
+  });
+
   return window;
+};
+
+const showMainWindow = async (): Promise<void> => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    mainWindow = await createMainWindow();
+  }
+  mainWindow.show();
+  mainWindow.focus();
 };
 
 ipcMain.handle(IPC_CHANNELS.ping, (event): PingResponse => {
@@ -53,30 +74,30 @@ void app
   .whenReady()
   .then(async () => {
     handleAppScheme();
-    const window = await createMainWindow();
-    const recorder = new RecorderWindowController();
-    await recorder.initialize();
+    mainWindow = await createMainWindow();
+    runtime = new DesktopRuntime({ showMainWindow });
+    await runtime.start();
 
     if (isSmokeTest) {
       const [result, recorderReady] = await Promise.all([
-        window.webContents.executeJavaScript(
+        mainWindow.webContents.executeJavaScript(
           'window.untypo.ping()',
         ) as Promise<PingResponse>,
-        recorder.smokeTest(),
+        runtime.smokeTest(),
       ]);
       if (!recorderReady)
         throw new Error('Recorder preload bridge is unavailable');
       console.log(
-        `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder`,
+        `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder native`,
       );
-      recorder.destroy();
-      app.quit();
+      await runtime.stop();
+      mainWindow.destroy();
+      app.exit(0);
+      return;
     }
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        void createMainWindow();
-      }
+      void showMainWindow();
     });
   })
   .catch((error: unknown) => {
@@ -84,6 +105,12 @@ void app
     app.exit(1);
   });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+app.on('before-quit', (event) => {
+  if (isQuitting) return;
+  event.preventDefault();
+  isQuitting = true;
+  const stopping = runtime
+    ? runtime.stop().catch(console.error)
+    : Promise.resolve();
+  void stopping.catch(console.error).finally(() => app.exit(0));
 });

@@ -17,8 +17,16 @@ import {
 } from './session.js';
 
 interface PendingStop {
+  sessionId: string;
   reject: (reason: Error) => void;
   resolve: (recording: CompletedRecording) => void;
+}
+
+interface PendingStart {
+  reject: (reason: Error) => void;
+  resolve: () => void;
+  sessionId: string;
+  timer: NodeJS.Timeout;
 }
 
 const isRecorderUrl = (value: string): boolean => {
@@ -66,6 +74,7 @@ const configurePermissions = (recorderSession: Session): void => {
 export class RecorderWindowController {
   readonly #sessions: RecordingSessionManager;
   #initializing?: Promise<void>;
+  #pendingStart?: PendingStart;
   #pendingStop?: PendingStop;
   #window?: BrowserWindow;
 
@@ -86,7 +95,17 @@ export class RecorderWindowController {
   async start(target: TargetSnapshot): Promise<string> {
     await this.initialize();
     const sessionId = this.#sessions.begin(target);
+    const started = new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.rejectSession(
+          sessionId,
+          new Error('Recorder start confirmation timed out'),
+        );
+      }, 10_000);
+      this.#pendingStart = { reject, resolve, sessionId, timer };
+    });
     this.#window?.webContents.send(RECORDER_CHANNELS.commandStart, sessionId);
+    await started;
     return sessionId;
   }
 
@@ -96,7 +115,7 @@ export class RecorderWindowController {
     }
     const sessionId = this.#sessions.requestStop();
     const result = new Promise<CompletedRecording>((resolve, reject) => {
-      this.#pendingStop = { reject, resolve };
+      this.#pendingStop = { reject, resolve, sessionId };
     });
     this.#window?.webContents.send(RECORDER_CHANNELS.commandStop, sessionId);
     return result;
@@ -114,6 +133,13 @@ export class RecorderWindowController {
     ipcMain.removeListener(RECORDER_CHANNELS.chunk, this.handleChunk);
     ipcMain.removeListener(RECORDER_CHANNELS.stopped, this.handleStopped);
     ipcMain.removeListener(RECORDER_CHANNELS.error, this.handleError);
+    if (this.#pendingStart) {
+      clearTimeout(this.#pendingStart.timer);
+      this.#pendingStart.reject(new Error('Recorder was destroyed'));
+      this.#pendingStart = undefined;
+    }
+    this.#pendingStop?.reject(new Error('Recorder was destroyed'));
+    this.#pendingStop = undefined;
     this.#window?.destroy();
     this.#window = undefined;
   }
@@ -124,7 +150,19 @@ export class RecorderWindowController {
     metadata: RecorderStartMetadata,
   ): void => {
     if (!this.isExpectedSender(event)) return;
-    this.#sessions.markStarted(sessionId, metadata);
+    try {
+      this.#sessions.markStarted(sessionId, metadata);
+      if (this.#pendingStart?.sessionId === sessionId) {
+        clearTimeout(this.#pendingStart.timer);
+        this.#pendingStart.resolve();
+        this.#pendingStart = undefined;
+      }
+    } catch (error) {
+      this.rejectSession(
+        sessionId,
+        error instanceof Error ? error : new Error('Recorder start failed'),
+      );
+    }
   };
 
   private readonly handleChunk = (
@@ -158,8 +196,10 @@ export class RecorderWindowController {
     if (!this.isExpectedSender(event)) return;
     try {
       const completed = this.#sessions.complete(sessionId, metadata);
-      this.#pendingStop?.resolve(completed);
-      this.#pendingStop = undefined;
+      if (this.#pendingStop?.sessionId === sessionId) {
+        this.#pendingStop.resolve(completed);
+        this.#pendingStop = undefined;
+      }
     } catch (error) {
       this.rejectSession(
         sessionId,
@@ -187,8 +227,15 @@ export class RecorderWindowController {
     } catch {
       return;
     }
-    this.#pendingStop?.reject(error);
-    this.#pendingStop = undefined;
+    if (this.#pendingStart?.sessionId === sessionId) {
+      clearTimeout(this.#pendingStart.timer);
+      this.#pendingStart.reject(error);
+      this.#pendingStart = undefined;
+    }
+    if (this.#pendingStop?.sessionId === sessionId) {
+      this.#pendingStop.reject(error);
+      this.#pendingStop = undefined;
+    }
   }
 
   private async createWindow(): Promise<void> {
