@@ -1,0 +1,77 @@
+name: Client
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-windows-client:
+    name: Verify Windows client
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          cache: npm
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint source
+        run: npm run lint
+
+      - name: Check types
+        run: npm run typecheck
+
+      - name: Run unit and provider contract tests
+        run: npm run test
+
+      - name: Build Electron client and Native Helper
+        run: npm run build
+
+      - name: Exercise authenticated Native Helper pipe
+        run: node scripts/native-smoke.mjs
+
+      - name: Exercise Electron isolation and UI interactions
+        shell: pwsh
+        run: '& .\node_modules\.bin\electron.cmd . --smoke-test'
+
+      - name: Build unsigned NSIS installer
+        shell: pwsh
+        run: '& .\node_modules\.bin\electron-builder.cmd --win nsis --publish never'
+
+      - name: Generate installer checksums
+        shell: pwsh
+        run: |
+          $installers = Get-ChildItem -LiteralPath release -Filter *.exe -File
+          if ($installers.Count -eq 0) { throw 'No installer was produced' }
+          $lines = $installers | ForEach-Object {
+            $hash = Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256
+            "$($hash.Hash)  $($_.Name)"
+          }
+          Set-Content -LiteralPath release\SHA256SUMS.txt -Value $lines
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: untypo-windows-unsigned
+          path: |
+            release/*.exe
+            release/SHA256SUMS.txt

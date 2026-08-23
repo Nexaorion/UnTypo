@@ -4,6 +4,7 @@ asar: true
 asarUnpack:
   - node_modules/better-sqlite3/**/*
 compression: maximum
+electronDist: node_modules/electron/dist
 electronLanguages:
   - en-US
   - zh-CN
