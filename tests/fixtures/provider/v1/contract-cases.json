@@ -1,0 +1,25 @@
+[
+  {
+    "name": "transcription",
+    "intent": "transcription",
+    "transcript": "um hello hello",
+    "polishedText": "Hello.",
+    "expectedText": "Hello."
+  },
+  {
+    "name": "translation",
+    "intent": "translation",
+    "transcript": "你好",
+    "translatedText": {
+      "en-US": "Hello"
+    },
+    "expectedText": "Hello"
+  },
+  {
+    "name": "instruction",
+    "intent": "instruction",
+    "transcript": "Write a short invitation",
+    "generatedText": "You are warmly invited.",
+    "expectedText": "You are warmly invited."
+  }
+]

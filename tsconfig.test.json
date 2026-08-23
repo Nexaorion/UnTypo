@@ -8,5 +8,10 @@
     "target": "ES2023",
     "types": ["node", "vitest/globals"]
   },
-  "include": ["tests/**/*.ts", "src/main/**/*.ts", "src/shared/**/*.ts"]
+  "include": [
+    "tests/**/*.ts",
+    "src/core/**/*.ts",
+    "src/main/**/*.ts",
+    "src/shared/**/*.ts"
+  ]
 }
