@@ -54,6 +54,11 @@ export interface IntentContext {
   signal?: AbortSignal;
 }
 
+export interface IntentClassificationResult {
+  explicitTargetLanguage?: SupportedLanguage;
+  intent: DictationIntent;
+}
+
 export interface TranslationContext {
   signal?: AbortSignal;
   targetLanguage: SupportedLanguage;
@@ -101,7 +106,7 @@ export interface DictationProvider {
   classifyIntent?: (
     text: string,
     context: IntentContext,
-  ) => Promise<DictationIntent>;
+  ) => Promise<DictationIntent | IntentClassificationResult>;
   generateFromInstruction?: (
     instructionText: string,
     context: GenerationContext,

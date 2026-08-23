@@ -5,6 +5,7 @@ import {
   type AudioPayload,
   type DictationIntent,
   type DictationProvider,
+  type IntentClassificationResult,
   type ProcessOptions,
   type ProcessResult,
 } from './contracts.js';
@@ -51,10 +52,15 @@ export class DictationPipeline {
       );
     }
 
-    const intent = await this.classify(rawTranscript, options);
-    const outputText = await this.route(intent, rawTranscript, options);
+    const classification = await this.classify(rawTranscript, options);
+    const outputText = await this.route(
+      classification.intent,
+      rawTranscript,
+      options,
+      classification.explicitTargetLanguage,
+    );
     const result: ProcessResult = {
-      intent: this.resolveAvailableIntent(intent),
+      intent: this.resolveAvailableIntent(classification.intent),
       outputText,
       rawTranscript,
       usage: transcript.usage,
@@ -82,20 +88,23 @@ export class DictationPipeline {
   private async classify(
     transcript: string,
     options: ProcessOptions,
-  ): Promise<DictationIntent> {
+  ): Promise<IntentClassificationResult> {
     if (
       !this.provider.capabilities.intentDetection ||
       !this.provider.classifyIntent
     ) {
-      return 'transcription';
+      return { intent: 'transcription' };
     }
 
-    return this.provider.classifyIntent(transcript, {
+    const classification = await this.provider.classifyIntent(transcript, {
       defaultTargetLanguage: options.defaultTargetLanguage,
       dictionary: options.dictionary,
       locale: options.language,
       signal: options.signal,
     });
+    return typeof classification === 'string'
+      ? { intent: classification }
+      : classification;
   }
 
   private resolveAvailableIntent(intent: DictationIntent): DictationIntent {
@@ -114,6 +123,7 @@ export class DictationPipeline {
     requestedIntent: DictationIntent,
     transcript: string,
     options: ProcessOptions,
+    classifiedTargetLanguage?: ProcessOptions['explicitTargetLanguage'],
   ): Promise<string> {
     const intent = this.resolveAvailableIntent(requestedIntent);
     throwIfAborted(options.signal);
@@ -129,7 +139,9 @@ export class DictationPipeline {
       return this.provider.translate(transcript, {
         signal: options.signal,
         targetLanguage:
-          options.explicitTargetLanguage ?? options.defaultTargetLanguage,
+          options.explicitTargetLanguage ??
+          classifiedTargetLanguage ??
+          options.defaultTargetLanguage,
       });
     }
 
@@ -144,7 +156,8 @@ export class DictationPipeline {
       return this.provider.generateFromInstruction(transcript, {
         dictionary: options.dictionary,
         locale: options.language,
-        profile: options.profile,
+        profile:
+          this.provider.kind === 'official-cloud' ? options.profile : undefined,
         signal: options.signal,
       });
     }

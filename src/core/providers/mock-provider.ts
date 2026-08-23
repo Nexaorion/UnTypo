@@ -3,6 +3,7 @@ import {
   type AudioPayload,
   type DictationIntent,
   type DictationProvider,
+  type IntentClassificationResult,
   type ProcessOptions,
   type ProcessResult,
   type ProviderCapabilities,
@@ -12,6 +13,7 @@ import {
 
 export interface MockProviderScenario {
   generatedText?: string;
+  explicitTargetLanguage?: 'zh-CN' | 'en-US';
   intent?: DictationIntent;
   polishedText?: string;
   transcript?: string;
@@ -56,8 +58,13 @@ export class MockDictationProvider implements DictationProvider {
     });
   }
 
-  async classifyIntent(): Promise<DictationIntent> {
-    return Promise.resolve(this.#scenario.intent ?? 'transcription');
+  async classifyIntent(): Promise<IntentClassificationResult> {
+    return Promise.resolve({
+      intent: this.#scenario.intent ?? 'transcription',
+      ...(this.#scenario.explicitTargetLanguage
+        ? { explicitTargetLanguage: this.#scenario.explicitTargetLanguage }
+        : {}),
+    });
   }
 
   async polish(): Promise<string> {
