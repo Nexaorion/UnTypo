@@ -12,6 +12,9 @@ directories:
 files:
   - dist/**/*
   - package.json
+extraResources:
+  - from: build/Release/untypo_native_helper.exe
+    to: bin/untypo_native_helper.exe
 win:
   executableName: UnTypo
   target:

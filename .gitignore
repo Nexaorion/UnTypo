@@ -1,6 +1,7 @@
 PLAN.md
 
 node_modules/
+build/
 dist/
 release/
 coverage/

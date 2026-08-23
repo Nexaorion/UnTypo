@@ -16,6 +16,7 @@ const run = (command, args, options = {}) =>
   });
 
 await run(npmCommand, ['run', 'build:main']);
+await run(npmCommand, ['run', 'build:native']);
 
 const vite = spawn(npmCommand, ['exec', 'vite'], { stdio: 'inherit' });
 const children = [vite];
