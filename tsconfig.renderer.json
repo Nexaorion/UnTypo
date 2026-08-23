@@ -10,6 +10,7 @@
     "types": ["vite/client"]
   },
   "include": [
+    "src/recorder/**/*.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",
     "src/shared/**/*.ts"

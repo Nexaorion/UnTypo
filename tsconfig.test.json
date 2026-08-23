@@ -12,6 +12,7 @@
     "tests/**/*.ts",
     "src/core/**/*.ts",
     "src/main/**/*.ts",
+    "src/recorder/**/*.ts",
     "src/shared/**/*.ts"
   ]
 }

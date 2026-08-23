@@ -1,12 +1,22 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import path from 'node:path';
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
+
+const rootDirectory = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   base: './',
   build: {
     emptyOutDir: false,
     outDir: 'dist/renderer',
+    rollupOptions: {
+      input: {
+        main: path.resolve(rootDirectory, 'index.html'),
+        recorder: path.resolve(rootDirectory, 'recorder.html'),
+      },
+    },
   },
   plugins: [react(), tailwindcss()],
   server: {

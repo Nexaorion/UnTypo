@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import { IPC_CHANNELS, type PingResponse } from '../shared/ipc.js';
 import { handleAppScheme, registerAppScheme } from './protocol.js';
+import { RecorderWindowController } from './recording/recorder-window.js';
 import { assertTrustedSender } from './security.js';
 
 registerAppScheme();
@@ -53,14 +54,22 @@ void app
   .then(async () => {
     handleAppScheme();
     const window = await createMainWindow();
+    const recorder = new RecorderWindowController();
+    await recorder.initialize();
 
     if (isSmokeTest) {
-      const result = (await window.webContents.executeJavaScript(
-        'window.untypo.ping()',
-      )) as PingResponse;
+      const [result, recorderReady] = await Promise.all([
+        window.webContents.executeJavaScript(
+          'window.untypo.ping()',
+        ) as Promise<PingResponse>,
+        recorder.smokeTest(),
+      ]);
+      if (!recorderReady)
+        throw new Error('Recorder preload bridge is unavailable');
       console.log(
-        `SMOKE_OK ${result.appName} ${result.version} ${result.platform}`,
+        `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder`,
       );
+      recorder.destroy();
       app.quit();
     }
 
