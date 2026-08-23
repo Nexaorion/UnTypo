@@ -36,6 +36,18 @@ tests, renderer assets, and the C++ Helper build. `npm run smoke` additionally
 starts Electron and exercises the sandboxed renderer, recorder bridge,
 authenticated Native Helper pipe, and preview component interactions.
 
+## Renderer backend API
+
+The sandboxed preload exposes a typed `window.untypo` API for the future product
+frontend. It can read a sanitized client snapshot, update general and dictation
+settings, manage the dictionary and encrypted personal profile, add/test/remove
+Provider profiles, and list or clear text history. Provider snapshots include
+configured secret field names but never return decrypted secret values.
+
+All payloads are validated again in Main before they reach storage or runtime
+services. See `src/shared/ipc.ts` for the frontend contract and
+`src/main/ipc/client-controller.ts` for the trusted Main-process boundary.
+
 Build an unpacked Windows application or an NSIS installer:
 
 ```powershell

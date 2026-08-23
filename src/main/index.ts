@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import { IPC_CHANNELS, type PingResponse } from '../shared/ipc.js';
+import { ClientIpcController } from './ipc/client-controller.js';
 import { handleAppScheme, registerAppScheme } from './protocol.js';
 import { runRendererSmokeTest } from './renderer-smoke.js';
 import { DesktopRuntime } from './runtime/desktop-runtime.js';
@@ -12,6 +13,7 @@ app.setName('UnTypo');
 
 const isSmokeTest = process.argv.includes('--smoke-test');
 let isQuitting = false;
+let clientIpc: ClientIpcController | undefined;
 let mainWindow: BrowserWindow | undefined;
 let runtime: DesktopRuntime | undefined;
 
@@ -78,6 +80,7 @@ void app
     mainWindow = await createMainWindow();
     runtime = new DesktopRuntime({ showMainWindow });
     await runtime.start();
+    clientIpc = new ClientIpcController(runtime);
 
     if (isSmokeTest) {
       const [result, recorderReady, rendererReady] = await Promise.all([
@@ -94,6 +97,8 @@ void app
       console.log(
         `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder native ui`,
       );
+      clientIpc.destroy();
+      clientIpc = undefined;
       await runtime.stop();
       mainWindow.destroy();
       app.exit(0);
@@ -105,6 +110,7 @@ void app
     });
   })
   .catch((error: unknown) => {
+    clientIpc?.destroy();
     console.error(error);
     app.exit(1);
   });
@@ -113,6 +119,8 @@ app.on('before-quit', (event) => {
   if (isQuitting) return;
   event.preventDefault();
   isQuitting = true;
+  clientIpc?.destroy();
+  clientIpc = undefined;
   const stopping = runtime
     ? runtime.stop().catch(console.error)
     : Promise.resolve();

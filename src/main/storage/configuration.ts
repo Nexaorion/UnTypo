@@ -5,13 +5,10 @@ import type {
   SupportedLanguage,
   UserProfileContext,
 } from '../../core/providers/contracts.js';
+import type { ClientJsonValue } from '../../shared/ipc.js';
 import type { EncryptedValue, SecretProtector } from './secret-protector.js';
 
 export type HotkeyMode = 'push-to-talk' | 'toggle';
-export type JsonPrimitive = boolean | number | string | null;
-export type JsonValue =
-  JsonPrimitive | readonly JsonValue[] | { readonly [key: string]: JsonValue };
-
 export interface HistoryPolicy {
   enabled: boolean;
   retentionDays: number;
@@ -21,7 +18,7 @@ export interface StoredProviderProfile {
   id: string;
   providerId: string;
   secrets: Readonly<Record<string, EncryptedValue>>;
-  values: Readonly<Record<string, JsonValue>>;
+  values: Readonly<Record<string, ClientJsonValue>>;
 }
 
 export interface StoredClientConfig {
@@ -31,6 +28,7 @@ export interface StoredClientConfig {
     locale: SupportedLanguage;
   };
   dictation: {
+    activeProviderProfileId?: string;
     defaultTargetLanguage: SupportedLanguage;
     hotkeyAccelerator: string;
     hotkeyMode: HotkeyMode;
@@ -46,7 +44,7 @@ export interface ProviderProfile {
   id: string;
   providerId: string;
   secrets: Readonly<Record<string, string>>;
-  values: Readonly<Record<string, JsonValue>>;
+  values: Readonly<Record<string, ClientJsonValue>>;
 }
 
 const defaultConfig = (): StoredClientConfig => ({
@@ -104,6 +102,12 @@ const parseConfig = (source: string): StoredClientConfig => {
     value.dictation.defaultTargetLanguage,
     'default target language',
   );
+  if (
+    'activeProviderProfileId' in value.dictation &&
+    typeof value.dictation.activeProviderProfileId !== 'string'
+  ) {
+    throw new Error('Invalid active provider profile');
+  }
 
   if (
     !Array.isArray(value.dictionary) ||

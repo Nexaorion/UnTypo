@@ -13,6 +13,17 @@ describe('ProviderRegistry', () => {
     expect(registry.list()).toEqual([provider]);
   });
 
+  it('replaces a configured provider without changing its contract id', () => {
+    const registry = new ProviderRegistry();
+    const first = new MockDictationProvider({ transcript: 'first' });
+    const second = new MockDictationProvider({ transcript: 'second' });
+    registry.register(first);
+
+    registry.replace(second);
+
+    expect(registry.require('mock')).toBe(second);
+  });
+
   it('rejects duplicate provider ids', () => {
     const registry = new ProviderRegistry();
     registry.register(new MockDictationProvider());

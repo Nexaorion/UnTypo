@@ -12,6 +12,14 @@ import {
   type OpenAIProviderConfiguration,
 } from '../../core/providers/openai-provider.js';
 import { ProviderRegistry } from '../../core/providers/registry.js';
+import type { UserProfileContext } from '../../core/providers/contracts.js';
+import type {
+  ClientHistoryQuery,
+  ClientHistoryRecord,
+  ClientProviderInput,
+  ClientSettingsUpdate,
+  ClientSnapshot,
+} from '../../shared/ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
 import { ClipboardInjectionService } from '../dictation/clipboard.js';
 import { DictationCoordinator } from '../dictation/coordinator.js';
@@ -36,6 +44,8 @@ const trayIconPng = Buffer.from(
 
 const isString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
+
+const sensitiveValueKeyPattern = /(api.?key|password|secret|token)/iu;
 
 const toOpenAIConfiguration = (
   profile: ProviderProfile,
@@ -108,7 +118,7 @@ export class DesktopRuntime {
   async start(): Promise<void> {
     if (this.#started) throw new Error('Desktop runtime is already active');
     const config = await this.#configuration.load();
-    await this.registerConfiguredProvider(config.providers.map(({ id }) => id));
+    await this.activateConfiguredProvider(config);
     this.#coordinator = new DictationCoordinator({
       fallback: this.#capsule,
       getContext: async () => {
@@ -168,6 +178,147 @@ export class DesktopRuntime {
     return recorderReady;
   }
 
+  async getClientSnapshot(): Promise<ClientSnapshot> {
+    const [config, profile] = await Promise.all([
+      this.#configuration.load(),
+      this.#configuration.getProfile(),
+    ]);
+    return {
+      dictionary: config.dictionary,
+      ...(profile ? { profile } : {}),
+      providers: config.providers.map((provider) => ({
+        configuredSecretKeys: Object.keys(provider.secrets),
+        id: provider.id,
+        providerId: provider.providerId,
+        values: Object.fromEntries(
+          Object.entries(provider.values).filter(
+            ([key]) => !sensitiveValueKeyPattern.test(key),
+          ),
+        ),
+      })),
+      settings: {
+        dictation: {
+          ...(config.dictation.activeProviderProfileId
+            ? {
+                activeProviderProfileId:
+                  config.dictation.activeProviderProfileId,
+              }
+            : {}),
+          defaultTargetLanguage: config.dictation.defaultTargetLanguage,
+          hotkeyAccelerator: config.dictation.hotkeyAccelerator,
+          hotkeyMode: config.dictation.hotkeyMode,
+          language: config.dictation.language,
+        },
+        general: config.general,
+        history: config.history,
+      },
+    };
+  }
+
+  async updateSettings(update: ClientSettingsUpdate): Promise<ClientSnapshot> {
+    const current = await this.#configuration.load();
+    const requestedProfile = update.dictation?.activeProviderProfileId;
+    if (
+      typeof requestedProfile === 'string' &&
+      !current.providers.some((provider) => provider.id === requestedProfile)
+    ) {
+      throw new Error('Active provider profile does not exist');
+    }
+    const nextHotkey = parseHotkeyAccelerator(
+      update.dictation?.hotkeyAccelerator ??
+        current.dictation.hotkeyAccelerator,
+      update.dictation?.hotkeyMode ?? current.dictation.hotkeyMode,
+    );
+
+    const next = await this.#configuration.update((config) => {
+      const { activeProviderProfileId, ...dictationUpdate } =
+        update.dictation ?? {};
+      const dictation = { ...config.dictation, ...dictationUpdate };
+      if (activeProviderProfileId === null)
+        delete dictation.activeProviderProfileId;
+      else if (activeProviderProfileId !== undefined)
+        dictation.activeProviderProfileId = activeProviderProfileId;
+      return {
+        ...config,
+        dictation,
+        general: { ...config.general, ...update.general },
+        history: { ...config.history, ...update.history },
+      };
+    });
+    this.#native.configureHotkey(nextHotkey);
+    app.setLoginItemSettings({ openAtLogin: next.general.launchAtLogin });
+    this.applyLocale(next.general.locale);
+    await this.activateConfiguredProvider(next);
+    return this.getClientSnapshot();
+  }
+
+  async setDictionary(entries: readonly string[]): Promise<ClientSnapshot> {
+    await this.#configuration.setDictionary(entries);
+    return this.getClientSnapshot();
+  }
+
+  async setProfile(profile?: UserProfileContext): Promise<ClientSnapshot> {
+    await this.#configuration.setProfile(profile);
+    return this.getClientSnapshot();
+  }
+
+  async upsertProvider(profile: ClientProviderInput): Promise<ClientSnapshot> {
+    const configuration = toOpenAIConfiguration(profile);
+    if (!configuration) throw new Error('Provider profile is incomplete');
+    new OpenAIProvider(configuration);
+    await this.#configuration.upsertProvider(profile);
+    const current = await this.#configuration.load();
+    const next = current.dictation.activeProviderProfileId
+      ? current
+      : await this.#configuration.update((config) => ({
+          ...config,
+          dictation: {
+            ...config.dictation,
+            activeProviderProfileId: profile.id,
+          },
+        }));
+    await this.activateConfiguredProvider(next);
+    return this.getClientSnapshot();
+  }
+
+  async removeProvider(profileId: string): Promise<ClientSnapshot> {
+    const current = await this.#configuration.removeProvider(profileId);
+    const next =
+      current.dictation.activeProviderProfileId === profileId
+        ? await this.#configuration.update((config) => {
+            const dictation = { ...config.dictation };
+            delete dictation.activeProviderProfileId;
+            return { ...config, dictation };
+          })
+        : current;
+    await this.activateConfiguredProvider(next);
+    return this.getClientSnapshot();
+  }
+
+  async testProvider(profileId: string): Promise<{ ok: true }> {
+    const profile = await this.#configuration.getProvider(profileId);
+    if (!profile || profile.providerId !== 'openai') {
+      throw new Error('Provider profile does not exist');
+    }
+    const configuration = toOpenAIConfiguration(profile);
+    if (!configuration) throw new Error('Provider profile is incomplete');
+    const provider = new OpenAIProvider(configuration);
+    await provider.classifyIntent('Transcribe this connection test.', {
+      defaultTargetLanguage: 'en-US',
+      dictionary: [],
+      locale: 'en-US',
+    });
+    return { ok: true };
+  }
+
+  listHistory(query: ClientHistoryQuery): readonly ClientHistoryRecord[] {
+    return this.#historyRepository.list(query.limit, query.offset);
+  }
+
+  clearHistory(): number {
+    return this.#historyRepository.clear();
+  }
+
   async stop(): Promise<void> {
     if (!this.#started) return;
     this.#started = false;
@@ -181,15 +332,19 @@ export class DesktopRuntime {
     this.#historyRepository.close();
   }
 
-  private async registerConfiguredProvider(
-    profileIds: readonly string[],
+  private async activateConfiguredProvider(
+    config: Awaited<ReturnType<ConfigurationService['load']>>,
   ): Promise<void> {
+    this.#providerId = 'mock';
+    const profileIds = config.dictation.activeProviderProfileId
+      ? [config.dictation.activeProviderProfileId]
+      : config.providers.map(({ id }) => id);
     for (const profileId of profileIds) {
       const profile = await this.#configuration.getProvider(profileId);
       if (!profile || profile.providerId !== 'openai') continue;
       const configuration = toOpenAIConfiguration(profile);
       if (!configuration) continue;
-      this.#providers.register(new OpenAIProvider(configuration));
+      this.#providers.replace(new OpenAIProvider(configuration));
       this.#providerId = 'openai';
       return;
     }
@@ -208,16 +363,20 @@ export class DesktopRuntime {
   }
 
   private createTray(locale: 'en-US' | 'zh-CN'): void {
-    this.#locale = locale;
     const icon = nativeImage.createFromBuffer(trayIconPng).resize({
       height: 16,
       width: 16,
     });
     this.#tray = new Tray(icon);
-    this.#tray.setToolTip(
+    this.#tray.on('click', () => void this.#options.showMainWindow());
+    this.applyLocale(locale);
+  }
+
+  private applyLocale(locale: 'en-US' | 'zh-CN'): void {
+    this.#locale = locale;
+    this.#tray?.setToolTip(
       locale === 'zh-CN' ? 'UnTypo 听写' : 'UnTypo Dictation',
     );
-    this.#tray.on('click', () => void this.#options.showMainWindow());
     this.refreshTrayMenu(locale);
   }
 

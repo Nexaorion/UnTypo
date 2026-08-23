@@ -8,6 +8,8 @@ const smokeTestSource = `
       [...document.querySelectorAll('button')].find(
         (button) => button.textContent?.trim() === label,
       );
+    const snapshot = await window.untypo?.getSnapshot();
+    if (!snapshot || !Array.isArray(snapshot.dictionary)) return false;
     const switchControl = document.querySelector(
       '[data-testid="clipboard-switch"]',
     );

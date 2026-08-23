@@ -18,6 +18,11 @@ export class ProviderRegistry {
     this.#providers.set(provider.id, provider);
   }
 
+  replace(provider: DictationProvider): void {
+    assertProviderContract(provider);
+    this.#providers.set(provider.id, provider);
+  }
+
   get(providerId: string): DictationProvider | undefined {
     return this.#providers.get(providerId);
   }

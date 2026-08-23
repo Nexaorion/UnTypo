@@ -9,6 +9,9 @@ describe('sandboxed preload channels', () => {
     const source = await readFile('src/preload/index.ts', 'utf8');
 
     expect(source).toContain(`const PING_CHANNEL = '${IPC_CHANNELS.ping}'`);
+    for (const channel of Object.values(IPC_CHANNELS)) {
+      expect(source).toContain(`'${channel}'`);
+    }
   });
 
   it('keeps every recorder channel aligned with the main process', async () => {
