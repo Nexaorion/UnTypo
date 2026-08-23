@@ -80,6 +80,7 @@ export class DesktopRuntime {
   readonly #recorder = new RecorderWindowController();
   #coordinator?: DictationCoordinator;
   #hotkeyQueue: Promise<void> = Promise.resolve();
+  #locale: 'en-US' | 'zh-CN' = 'en-US';
   #providerId = 'mock';
   #removeHotkeyListener?: () => void;
   #started = false;
@@ -207,6 +208,7 @@ export class DesktopRuntime {
   }
 
   private createTray(locale: 'en-US' | 'zh-CN'): void {
+    this.#locale = locale;
     const icon = nativeImage.createFromBuffer(trayIconPng).resize({
       height: 16,
       width: 16,
@@ -219,7 +221,7 @@ export class DesktopRuntime {
     this.refreshTrayMenu(locale);
   }
 
-  private refreshTrayMenu(locale: 'en-US' | 'zh-CN' = 'en-US'): void {
+  private refreshTrayMenu(locale = this.#locale): void {
     if (!this.#tray) return;
     const isRecording = this.#coordinator?.state === 'recording';
     const template: MenuItemConstructorOptions[] = [

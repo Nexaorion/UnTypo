@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import { IPC_CHANNELS, type PingResponse } from '../shared/ipc.js';
 import { handleAppScheme, registerAppScheme } from './protocol.js';
+import { runRendererSmokeTest } from './renderer-smoke.js';
 import { DesktopRuntime } from './runtime/desktop-runtime.js';
 import { assertTrustedSender } from './security.js';
 
@@ -79,16 +80,19 @@ void app
     await runtime.start();
 
     if (isSmokeTest) {
-      const [result, recorderReady] = await Promise.all([
+      const [result, recorderReady, rendererReady] = await Promise.all([
         mainWindow.webContents.executeJavaScript(
-          'window.untypo.ping()',
+          'window.untypo?.ping()',
         ) as Promise<PingResponse>,
         runtime.smokeTest(),
+        runRendererSmokeTest(mainWindow.webContents),
       ]);
       if (!recorderReady)
         throw new Error('Recorder preload bridge is unavailable');
+      if (!rendererReady)
+        throw new Error('Renderer component interactions are unavailable');
       console.log(
-        `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder native`,
+        `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder native ui`,
       );
       await runtime.stop();
       mainWindow.destroy();

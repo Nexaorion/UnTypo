@@ -94,7 +94,16 @@ button {
   border-color: #34445d;
   background: #111c2c;
   color: #c8d2e0;
-  font-size: 20px;
+}
+
+.capsule-close svg {
+  width: 14px;
+  height: 14px;
+  margin: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.8;
 }
 
 .capsule-actions button:focus-visible {
