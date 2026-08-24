@@ -1,71 +1,41 @@
-# UnTypo
+<h1 align="center">UnTypo</h1>
 
-UnTypo is an open-source Windows client for AI-assisted dictation, translation,
-and instruction-driven text generation.
+<p align="center">
+  按住快捷键说话，松开后，文字回到你刚才正在输入的地方
+</p>
 
-The current client foundation contains the Electron runtime, sandboxed preload
-bridges, in-memory recorder, authenticated C++ Native Helper, provider pipeline,
-encrypted configuration, SQLite text history, tray runtime, fallback result
-capsule, and a UI component preview. Product frontend pages are intentionally
-outside this stage.
+<p align="center">
+  <img src="https://img.shields.io/badge/status-0.1.0%20early-f4f4f5?style=flat-square&labelColor=18181b" alt="0.1.0 early">
+  <img src="https://img.shields.io/badge/platform-Windows%20x64-f4f4f5?style=flat-square&labelColor=18181b" alt="Windows x64">
+  <img src="https://img.shields.io/badge/desktop-Electron%20%2B%20TypeScript-f4f4f5?style=flat-square&labelColor=18181b" alt="Electron and TypeScript">
+</p>
 
-## Development
+UnTypo 是一个仍在早期开发中的 Windows 听写工具。它把语音转成文字，再按口述内容完成润色、翻译或指令生成。
 
-Requirements:
+## 你可以用 UnTypo 做什么
 
-- Node.js 22.12 or newer
-- npm 9 or newer
-- Visual Studio with the Desktop development with C++ workload
+### 在聊天、写作或填表时，少在应用之间切来切去
 
-Install dependencies and start the Electron development runtime:
+- 在任意应用里用全局快捷键开始听写；支持按住说话和按一下开始、再按一下结束两种方式；
+- 设置口述语言和默认翻译目标语言，目前支持简体中文与英文；
+- 模型会把口述内容按普通转写、翻译请求或内容指令处理，并把结果放回原来的输入位置；
+- 托盘菜单可随时开始听写、打开设置或退出。
 
-```powershell
-npm ci
-npm run dev
-```
+### 让模型少把专有名词听错
 
-Run the verification suite:
+- 把人名、产品名或专业术语加进词典，它们会作为转写提示发送给模型；
+- 为不同服务保存多份模型配置，测试连通后切换当前使用的模型；
+- 可选姓名、称呼和签名，让指令式生成更贴近你的习惯。
 
-```powershell
-npm run check
-npm run smoke
-```
+### 想留下记录时留得住，不想留时也关得掉
 
-`npm run check` verifies formatting, lint, types, unit and Provider contract
-tests, renderer assets, and the C++ Helper build. `npm run smoke` additionally
-starts Electron and exercises the sandboxed renderer, recorder bridge,
-authenticated Native Helper pipe, and preview component interactions.
+- 历史记录保存在本机，可查看、复制或一键清空；
+- 可完全关闭记录，或设置保存天数；
+- 首页会显示转写时长、输出字数与最近记录。
 
-## Renderer backend API
+## 本地优先
 
-The sandboxed preload exposes a typed `window.untypo` API for the future product
-frontend. It can read a sanitized client snapshot, update general and dictation
-settings, manage the dictionary and encrypted personal profile, add/test/remove
-Provider profiles, and list or clear text history. Provider snapshots include
-configured secret field names but never return decrypted secret values.
-
-All payloads are validated again in Main before they reach storage or runtime
-services. See `src/shared/ipc.ts` for the frontend contract and
-`src/main/ipc/client-controller.ts` for the trusted Main-process boundary.
-
-Build an unpacked Windows application or an NSIS installer:
-
-```powershell
-npm run package:dir
-npm run package:win
-```
-
-## Release verification
-
-The Windows installer is intentionally unsigned during the initial release
-stage, so Windows may display an unknown-publisher warning. GitHub Actions emits
-the installer with `SHA256SUMS.txt`; verify it before running the installer:
-
-```powershell
-Get-FileHash .\UnTypo-0.1.0-x64.exe -Algorithm SHA256
-Get-Content .\SHA256SUMS.txt
-```
-
-Only use an installer whose computed SHA-256 value matches the published value.
-The workflow keeps packaging isolated in a dedicated step so code signing can be
-added when a certificate is available.
+- UnTypo 不提供账号、同步或中转服务器；配置、词典和历史记录都保存在当前电脑上；
+- 历史记录使用本地 SQLite 数据库；
+- API Key 和个人资料经 Windows 安全存储加密后才会写入本地，渲染界面不能直接读取它们；
+- **录音、转写文本和词典提示仍会发送到你配置的模型服务**，因为它们需要由该服务处理。
