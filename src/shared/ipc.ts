@@ -7,6 +7,7 @@ import type {
 export const IPC_CHANNELS = {
   clearHistory: 'client:clear-history',
   getSnapshot: 'client:get-snapshot',
+  getUsageStats: 'client:get-usage-stats',
   listHistory: 'client:list-history',
   ping: 'app:ping',
   removeProvider: 'client:remove-provider',
@@ -81,14 +82,23 @@ export interface ClientSnapshot {
 }
 
 export interface ClientHistoryRecord {
+  audioDurationMs?: number;
   createdAt: number;
   id: string;
   intent: DictationIntent;
   language: SupportedLanguage;
+  modelName?: string;
   outputText: string;
   providerId: string;
   rawTranscript?: string;
   scene?: string;
+}
+
+export interface ClientUsageStats {
+  outputCharacters: number;
+  mostUsedModel?: string;
+  transcriptionDurationMs: number;
+  usageCount: number;
 }
 
 export interface ClientHistoryQuery {
@@ -99,12 +109,14 @@ export interface ClientHistoryQuery {
 export interface PingResponse {
   appName: string;
   platform: string;
+  userName: string;
   version: string;
 }
 
 export interface UntypoApi {
   clearHistory: () => Promise<number>;
   getSnapshot: () => Promise<ClientSnapshot>;
+  getUsageStats: () => Promise<ClientUsageStats>;
   listHistory: (
     query?: ClientHistoryQuery,
   ) => Promise<readonly ClientHistoryRecord[]>;

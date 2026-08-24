@@ -1,6 +1,6 @@
 import type { IpcMainInvokeEvent } from 'electron';
 
-const DEVELOPMENT_ORIGIN = 'http://127.0.0.1:5173';
+const DEVELOPMENT_ORIGIN = 'http://127.0.0.1:3000';
 
 export const isTrustedRendererUrl = (value: string): boolean => {
   try {

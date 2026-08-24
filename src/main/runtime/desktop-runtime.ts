@@ -19,6 +19,7 @@ import type {
   ClientProviderInput,
   ClientSettingsUpdate,
   ClientSnapshot,
+  ClientUsageStats,
 } from '../../shared/ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
 import { ClipboardInjectionService } from '../dictation/clipboard.js';
@@ -123,8 +124,18 @@ export class DesktopRuntime {
       fallback: this.#capsule,
       getContext: async () => {
         const current = await this.#configuration.load();
+        const activeProfile = current.dictation.activeProviderProfileId
+          ? current.providers.find(
+              (profile) =>
+                profile.id === current.dictation.activeProviderProfileId,
+            )
+          : undefined;
+        const transcriptionModel = activeProfile?.values.transcriptionModel;
         return {
           history: current.history,
+          ...(typeof transcriptionModel === 'string' && transcriptionModel
+            ? { modelName: transcriptionModel }
+            : { modelName: this.#providerId }),
           options: {
             defaultTargetLanguage: current.dictation.defaultTargetLanguage,
             dictionary: current.dictionary,
@@ -313,6 +324,10 @@ export class DesktopRuntime {
 
   listHistory(query: ClientHistoryQuery): readonly ClientHistoryRecord[] {
     return this.#historyRepository.list(query.limit, query.offset);
+  }
+
+  getUsageStats(): ClientUsageStats {
+    return this.#historyRepository.getUsageStats();
   }
 
   clearHistory(): number {

@@ -44,6 +44,7 @@ const createCoordinator = (injected: boolean) => {
     fallback: { show },
     getContext: () => ({
       history: { enabled: true, retentionDays: 30 },
+      modelName: 'whisper-1',
       options: {
         defaultTargetLanguage: 'en-US',
         dictionary: [],
@@ -77,7 +78,9 @@ describe('DictationCoordinator', () => {
     expect(runtime.show).not.toHaveBeenCalled();
     expect(runtime.record).toHaveBeenCalledWith(
       expect.objectContaining({
+        audioDurationMs: 500,
         intent: 'transcription',
+        modelName: 'whisper-1',
         outputText: 'Final mock result',
         rawTranscript: 'raw mock result',
       }),

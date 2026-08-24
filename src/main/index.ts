@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron';
+import { userInfo } from 'node:os';
 import path from 'node:path';
 import { IPC_CHANNELS, type PingResponse } from '../shared/ipc.js';
 import { ClientIpcController } from './ipc/client-controller.js';
@@ -17,9 +18,12 @@ let clientIpc: ClientIpcController | undefined;
 let mainWindow: BrowserWindow | undefined;
 let runtime: DesktopRuntime | undefined;
 
+const windowBackground = (): string =>
+  nativeTheme.shouldUseDarkColors ? '#111111' : '#ffffff';
+
 const createMainWindow = async (): Promise<BrowserWindow> => {
   const window = new BrowserWindow({
-    backgroundColor: '#171717',
+    backgroundColor: windowBackground(),
     height: 760,
     minHeight: 600,
     minWidth: 860,
@@ -35,6 +39,9 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
   });
 
   window.removeMenu();
+  const syncWindowBackground = () =>
+    window.setBackgroundColor(windowBackground());
+  nativeTheme.on('updated', syncWindowBackground);
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
 
@@ -50,6 +57,7 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
     window.hide();
   });
   window.once('closed', () => {
+    nativeTheme.off('updated', syncWindowBackground);
     if (mainWindow === window) mainWindow = undefined;
   });
 
@@ -69,6 +77,7 @@ ipcMain.handle(IPC_CHANNELS.ping, (event): PingResponse => {
   return {
     appName: app.getName(),
     platform: process.platform,
+    userName: userInfo().username,
     version: app.getVersion(),
   };
 });
@@ -77,10 +86,11 @@ void app
   .whenReady()
   .then(async () => {
     handleAppScheme();
-    mainWindow = await createMainWindow();
     runtime = new DesktopRuntime({ showMainWindow });
     await runtime.start();
+    // Handlers must exist before the renderer's first snapshot request.
     clientIpc = new ClientIpcController(runtime);
+    mainWindow ??= await createMainWindow();
 
     if (isSmokeTest) {
       const [result, recorderReady, rendererReady] = await Promise.all([
@@ -92,8 +102,8 @@ void app
       ]);
       if (!recorderReady)
         throw new Error('Recorder preload bridge is unavailable');
-      if (!rendererReady)
-        throw new Error('Renderer component interactions are unavailable');
+      if (rendererReady !== 'ok')
+        throw new Error(`Renderer interactions failed at ${rendererReady}`);
       console.log(
         `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder native ui`,
       );

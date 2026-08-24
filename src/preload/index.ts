@@ -4,6 +4,7 @@ import type {
   ClientProviderInput,
   ClientSettingsUpdate,
   ClientSnapshot,
+  ClientUsageStats,
   PingResponse,
   UntypoApi,
 } from '../shared/ipc.js';
@@ -12,6 +13,7 @@ const PING_CHANNEL = 'app:ping';
 const channels = {
   clearHistory: 'client:clear-history',
   getSnapshot: 'client:get-snapshot',
+  getUsageStats: 'client:get-usage-stats',
   listHistory: 'client:list-history',
   removeProvider: 'client:remove-provider',
   setDictionary: 'client:set-dictionary',
@@ -26,6 +28,8 @@ const api: UntypoApi = {
     ipcRenderer.invoke(channels.clearHistory) as Promise<number>,
   getSnapshot: () =>
     ipcRenderer.invoke(channels.getSnapshot) as Promise<ClientSnapshot>,
+  getUsageStats: () =>
+    ipcRenderer.invoke(channels.getUsageStats) as Promise<ClientUsageStats>,
   listHistory: (query?: ClientHistoryQuery) =>
     ipcRenderer.invoke(channels.listHistory, query) as ReturnType<
       UntypoApi['listHistory']

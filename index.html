@@ -4,14 +4,24 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' http://127.0.0.1:5173 ws://127.0.0.1:5173"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' http://127.0.0.1:3000 ws://127.0.0.1:3000"
     />
-    <meta name="theme-color" content="#171717" />
+    <meta
+      name="theme-color"
+      content="#ffffff"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#111111"
+      media="(prefers-color-scheme: dark)"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UnTypo</title>
   </head>
   <body>
     <div id="root"></div>
+    <script src="/.claude/stub-bridge.js"></script>
     <script type="module" src="/src/renderer/main.tsx"></script>
   </body>
 </html>

@@ -49,6 +49,45 @@ describe('HistoryRepository', () => {
     ]);
   });
 
+  it('aggregates dashboard usage across all history records', () => {
+    repository.add({
+      audioDurationMs: 1_200,
+      createdAt: 300,
+      id: 'first',
+      intent: 'transcription',
+      language: 'zh-CN',
+      modelName: 'whisper-1',
+      outputText: '你好',
+      providerId: 'openai',
+    });
+    repository.add({
+      audioDurationMs: 800,
+      createdAt: 200,
+      id: 'second',
+      intent: 'transcription',
+      language: 'en-US',
+      modelName: 'whisper-1',
+      outputText: 'Hello',
+      providerId: 'openai',
+    });
+    repository.add({
+      createdAt: 100,
+      id: 'third',
+      intent: 'instruction',
+      language: 'en-US',
+      modelName: 'gpt-4o-mini-transcribe',
+      outputText: 'A',
+      providerId: 'openai',
+    });
+
+    expect(repository.getUsageStats()).toEqual({
+      mostUsedModel: 'whisper-1',
+      outputCharacters: 8,
+      transcriptionDurationMs: 2_000,
+      usageCount: 3,
+    });
+  });
+
   it('cleans expired records after recording a new result', () => {
     const service = new HistoryService(repository);
     const day = 24 * 60 * 60 * 1000;

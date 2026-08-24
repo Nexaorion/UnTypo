@@ -9,10 +9,12 @@ import type {
 import type { HistoryPolicy } from './configuration.js';
 
 export interface HistoryRecord {
+  audioDurationMs?: number;
   createdAt: number;
   id: string;
   intent: DictationIntent;
   language: SupportedLanguage;
+  modelName?: string;
   outputText: string;
   providerId: string;
   rawTranscript?: string;
@@ -25,10 +27,12 @@ export type NewHistoryRecord = Omit<HistoryRecord, 'createdAt' | 'id'> & {
 };
 
 interface HistoryRow {
+  audio_duration_ms: number | null;
   created_at: number;
   id: string;
   intent: DictationIntent;
   language: SupportedLanguage;
+  model_name: string | null;
   output_text: string;
   provider_id: string;
   raw_transcript: string | null;
@@ -42,9 +46,30 @@ const mapRow = (row: HistoryRow): HistoryRecord => ({
   language: row.language,
   outputText: row.output_text,
   providerId: row.provider_id,
+  ...(row.audio_duration_ms === null
+    ? {}
+    : { audioDurationMs: row.audio_duration_ms }),
+  ...(row.model_name === null ? {} : { modelName: row.model_name }),
   ...(row.raw_transcript === null ? {} : { rawTranscript: row.raw_transcript }),
   ...(row.scene === null ? {} : { scene: row.scene }),
 });
+
+interface UsageStatsRow {
+  output_characters: number;
+  transcription_duration_ms: number;
+  usage_count: number;
+}
+
+interface MostUsedModelRow {
+  model_name: string;
+}
+
+export interface HistoryUsageStats {
+  mostUsedModel?: string;
+  outputCharacters: number;
+  transcriptionDurationMs: number;
+  usageCount: number;
+}
 
 export class HistoryRepository {
   readonly #database: Database.Database;
@@ -66,12 +91,16 @@ export class HistoryRepository {
     this.#database
       .prepare(
         `INSERT INTO dictation_history
-          (id, created_at, provider_id, intent, output_text, raw_transcript, language, scene)
+          (id, created_at, provider_id, intent, output_text, raw_transcript, language, scene,
+           audio_duration_ms, model_name)
          VALUES
-          (@id, @createdAt, @providerId, @intent, @outputText, @rawTranscript, @language, @scene)`,
+          (@id, @createdAt, @providerId, @intent, @outputText, @rawTranscript, @language, @scene,
+           @audioDurationMs, @modelName)`,
       )
       .run({
         ...record,
+        audioDurationMs: record.audioDurationMs ?? null,
+        modelName: record.modelName ?? null,
         rawTranscript: record.rawTranscript ?? null,
         scene: record.scene ?? null,
       });
@@ -84,13 +113,40 @@ export class HistoryRepository {
     const rows = this.#database
       .prepare(
         `SELECT id, created_at, provider_id, intent, output_text,
-                raw_transcript, language, scene
+                raw_transcript, language, scene, audio_duration_ms, model_name
          FROM dictation_history
          ORDER BY created_at DESC, id DESC
          LIMIT ? OFFSET ?`,
       )
       .all(safeLimit, safeOffset) as HistoryRow[];
     return rows.map(mapRow);
+  }
+
+  getUsageStats(): HistoryUsageStats {
+    const totals = this.#database
+      .prepare(
+        `SELECT COUNT(*) AS usage_count,
+                COALESCE(SUM(audio_duration_ms), 0) AS transcription_duration_ms,
+                COALESCE(SUM(LENGTH(output_text)), 0) AS output_characters
+         FROM dictation_history`,
+      )
+      .get() as UsageStatsRow;
+    const model = this.#database
+      .prepare(
+        `SELECT COALESCE(NULLIF(model_name, ''), provider_id) AS model_name
+         FROM dictation_history
+         GROUP BY COALESCE(NULLIF(model_name, ''), provider_id)
+         ORDER BY COUNT(*) DESC, model_name ASC
+         LIMIT 1`,
+      )
+      .get() as MostUsedModelRow | undefined;
+
+    return {
+      ...(model ? { mostUsedModel: model.model_name } : {}),
+      outputCharacters: totals.output_characters,
+      transcriptionDurationMs: totals.transcription_duration_ms,
+      usageCount: totals.usage_count,
+    };
   }
 
   deleteOlderThan(cutoff: number): number {
@@ -118,12 +174,28 @@ export class HistoryRepository {
         output_text TEXT NOT NULL,
         raw_transcript TEXT,
         language TEXT NOT NULL CHECK (language IN ('zh-CN', 'en-US')),
-        scene TEXT
+        scene TEXT,
+        audio_duration_ms INTEGER,
+        model_name TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_dictation_history_created_at
         ON dictation_history(created_at DESC);
-      PRAGMA user_version = 1;
     `);
+    const columns = this.#database
+      .prepare('PRAGMA table_info(dictation_history)')
+      .all() as readonly { name: string }[];
+    const names = new Set(columns.map((column) => column.name));
+    if (!names.has('audio_duration_ms')) {
+      this.#database.exec(
+        'ALTER TABLE dictation_history ADD COLUMN audio_duration_ms INTEGER',
+      );
+    }
+    if (!names.has('model_name')) {
+      this.#database.exec(
+        'ALTER TABLE dictation_history ADD COLUMN model_name TEXT',
+      );
+    }
+    this.#database.pragma('user_version = 2');
   }
 }
 

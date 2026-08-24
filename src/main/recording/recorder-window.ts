@@ -34,7 +34,7 @@ const isRecorderUrl = (value: string): boolean => {
     const url = new URL(value);
     if (process.env.VITE_DEV_SERVER_URL) {
       return (
-        url.origin === 'http://127.0.0.1:5173' &&
+        url.origin === 'http://127.0.0.1:3000' &&
         url.pathname.endsWith('/recorder.html')
       );
     }

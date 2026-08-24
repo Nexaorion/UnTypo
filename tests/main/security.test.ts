@@ -21,13 +21,13 @@ describe('isTrustedRendererUrl', () => {
   });
 
   it('accepts only the fixed development origin', () => {
-    process.env.VITE_DEV_SERVER_URL = 'http://127.0.0.1:5173';
+    process.env.VITE_DEV_SERVER_URL = 'http://127.0.0.1:3000';
 
-    expect(isTrustedRendererUrl('http://127.0.0.1:5173/index.html')).toBe(true);
-    expect(isTrustedRendererUrl('http://localhost:5173/index.html')).toBe(
+    expect(isTrustedRendererUrl('http://127.0.0.1:3000/index.html')).toBe(true);
+    expect(isTrustedRendererUrl('http://localhost:3000/index.html')).toBe(
       false,
     );
-    expect(isTrustedRendererUrl('http://127.0.0.1:5174/index.html')).toBe(
+    expect(isTrustedRendererUrl('http://127.0.0.1:3001/index.html')).toBe(
       false,
     );
   });

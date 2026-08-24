@@ -45,6 +45,7 @@ export interface HistoryPort {
 
 export interface DictationContext {
   history: HistoryPolicy;
+  modelName?: string;
   options: ProcessOptions;
   providerId: string;
   uiLanguage: SupportedLanguage;
@@ -118,8 +119,10 @@ export class DictationCoordinator {
       if (!injection.injected) await this.#dependencies.fallback.show(result);
       this.#dependencies.history.record(
         {
+          audioDurationMs: recording.audio.durationMs,
           intent: result.intent,
           language: context.uiLanguage,
+          ...(context.modelName ? { modelName: context.modelName } : {}),
           outputText: result.outputText,
           providerId: provider.id,
           rawTranscript: result.rawTranscript,

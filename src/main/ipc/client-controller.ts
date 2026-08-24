@@ -7,6 +7,7 @@ import {
   type ClientProviderInput,
   type ClientSettingsUpdate,
   type ClientSnapshot,
+  type ClientUsageStats,
 } from '../../shared/ipc.js';
 import { assertTrustedSender } from '../security.js';
 import {
@@ -21,6 +22,7 @@ import {
 export interface ClientBackendPort {
   clearHistory: () => number;
   getClientSnapshot: () => Promise<ClientSnapshot>;
+  getUsageStats: () => ClientUsageStats;
   listHistory: (query: ClientHistoryQuery) => readonly ClientHistoryRecord[];
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
   setDictionary: (entries: readonly string[]) => Promise<ClientSnapshot>;
@@ -38,6 +40,7 @@ export class ClientIpcController {
   constructor(backend: ClientBackendPort) {
     this.#backend = backend;
     ipcMain.handle(IPC_CHANNELS.getSnapshot, this.getSnapshot);
+    ipcMain.handle(IPC_CHANNELS.getUsageStats, this.getUsageStats);
     ipcMain.handle(IPC_CHANNELS.updateSettings, this.updateSettings);
     ipcMain.handle(IPC_CHANNELS.setDictionary, this.setDictionary);
     ipcMain.handle(IPC_CHANNELS.setProfile, this.setProfile);
@@ -51,6 +54,7 @@ export class ClientIpcController {
   destroy(): void {
     for (const channel of [
       IPC_CHANNELS.getSnapshot,
+      IPC_CHANNELS.getUsageStats,
       IPC_CHANNELS.updateSettings,
       IPC_CHANNELS.setDictionary,
       IPC_CHANNELS.setProfile,
@@ -69,6 +73,13 @@ export class ClientIpcController {
   ): Promise<ClientSnapshot> => {
     trust(event);
     return this.#backend.getClientSnapshot();
+  };
+
+  private readonly getUsageStats = (
+    event: IpcMainInvokeEvent,
+  ): ClientUsageStats => {
+    trust(event);
+    return this.#backend.getUsageStats();
   };
 
   private readonly updateSettings = (
