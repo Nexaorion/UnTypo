@@ -118,9 +118,9 @@ const createSpeechProvider = (
   throw new Error('Speech provider profile has an unsupported provider id');
 };
 
-const createSilentWav = (): AudioPayload => {
+const createConnectionTestWav = (): AudioPayload => {
   const channels = 1;
-  const durationMs = 250;
+  const durationMs = 1_000;
   const sampleRateHz = 16_000;
   const bytesPerSample = 2;
   const sampleCount = Math.floor((sampleRateHz * durationMs) / 1_000);
@@ -139,6 +139,12 @@ const createSilentWav = (): AudioPayload => {
   wav.writeUInt16LE(bytesPerSample * 8, 34);
   wav.write('data', 36, 'ascii');
   wav.writeUInt32LE(audioByteLength, 40);
+  for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
+    const sample = Math.round(
+      Math.sin((2 * Math.PI * 440 * sampleIndex) / sampleRateHz) * 0x1800,
+    );
+    wav.writeInt16LE(sample, 44 + sampleIndex * bytesPerSample);
+  }
   return {
     bytes: new Uint8Array(wav),
     channels,
@@ -436,10 +442,14 @@ export class DesktopRuntime {
     } else {
       const provider = createSpeechProvider(profile);
       try {
-        await provider.transcribe(createSilentWav(), {
-          dictionary: [],
-          language: 'en-US',
-        });
+        if (provider instanceof AliyunBailianSpeechProvider) {
+          await provider.testConnection();
+        } else {
+          await provider.transcribe(createConnectionTestWav(), {
+            dictionary: [],
+            language: 'en-US',
+          });
+        }
       } catch (error) {
         if (
           !(error instanceof ProviderContractError) ||

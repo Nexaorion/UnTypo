@@ -41,6 +41,8 @@ const capabilities: Readonly<ProviderCapabilities> = {
 
 const maximumDurationMs = 300_000;
 const maximumEncodedAudioBytes = 10 * 1024 * 1024;
+const connectionTestAudioUrl =
+  'https://dashscope.oss-cn-beijing.aliyuncs.com/samples/audio/paraformer/hello_world_female2.wav';
 
 const extractTranscript = (payload: unknown): string => {
   const output = (payload as AliyunSpeechPayload).output;
@@ -136,7 +138,7 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
             format: audioFormatFromMimeType(audio.mimeType),
             language_hints: [options.language === 'zh-CN' ? 'zh' : 'en'],
             sample_rate: String(audio.sampleRateHz),
-            vocabulary,
+            ...(Object.keys(vocabulary).length > 0 ? { vocabulary } : {}),
           },
         }),
         headers: {
@@ -154,5 +156,44 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
       text: extractTranscript(payload),
       usage: { audioDurationMs: audio.durationMs },
     };
+  }
+
+  async testConnection(): Promise<void> {
+    const response = await this.#fetch(
+      providerUrl(
+        this.#baseUrl,
+        '/services/aigc/multimodal-generation/generation',
+      ),
+      {
+        body: JSON.stringify({
+          input: {
+            messages: [
+              {
+                content: [
+                  {
+                    input_audio: { data: connectionTestAudioUrl },
+                    type: 'input_audio',
+                  },
+                ],
+                role: 'user',
+              },
+            ],
+          },
+          model: this.#model,
+          parameters: {
+            format: 'wav',
+            language_hints: ['en'],
+            sample_rate: '16000',
+          },
+        }),
+        headers: {
+          Authorization: `Bearer ${this.#apiKey}`,
+          'Content-Type': 'application/json',
+          'X-DashScope-SSE': 'disable',
+        },
+        method: 'POST',
+      },
+    );
+    extractTranscript(await readProviderJson(response, 'Aliyun Bailian'));
   }
 }

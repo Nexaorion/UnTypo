@@ -106,6 +106,68 @@ describe('AliyunBailianSpeechProvider', () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it('omits empty instant vocabulary from the request', async () => {
+    const request = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ output: { text: 'ready' } }), {
+          status: 200,
+        }),
+      ),
+    );
+    const provider = new AliyunBailianSpeechProvider(configuration, request);
+
+    await provider.transcribe(audio, { dictionary: [], language: 'en-US' });
+
+    const [, init] = request.mock.calls[0] ?? [];
+    if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
+    const body = JSON.parse(init.body) as {
+      parameters: Record<string, unknown>;
+    };
+    expect(body.parameters).not.toHaveProperty('vocabulary');
+  });
+
+  it('uses the official public audio sample for connection testing', async () => {
+    const request = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ output: { text: 'ready' } }), {
+          status: 200,
+        }),
+      ),
+    );
+    const provider = new AliyunBailianSpeechProvider(configuration, request);
+
+    await expect(provider.testConnection()).resolves.toBeUndefined();
+
+    const [url, init] = request.mock.calls[0] ?? [];
+    expect(url).toBe(
+      'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
+    );
+    if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
+    expect(JSON.parse(init.body)).toMatchObject({
+      input: {
+        messages: [
+          {
+            content: [
+              {
+                input_audio: {
+                  data: 'https://dashscope.oss-cn-beijing.aliyuncs.com/samples/audio/paraformer/hello_world_female2.wav',
+                },
+                type: 'input_audio',
+              },
+            ],
+            role: 'user',
+          },
+        ],
+      },
+      model: 'qwen-audio-3.0-asr-flash',
+      parameters: {
+        format: 'wav',
+        language_hints: ['en'],
+        sample_rate: '16000',
+      },
+    });
+  });
+
   it('rejects encoded audio larger than 10 MiB before fetching', async () => {
     const request = vi.fn();
     const provider = new AliyunBailianSpeechProvider(configuration, request);
@@ -134,6 +196,46 @@ describe('AliyunBailianSpeechProvider', () => {
     await expect(
       provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
     ).rejects.toThrow('InvalidApiKey');
+  });
+
+  it('preserves an error code and request ID from failed requests', async () => {
+    const provider = new AliyunBailianSpeechProvider(
+      configuration,
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              code: 'InvalidAudio',
+              request_id: 'request-123',
+            }),
+            { status: 400 },
+          ),
+        ),
+      ),
+    );
+
+    await expect(
+      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
+    ).rejects.toThrow(
+      'Aliyun Bailian request failed with status 400: code InvalidAudio, request_id request-123',
+    );
+  });
+
+  it('preserves a non-JSON error response for diagnostics', async () => {
+    const provider = new AliyunBailianSpeechProvider(
+      configuration,
+      vi.fn(() =>
+        Promise.resolve(
+          new Response('The audio payload was rejected', { status: 400 }),
+        ),
+      ),
+    );
+
+    await expect(
+      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
+    ).rejects.toThrow(
+      'Aliyun Bailian request failed with status 400: response The audio payload was rejected',
+    );
   });
 
   it('rejects a 200 response that contains an Aliyun error code', async () => {

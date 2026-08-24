@@ -1,12 +1,16 @@
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import EditRoundedIcon from '@mui/icons-material/EditRounded';
 import GraphicEqRoundedIcon from '@mui/icons-material/GraphicEqRounded';
+import NetworkCheckRoundedIcon from '@mui/icons-material/NetworkCheckRounded';
 import TextFieldsRoundedIcon from '@mui/icons-material/TextFieldsRounded';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useMemo, useState, type ReactElement } from 'react';
 import type { ClientProviderSummary } from '../../shared/ipc.js';
-import { useI18n, type Translate } from '../i18n/context.js';
+import { useI18n } from '../i18n/context.js';
 import {
   resolveProviderPreset,
   type ProviderKind,
@@ -26,10 +30,7 @@ import { ProviderDialog } from './provider-dialog.js';
 const asString = (value: unknown): string =>
   typeof value === 'string' ? value : '';
 
-const providerPresentation = (
-  provider: ClientProviderSummary,
-  t: Translate,
-) => {
+const providerPresentation = (provider: ClientProviderSummary) => {
   const preset = resolveProviderPreset({
     baseUrl: asString(provider.values.baseUrl),
     kind: provider.kind,
@@ -37,11 +38,9 @@ const providerPresentation = (
     providerId: provider.providerId,
   });
   return {
-    baseUrl: asString(provider.values.baseUrl),
     icon: preset.icon,
     model: asString(provider.values.model),
     name: asString(provider.values.name) || provider.id,
-    presetName: t(preset.labelKey),
   };
 };
 
@@ -63,7 +62,7 @@ const ProviderCard = ({
   provider: ClientProviderSummary;
 }) => {
   const { t } = useI18n();
-  const presentation = providerPresentation(provider, t);
+  const presentation = providerPresentation(provider);
 
   return (
     <Card>
@@ -81,60 +80,44 @@ const ProviderCard = ({
         >
           <ProviderIcon icon={presentation.icon} />
           <Stack sx={{ gap: 0.35, minWidth: 0 }}>
-            <Stack
-              direction="row"
-              sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 0.8 }}
-            >
-              <Typography sx={{ fontSize: 14.5, fontWeight: 700 }}>
-                {presentation.name}
-              </Typography>
-              {active ? (
-                <Chip
-                  color="primary"
-                  label={t('provider.active')}
-                  size="small"
-                  variant="outlined"
-                />
-              ) : null}
-            </Stack>
-            <Typography color="text.secondary" variant="caption">
-              {presentation.presetName} · {presentation.model}
+            <Typography sx={{ fontSize: 14.5, fontWeight: 700 }}>
+              {presentation.name}
             </Typography>
-            <Typography
-              color="text.disabled"
-              sx={{ overflowWrap: 'anywhere' }}
-              variant="caption"
-            >
-              {presentation.baseUrl}
+            <Typography color="text.secondary" variant="caption">
+              {presentation.model}
             </Typography>
           </Stack>
         </Stack>
 
-        <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.75 }}>
+        <Stack direction="row" sx={{ flex: 'none', gap: 0.5 }}>
           {active ? null : (
-            <Button
+            <IconButton
+              aria-label={t('provider.activate')}
               color="inherit"
               disabled={isPending(`activate-${provider.id}`)}
               onClick={onActivate}
-              variant="text"
             >
-              {t('provider.activate')}
-            </Button>
+              <CheckCircleOutlineRoundedIcon fontSize="small" />
+            </IconButton>
           )}
-          <Button
+          <IconButton
+            aria-label={t('action.test')}
             color="inherit"
             disabled={isPending(`test-${provider.id}`)}
             onClick={onTest}
-            variant="text"
           >
-            {t('action.test')}
-          </Button>
-          <Button onClick={onEdit} variant="outlined">
-            {t('action.edit')}
-          </Button>
-          <Button color="error" onClick={onRemove} variant="text">
-            {t('action.remove')}
-          </Button>
+            <NetworkCheckRoundedIcon fontSize="small" />
+          </IconButton>
+          <IconButton aria-label={t('action.edit')} onClick={onEdit}>
+            <EditRoundedIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            aria-label={t('action.remove')}
+            color="error"
+            onClick={onRemove}
+          >
+            <DeleteOutlineRoundedIcon fontSize="small" />
+          </IconButton>
         </Stack>
       </Stack>
     </Card>
@@ -343,7 +326,7 @@ export const ProvidersSection = ({ store }: { store: ClientStore }) => {
         open={removing !== null}
         pending={isPending('remove')}
         title={t('provider.removeConfirm', {
-          id: removing ? providerPresentation(removing, t).name : '',
+          id: removing ? providerPresentation(removing).name : '',
         })}
       />
     </Page>

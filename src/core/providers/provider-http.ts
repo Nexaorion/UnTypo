@@ -113,6 +113,15 @@ const responseMessage = (payload: unknown): string | undefined => {
   return undefined;
 };
 
+const responseDetail = (
+  payload: unknown,
+  key: 'code' | 'request_id' | 'requestId',
+): string | undefined => {
+  if (typeof payload !== 'object' || payload === null) return undefined;
+  const value = (payload as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+};
+
 const successfulErrorEnvelopeMessage = (
   payload: unknown,
 ): string | undefined => {
@@ -148,6 +157,7 @@ export const readProviderJson = async (
 ): Promise<unknown> => {
   const source = await response.text();
   let payload: unknown = {};
+  let rawErrorBody: string | undefined;
   if (source) {
     try {
       payload = JSON.parse(source) as unknown;
@@ -158,13 +168,26 @@ export const readProviderJson = async (
           `${providerName} returned invalid JSON`,
         );
       }
+      rawErrorBody = source.replace(/\s+/gu, ' ').trim().slice(0, 500);
     }
   }
 
   if (!response.ok) {
+    const code = responseDetail(payload, 'code');
+    const message = responseMessage(payload);
+    const requestId =
+      responseDetail(payload, 'request_id') ??
+      responseDetail(payload, 'requestId');
+    const details = [
+      code ? `code ${code}` : undefined,
+      message,
+      requestId ? `request_id ${requestId}` : undefined,
+      rawErrorBody ? `response ${rawErrorBody}` : undefined,
+    ].filter((detail): detail is string => Boolean(detail));
     throw new Error(
-      responseMessage(payload) ??
-        `${providerName} request failed with status ${String(response.status)}`,
+      `${providerName} request failed with status ${String(response.status)}${
+        details.length > 0 ? `: ${details.join(', ')}` : ''
+      }`,
     );
   }
   const envelopeError = successfulErrorEnvelopeMessage(payload);
