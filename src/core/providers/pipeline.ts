@@ -1,6 +1,7 @@
 import {
   assertProcessResult,
-  assertProviderContract,
+  assertSpeechProviderContract,
+  assertTextProviderContract,
   ProviderContractError,
   type AudioPayload,
   type DictationIntent,
@@ -8,6 +9,8 @@ import {
   type IntentClassificationResult,
   type ProcessOptions,
   type ProcessResult,
+  type SpeechRecognitionProvider,
+  type TextGenerationProvider,
 } from './contracts.js';
 
 const throwIfAborted = (signal?: AbortSignal): void => {
@@ -17,11 +20,20 @@ const throwIfAborted = (signal?: AbortSignal): void => {
 };
 
 export class DictationPipeline {
-  readonly provider: DictationProvider;
+  /** @deprecated Use speechProvider. */
+  readonly provider: SpeechRecognitionProvider;
+  readonly speechProvider: SpeechRecognitionProvider;
+  readonly textProvider?: TextGenerationProvider;
 
-  constructor(provider: DictationProvider) {
-    assertProviderContract(provider);
-    this.provider = provider;
+  constructor(
+    speechProvider: SpeechRecognitionProvider,
+    textProvider?: TextGenerationProvider,
+  ) {
+    assertSpeechProviderContract(speechProvider);
+    if (textProvider) assertTextProviderContract(textProvider);
+    this.provider = speechProvider;
+    this.speechProvider = speechProvider;
+    this.textProvider = textProvider;
   }
 
   async process(
@@ -31,13 +43,14 @@ export class DictationPipeline {
     throwIfAborted(options.signal);
     this.assertAudio(audio);
 
-    if (options.preferIntegratedProcess && this.provider.process) {
-      const result = await this.provider.process(audio, options);
+    const integratedProvider = this.integratedProvider();
+    if (options.preferIntegratedProcess && integratedProvider?.process) {
+      const result = await integratedProvider.process(audio, options);
       assertProcessResult(result);
       return result;
     }
 
-    const transcript = await this.provider.transcribe(audio, {
+    const transcript = await this.speechProvider.transcribe(audio, {
       dictionary: options.dictionary,
       language: options.language,
       signal: options.signal,
@@ -50,6 +63,15 @@ export class DictationPipeline {
         'EMPTY_RESULT',
         'Provider returned an empty transcript',
       );
+    }
+
+    if (!this.textProvider) {
+      return {
+        intent: 'transcription',
+        outputText: rawTranscript,
+        rawTranscript,
+        usage: transcript.usage,
+      };
     }
 
     const classification = await this.classify(rawTranscript, options);
@@ -89,14 +111,12 @@ export class DictationPipeline {
     transcript: string,
     options: ProcessOptions,
   ): Promise<IntentClassificationResult> {
-    if (
-      !this.provider.capabilities.intentDetection ||
-      !this.provider.classifyIntent
-    ) {
+    const provider = this.textProvider;
+    if (!provider?.capabilities.intentDetection || !provider.classifyIntent) {
       return { intent: 'transcription' };
     }
 
-    const classification = await this.provider.classifyIntent(transcript, {
+    const classification = await provider.classifyIntent(transcript, {
       defaultTargetLanguage: options.defaultTargetLanguage,
       dictionary: options.dictionary,
       locale: options.language,
@@ -107,11 +127,19 @@ export class DictationPipeline {
       : classification;
   }
 
+  private integratedProvider(): DictationProvider | undefined {
+    if (!this.textProvider || this.speechProvider !== this.textProvider) {
+      return undefined;
+    }
+    return this.speechProvider;
+  }
+
   private resolveAvailableIntent(intent: DictationIntent): DictationIntent {
+    const provider = this.textProvider;
     if (
-      (intent === 'translation' && !this.provider.capabilities.translation) ||
-      (intent === 'instruction' &&
-        !this.provider.capabilities.instructionGeneration)
+      !provider ||
+      (intent === 'translation' && !provider.capabilities.translation) ||
+      (intent === 'instruction' && !provider.capabilities.instructionGeneration)
     ) {
       return 'transcription';
     }
@@ -125,18 +153,20 @@ export class DictationPipeline {
     options: ProcessOptions,
     classifiedTargetLanguage?: ProcessOptions['explicitTargetLanguage'],
   ): Promise<string> {
+    const provider = this.textProvider;
+    if (!provider) return transcript;
     const intent = this.resolveAvailableIntent(requestedIntent);
     throwIfAborted(options.signal);
 
     if (intent === 'translation') {
-      if (!this.provider.translate) {
+      if (!provider.translate) {
         throw new ProviderContractError(
           'UNSUPPORTED_CAPABILITY',
-          `Provider ${this.provider.id} cannot translate`,
+          `Provider ${provider.id} cannot translate`,
         );
       }
 
-      return this.provider.translate(transcript, {
+      return provider.translate(transcript, {
         signal: options.signal,
         targetLanguage:
           options.explicitTargetLanguage ??
@@ -146,24 +176,24 @@ export class DictationPipeline {
     }
 
     if (intent === 'instruction') {
-      if (!this.provider.generateFromInstruction) {
+      if (!provider.generateFromInstruction) {
         throw new ProviderContractError(
           'UNSUPPORTED_CAPABILITY',
-          `Provider ${this.provider.id} cannot generate from instructions`,
+          `Provider ${provider.id} cannot generate from instructions`,
         );
       }
 
-      return this.provider.generateFromInstruction(transcript, {
+      return provider.generateFromInstruction(transcript, {
         dictionary: options.dictionary,
         locale: options.language,
         profile:
-          this.provider.kind === 'official-cloud' ? options.profile : undefined,
+          provider.kind === 'official-cloud' ? options.profile : undefined,
         signal: options.signal,
       });
     }
 
-    if (this.provider.capabilities.textPolish && this.provider.polish) {
-      return this.provider.polish(transcript, {
+    if (provider.capabilities.textPolish && provider.polish) {
+      return provider.polish(transcript, {
         dictionary: options.dictionary,
         locale: options.language,
         signal: options.signal,

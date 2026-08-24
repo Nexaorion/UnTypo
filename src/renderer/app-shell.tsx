@@ -11,9 +11,10 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { useI18n } from './i18n/context.js';
+import type { SettingsTab } from './sections/settings-dialog.js';
 import { themeAlpha, themePalette } from './theme.js';
 
-export type AppPage = 'dictionary' | 'history' | 'home' | 'models' | 'settings';
+export type AppPage = 'dictionary' | 'history' | 'home';
 
 const NavigationItem = ({
   icon,
@@ -85,13 +86,62 @@ const NavigationItem = ({
   </ListItemButton>
 );
 
+const UtilityNavigationItem = ({
+  icon,
+  label,
+  onSelect,
+  testId,
+}: {
+  icon: ReactElement;
+  label: string;
+  onSelect: () => void;
+  testId: string;
+}) => (
+  <ListItemButton
+    data-testid={testId}
+    onClick={onSelect}
+    sx={(currentTheme) => ({
+      color: 'text.secondary',
+      minHeight: 46,
+      px: 1.5,
+      transition: currentTheme.transitions.create(
+        ['background-color', 'color'],
+        { duration: currentTheme.transitions.duration.shorter },
+      ),
+      '&:hover': {
+        backgroundColor: 'action.hover',
+        color: 'text.primary',
+      },
+      '@media (max-width: 700px)': { justifyContent: 'center', px: 0 },
+    })}
+  >
+    <ListItemIcon
+      sx={{
+        color: 'inherit',
+        minWidth: 0,
+        mr: 1.5,
+        '@media (max-width: 700px)': { mr: 0 },
+      }}
+    >
+      {icon}
+    </ListItemIcon>
+    <ListItemText
+      primary={label}
+      slotProps={{ primary: { sx: { fontSize: 14, fontWeight: 580 } } }}
+      sx={{ '@media (max-width: 700px)': { display: 'none' } }}
+    />
+  </ListItemButton>
+);
+
 export const AppShell = ({
   children,
+  onOpenSettings,
   onSelect,
   page,
   version,
 }: {
   children: ReactNode;
+  onOpenSettings: (tab: SettingsTab) => void;
   onSelect: (page: AppPage) => void;
   page: AppPage;
   version?: string;
@@ -131,19 +181,19 @@ export const AppShell = ({
   const utilityItems: readonly {
     icon: ReactElement;
     label: string;
-    page: AppPage;
-    testId?: string;
+    tab: Extract<SettingsTab, 'models' | 'settings'>;
+    testId: string;
   }[] = [
     {
       icon: <SettingsRoundedIcon />,
       label: t('nav.settings'),
-      page: 'settings',
+      tab: 'settings',
       testId: 'settings-open',
     },
     {
       icon: <SmartToyOutlinedIcon />,
       label: t('nav.providers'),
-      page: 'models',
+      tab: 'models',
       testId: 'models-open',
     },
   ];
@@ -213,13 +263,11 @@ export const AppShell = ({
 
         <Stack sx={{ gap: 0.75, mt: 'auto' }}>
           {utilityItems.map((item) => (
-            <NavigationItem
+            <UtilityNavigationItem
               icon={item.icon}
-              key={item.page}
+              key={item.tab}
               label={item.label}
-              onSelect={onSelect}
-              page={item.page}
-              selected={page === item.page}
+              onSelect={() => onOpenSettings(item.tab)}
               testId={item.testId}
             />
           ))}

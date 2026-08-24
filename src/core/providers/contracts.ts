@@ -1,4 +1,4 @@
-export const PROVIDER_CONTRACT_VERSION = '1.0' as const;
+export const PROVIDER_CONTRACT_VERSION = '2.0' as const;
 
 export type ProviderContractVersion = typeof PROVIDER_CONTRACT_VERSION;
 export type DictationIntent = 'transcription' | 'translation' | 'instruction';
@@ -96,13 +96,23 @@ export interface ProcessResult {
   usage?: ProviderUsage;
 }
 
-export interface DictationProvider {
+export interface ProviderIdentity {
   capabilities: Readonly<ProviderCapabilities>;
   configSchema: Readonly<Record<string, unknown>>;
   contractVersion: ProviderContractVersion;
   displayName: string;
   id: string;
   kind: ProviderKind;
+}
+
+export interface SpeechRecognitionProvider extends ProviderIdentity {
+  transcribe: (
+    audio: AudioPayload,
+    options: TranscribeOptions,
+  ) => Promise<TranscriptResult>;
+}
+
+export interface TextGenerationProvider extends ProviderIdentity {
   classifyIntent?: (
     text: string,
     context: IntentContext,
@@ -112,15 +122,19 @@ export interface DictationProvider {
     context: GenerationContext,
   ) => Promise<string>;
   polish?: (text: string, context: PolishContext) => Promise<string>;
+  translate?: (text: string, context: TranslationContext) => Promise<string>;
+}
+
+/**
+ * Compatibility contract for providers that still implement both roles.
+ * New runtime code should register speech and text providers independently.
+ */
+export interface DictationProvider
+  extends SpeechRecognitionProvider, TextGenerationProvider {
   process?: (
     audio: AudioPayload,
     options: ProcessOptions,
   ) => Promise<ProcessResult>;
-  transcribe: (
-    audio: AudioPayload,
-    options: TranscribeOptions,
-  ) => Promise<TranscriptResult>;
-  translate?: (text: string, context: TranslationContext) => Promise<string>;
 }
 
 export type ProviderContractErrorCode =
@@ -141,16 +155,16 @@ export class ProviderContractError extends Error {
   }
 }
 
-const providerIdPattern = /^[a-z0-9][a-z0-9._-]{0,63}$/;
+const providerIdPattern = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
 
-const capabilityMethods = [
+const textCapabilityMethods = [
   ['intentDetection', 'classifyIntent'],
   ['instructionGeneration', 'generateFromInstruction'],
   ['textPolish', 'polish'],
   ['translation', 'translate'],
 ] as const;
 
-export const assertProviderContract = (provider: DictationProvider): void => {
+const assertProviderIdentity = (provider: ProviderIdentity): void => {
   if (provider.contractVersion !== PROVIDER_CONTRACT_VERSION) {
     throw new ProviderContractError(
       'INVALID_PROVIDER',
@@ -171,22 +185,43 @@ export const assertProviderContract = (provider: DictationProvider): void => {
       `Provider ${provider.id} must have a display name`,
     );
   }
+};
 
+export const assertSpeechProviderContract = (
+  provider: SpeechRecognitionProvider,
+): void => {
+  assertProviderIdentity(provider);
   if (!provider.capabilities.speechToText) {
     throw new ProviderContractError(
       'INVALID_PROVIDER',
-      `Provider ${provider.id} must support speech-to-text`,
+      `Speech provider ${provider.id} must support speech-to-text`,
     );
   }
+  if (typeof provider.transcribe !== 'function') {
+    throw new ProviderContractError(
+      'INVALID_PROVIDER',
+      `Speech provider ${provider.id} must implement transcribe`,
+    );
+  }
+};
 
-  for (const [capability, method] of capabilityMethods) {
+export const assertTextProviderContract = (
+  provider: TextGenerationProvider,
+): void => {
+  assertProviderIdentity(provider);
+  for (const [capability, method] of textCapabilityMethods) {
     if (provider.capabilities[capability] && !provider[method]) {
       throw new ProviderContractError(
         'INVALID_PROVIDER',
-        `Provider ${provider.id} declares ${capability} without ${method}`,
+        `Text provider ${provider.id} declares ${capability} without ${method}`,
       );
     }
   }
+};
+
+export const assertProviderContract = (provider: DictationProvider): void => {
+  assertSpeechProviderContract(provider);
+  assertTextProviderContract(provider);
 };
 
 export const assertProcessResult = (result: ProcessResult): void => {

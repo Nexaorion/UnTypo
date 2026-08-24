@@ -43,7 +43,7 @@ const loadFixtures = async (): Promise<ContractFixture[]> => {
 
 describe('provider contract v1', () => {
   it('publishes a stable version identifier', () => {
-    expect(PROVIDER_CONTRACT_VERSION).toBe('1.0');
+    expect(PROVIDER_CONTRACT_VERSION).toBe('2.0');
   });
 
   it('accepts the bundled mock provider', () => {
@@ -57,7 +57,7 @@ describe('provider contract v1', () => {
 
     for (const fixture of fixtures) {
       const provider = new MockDictationProvider(fixture);
-      const result = await new DictationPipeline(provider).process(
+      const result = await new DictationPipeline(provider, provider).process(
         audio,
         options,
       );
@@ -77,10 +77,13 @@ describe('provider contract v1', () => {
       translatedText: { 'en-US': 'Hello' },
     });
 
-    const result = await new DictationPipeline(provider).process(audio, {
-      ...options,
-      preferIntegratedProcess: true,
-    });
+    const result = await new DictationPipeline(provider, provider).process(
+      audio,
+      {
+        ...options,
+        preferIntegratedProcess: true,
+      },
+    );
 
     expect(result).toMatchObject({
       intent: 'translation',

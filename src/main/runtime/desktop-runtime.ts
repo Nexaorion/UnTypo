@@ -6,13 +6,26 @@ import {
   type MenuItemConstructorOptions,
 } from 'electron';
 import path from 'node:path';
-import { MockDictationProvider } from '../../core/providers/mock-provider.js';
+import { AliyunBailianSpeechProvider } from '../../core/providers/aliyun-bailian-speech-provider.js';
+import { AnthropicTextProvider } from '../../core/providers/anthropic-text-provider.js';
 import {
-  OpenAIProvider,
-  type OpenAIProviderConfiguration,
-} from '../../core/providers/openai-provider.js';
-import { ProviderRegistry } from '../../core/providers/registry.js';
-import type { UserProfileContext } from '../../core/providers/contracts.js';
+  ProviderContractError,
+  type AudioPayload,
+  type SpeechRecognitionProvider,
+  type TextGenerationProvider,
+  type UserProfileContext,
+} from '../../core/providers/contracts.js';
+import { MockDictationProvider } from '../../core/providers/mock-provider.js';
+import { OpenAICompatibleSpeechProvider } from '../../core/providers/openai-compatible-speech-provider.js';
+import {
+  OpenAICompatibleTextProvider,
+  type OpenAICompatibleTextProviderConfiguration,
+} from '../../core/providers/openai-compatible-text-provider.js';
+import { OpenAIResponsesTextProvider } from '../../core/providers/openai-responses-text-provider.js';
+import {
+  SpeechProviderRegistry,
+  TextProviderRegistry,
+} from '../../core/providers/registry.js';
 import type {
   ClientHistoryQuery,
   ClientHistoryRecord,
@@ -46,32 +59,92 @@ const trayIconPng = Buffer.from(
 const isString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
-const sensitiveValueKeyPattern = /(api.?key|password|secret|token)/iu;
-
-const toOpenAIConfiguration = (
+const toProviderConfiguration = (
   profile: ProviderProfile,
-): OpenAIProviderConfiguration | undefined => {
+): OpenAICompatibleTextProviderConfiguration | undefined => {
   const apiKey = profile.secrets.apiKey;
-  const textModel = profile.values.textModel;
-  const transcriptionModel = profile.values.transcriptionModel;
-  if (
-    !isString(apiKey) ||
-    !isString(textModel) ||
-    !isString(transcriptionModel)
-  ) {
+  if (!isString(apiKey)) {
     return undefined;
   }
-  const baseUrl = profile.values.baseUrl;
-  const allowInsecurePrivateEndpoint =
-    profile.values.allowInsecurePrivateEndpoint;
   return {
     apiKey,
-    textModel,
-    transcriptionModel,
-    ...(isString(baseUrl) ? { baseUrl } : {}),
-    ...(typeof allowInsecurePrivateEndpoint === 'boolean'
-      ? { allowInsecurePrivateEndpoint }
+    baseUrl: profile.values.baseUrl,
+    displayName: profile.values.name,
+    id: profile.id,
+    model: profile.values.model,
+    ...(typeof profile.values.allowInsecurePrivateEndpoint === 'boolean'
+      ? {
+          allowInsecurePrivateEndpoint:
+            profile.values.allowInsecurePrivateEndpoint,
+        }
       : {}),
+  };
+};
+
+const createTextProvider = (
+  profile: ProviderProfile,
+): TextGenerationProvider => {
+  if (profile.kind !== 'text') {
+    throw new Error('Text provider profile has the wrong kind');
+  }
+  const configuration = toProviderConfiguration(profile);
+  if (!configuration) throw new Error('Provider profile is incomplete');
+  if (profile.providerId === 'openai-compatible-text') {
+    return new OpenAICompatibleTextProvider(configuration);
+  }
+  if (profile.providerId === 'openai-responses-text') {
+    return new OpenAIResponsesTextProvider(configuration);
+  }
+  if (profile.providerId === 'anthropic-text') {
+    return new AnthropicTextProvider(configuration);
+  }
+  throw new Error('Text provider profile has an unsupported provider id');
+};
+
+const createSpeechProvider = (
+  profile: ProviderProfile,
+): SpeechRecognitionProvider => {
+  if (profile.kind !== 'speech') {
+    throw new Error('Speech provider profile has the wrong kind');
+  }
+  const configuration = toProviderConfiguration(profile);
+  if (!configuration) throw new Error('Provider profile is incomplete');
+  if (profile.providerId === 'openai-compatible-speech') {
+    return new OpenAICompatibleSpeechProvider(configuration);
+  }
+  if (profile.providerId === 'aliyun-bailian-speech') {
+    return new AliyunBailianSpeechProvider(configuration);
+  }
+  throw new Error('Speech provider profile has an unsupported provider id');
+};
+
+const createSilentWav = (): AudioPayload => {
+  const channels = 1;
+  const durationMs = 250;
+  const sampleRateHz = 16_000;
+  const bytesPerSample = 2;
+  const sampleCount = Math.floor((sampleRateHz * durationMs) / 1_000);
+  const audioByteLength = sampleCount * channels * bytesPerSample;
+  const wav = Buffer.alloc(44 + audioByteLength);
+  wav.write('RIFF', 0, 'ascii');
+  wav.writeUInt32LE(36 + audioByteLength, 4);
+  wav.write('WAVE', 8, 'ascii');
+  wav.write('fmt ', 12, 'ascii');
+  wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20);
+  wav.writeUInt16LE(channels, 22);
+  wav.writeUInt32LE(sampleRateHz, 24);
+  wav.writeUInt32LE(sampleRateHz * channels * bytesPerSample, 28);
+  wav.writeUInt16LE(channels * bytesPerSample, 32);
+  wav.writeUInt16LE(bytesPerSample * 8, 34);
+  wav.write('data', 36, 'ascii');
+  wav.writeUInt32LE(audioByteLength, 40);
+  return {
+    bytes: new Uint8Array(wav),
+    channels,
+    durationMs,
+    mimeType: 'audio/wav',
+    sampleRateHz,
   };
 };
 
@@ -85,16 +158,22 @@ export class DesktopRuntime {
   readonly #configuration: ConfigurationService;
   readonly #historyRepository: HistoryRepository;
   readonly #history: HistoryService;
+  readonly #mockProvider = new MockDictationProvider({
+    polishedText: 'UnTypo desktop dictation is ready.',
+    transcript: 'UnTypo desktop dictation is ready.',
+  });
   readonly #native = new NativeHelperClient(resolveNativeHelperPath());
   readonly #options: DesktopRuntimeOptions;
-  readonly #providers = new ProviderRegistry();
   readonly #recorder = new RecorderWindowController();
+  readonly #speechProviders = new SpeechProviderRegistry();
+  readonly #textProviders = new TextProviderRegistry();
   #coordinator?: DictationCoordinator;
   #hotkeyQueue: Promise<void> = Promise.resolve();
   #locale: 'en-US' | 'zh-CN' = 'en-US';
-  #providerId = 'mock';
   #removeHotkeyListener?: () => void;
+  #speechProviderId = 'mock';
   #started = false;
+  #textProviderId: string | undefined = 'mock';
   #tray?: Tray;
 
   constructor(options: DesktopRuntimeOptions) {
@@ -108,34 +187,25 @@ export class DesktopRuntime {
       path.join(userDataPath, 'history.sqlite3'),
     );
     this.#history = new HistoryService(this.#historyRepository);
-    this.#providers.register(
-      new MockDictationProvider({
-        polishedText: 'UnTypo desktop dictation is ready.',
-        transcript: 'UnTypo desktop dictation is ready.',
-      }),
-    );
+    this.#speechProviders.register(this.#mockProvider);
+    this.#textProviders.register(this.#mockProvider);
   }
 
   async start(): Promise<void> {
     if (this.#started) throw new Error('Desktop runtime is already active');
     const config = await this.#configuration.load();
-    await this.activateConfiguredProvider(config);
+    await this.activateConfiguredProviders(config);
     this.#coordinator = new DictationCoordinator({
       fallback: this.#capsule,
       getContext: async () => {
         const current = await this.#configuration.load();
-        const activeProfile = current.dictation.activeProviderProfileId
-          ? current.providers.find(
-              (profile) =>
-                profile.id === current.dictation.activeProviderProfileId,
-            )
-          : undefined;
-        const transcriptionModel = activeProfile?.values.transcriptionModel;
+        const activeSpeechProfile = current.providers.find(
+          ({ id, kind }) => id === this.#speechProviderId && kind === 'speech',
+        );
         return {
           history: current.history,
-          ...(typeof transcriptionModel === 'string' && transcriptionModel
-            ? { modelName: transcriptionModel }
-            : { modelName: this.#providerId }),
+          modelName:
+            activeSpeechProfile?.values.model ?? this.#speechProviderId,
           options: {
             defaultTargetLanguage: current.dictation.defaultTargetLanguage,
             dictionary: current.dictionary,
@@ -143,7 +213,10 @@ export class DesktopRuntime {
             preferIntegratedProcess: false,
             profile: await this.#configuration.getProfile(),
           },
-          providerId: this.#providerId,
+          speechProviderId: this.#speechProviderId,
+          ...(this.#textProviderId
+            ? { textProviderId: this.#textProviderId }
+            : {}),
           uiLanguage: current.general.locale,
         };
       },
@@ -153,8 +226,9 @@ export class DesktopRuntime {
         this.#native,
       ),
       native: this.#native,
-      providers: this.#providers,
       recorder: this.#recorder,
+      speechProviders: this.#speechProviders,
+      textProviders: this.#textProviders,
     });
 
     try {
@@ -200,19 +274,22 @@ export class DesktopRuntime {
       providers: config.providers.map((provider) => ({
         configuredSecretKeys: Object.keys(provider.secrets),
         id: provider.id,
+        kind: provider.kind,
         providerId: provider.providerId,
-        values: Object.fromEntries(
-          Object.entries(provider.values).filter(
-            ([key]) => !sensitiveValueKeyPattern.test(key),
-          ),
-        ),
+        values: structuredClone(provider.values),
       })),
       settings: {
         dictation: {
-          ...(config.dictation.activeProviderProfileId
+          ...(config.dictation.activeSpeechProviderProfileId
             ? {
-                activeProviderProfileId:
-                  config.dictation.activeProviderProfileId,
+                activeSpeechProviderProfileId:
+                  config.dictation.activeSpeechProviderProfileId,
+              }
+            : {}),
+          ...(config.dictation.activeTextProviderProfileId
+            ? {
+                activeTextProviderProfileId:
+                  config.dictation.activeTextProviderProfileId,
               }
             : {}),
           defaultTargetLanguage: config.dictation.defaultTargetLanguage,
@@ -228,12 +305,24 @@ export class DesktopRuntime {
 
   async updateSettings(update: ClientSettingsUpdate): Promise<ClientSnapshot> {
     const current = await this.#configuration.load();
-    const requestedProfile = update.dictation?.activeProviderProfileId;
+    const requestedSpeechProfile =
+      update.dictation?.activeSpeechProviderProfileId;
     if (
-      typeof requestedProfile === 'string' &&
-      !current.providers.some((provider) => provider.id === requestedProfile)
+      typeof requestedSpeechProfile === 'string' &&
+      !current.providers.some(
+        ({ id, kind }) => id === requestedSpeechProfile && kind === 'speech',
+      )
     ) {
-      throw new Error('Active provider profile does not exist');
+      throw new Error('Active speech provider profile does not exist');
+    }
+    const requestedTextProfile = update.dictation?.activeTextProviderProfileId;
+    if (
+      typeof requestedTextProfile === 'string' &&
+      !current.providers.some(
+        ({ id, kind }) => id === requestedTextProfile && kind === 'text',
+      )
+    ) {
+      throw new Error('Active text provider profile does not exist');
     }
     const nextHotkey = parseHotkeyAccelerator(
       update.dictation?.hotkeyAccelerator ??
@@ -242,13 +331,22 @@ export class DesktopRuntime {
     );
 
     const next = await this.#configuration.update((config) => {
-      const { activeProviderProfileId, ...dictationUpdate } =
-        update.dictation ?? {};
+      const {
+        activeSpeechProviderProfileId,
+        activeTextProviderProfileId,
+        ...dictationUpdate
+      } = update.dictation ?? {};
       const dictation = { ...config.dictation, ...dictationUpdate };
-      if (activeProviderProfileId === null)
-        delete dictation.activeProviderProfileId;
-      else if (activeProviderProfileId !== undefined)
-        dictation.activeProviderProfileId = activeProviderProfileId;
+      if (activeSpeechProviderProfileId === null) {
+        delete dictation.activeSpeechProviderProfileId;
+      } else if (activeSpeechProviderProfileId !== undefined) {
+        dictation.activeSpeechProviderProfileId = activeSpeechProviderProfileId;
+      }
+      if (activeTextProviderProfileId === null) {
+        delete dictation.activeTextProviderProfileId;
+      } else if (activeTextProviderProfileId !== undefined) {
+        dictation.activeTextProviderProfileId = activeTextProviderProfileId;
+      }
       return {
         ...config,
         dictation,
@@ -259,7 +357,7 @@ export class DesktopRuntime {
     this.#native.configureHotkey(nextHotkey);
     app.setLoginItemSettings({ openAtLogin: next.general.launchAtLogin });
     this.applyLocale(next.general.locale);
-    await this.activateConfiguredProvider(next);
+    await this.activateConfiguredProviders(next);
     return this.getClientSnapshot();
   }
 
@@ -274,51 +372,83 @@ export class DesktopRuntime {
   }
 
   async upsertProvider(profile: ClientProviderInput): Promise<ClientSnapshot> {
-    const configuration = toOpenAIConfiguration(profile);
-    if (!configuration) throw new Error('Provider profile is incomplete');
-    new OpenAIProvider(configuration);
-    await this.#configuration.upsertProvider(profile);
-    const current = await this.#configuration.load();
-    const next = current.dictation.activeProviderProfileId
-      ? current
-      : await this.#configuration.update((config) => ({
-          ...config,
-          dictation: {
-            ...config.dictation,
-            activeProviderProfileId: profile.id,
-          },
-        }));
-    await this.activateConfiguredProvider(next);
+    const existing = await this.#configuration.getProvider(profile.id);
+    if (existing && existing.kind !== profile.kind) {
+      throw new Error('A provider profile cannot change kind');
+    }
+    const candidate: ProviderProfile = {
+      ...profile,
+      secrets: profile.secrets.apiKey
+        ? { apiKey: profile.secrets.apiKey }
+        : (existing?.secrets ?? {}),
+    };
+    if (candidate.kind === 'speech') createSpeechProvider(candidate);
+    else createTextProvider(candidate);
+
+    const current = await this.#configuration.upsertProvider(profile);
+    let next = current;
+    if (
+      profile.kind === 'speech' &&
+      !current.dictation.activeSpeechProviderProfileId
+    ) {
+      next = await this.#configuration.update((config) => ({
+        ...config,
+        dictation: {
+          ...config.dictation,
+          activeSpeechProviderProfileId: profile.id,
+        },
+      }));
+    } else if (
+      profile.kind === 'text' &&
+      !current.dictation.activeTextProviderProfileId
+    ) {
+      next = await this.#configuration.update((config) => ({
+        ...config,
+        dictation: {
+          ...config.dictation,
+          activeTextProviderProfileId: profile.id,
+        },
+      }));
+    }
+    await this.activateConfiguredProviders(next);
     return this.getClientSnapshot();
   }
 
   async removeProvider(profileId: string): Promise<ClientSnapshot> {
-    const current = await this.#configuration.removeProvider(profileId);
-    const next =
-      current.dictation.activeProviderProfileId === profileId
-        ? await this.#configuration.update((config) => {
-            const dictation = { ...config.dictation };
-            delete dictation.activeProviderProfileId;
-            return { ...config, dictation };
-          })
-        : current;
-    await this.activateConfiguredProvider(next);
+    const next = await this.#configuration.removeProvider(profileId);
+    await this.activateConfiguredProviders(next);
     return this.getClientSnapshot();
   }
 
   async testProvider(profileId: string): Promise<{ ok: true }> {
     const profile = await this.#configuration.getProvider(profileId);
-    if (!profile || profile.providerId !== 'openai') {
-      throw new Error('Provider profile does not exist');
+    if (!profile) throw new Error('Provider profile does not exist');
+    if (profile.kind === 'text') {
+      const provider = createTextProvider(profile);
+      if (!provider.classifyIntent) {
+        throw new Error('Text provider cannot classify intent');
+      }
+      await provider.classifyIntent('Transcribe this connection test.', {
+        defaultTargetLanguage: 'en-US',
+        dictionary: [],
+        locale: 'en-US',
+      });
+    } else {
+      const provider = createSpeechProvider(profile);
+      try {
+        await provider.transcribe(createSilentWav(), {
+          dictionary: [],
+          language: 'en-US',
+        });
+      } catch (error) {
+        if (
+          !(error instanceof ProviderContractError) ||
+          error.code !== 'EMPTY_RESULT'
+        ) {
+          throw error;
+        }
+      }
     }
-    const configuration = toOpenAIConfiguration(profile);
-    if (!configuration) throw new Error('Provider profile is incomplete');
-    const provider = new OpenAIProvider(configuration);
-    await provider.classifyIntent('Transcribe this connection test.', {
-      defaultTargetLanguage: 'en-US',
-      dictionary: [],
-      locale: 'en-US',
-    });
     return { ok: true };
   }
 
@@ -347,21 +477,37 @@ export class DesktopRuntime {
     this.#historyRepository.close();
   }
 
-  private async activateConfiguredProvider(
+  private async activateConfiguredProviders(
     config: Awaited<ReturnType<ConfigurationService['load']>>,
   ): Promise<void> {
-    this.#providerId = 'mock';
-    const profileIds = config.dictation.activeProviderProfileId
-      ? [config.dictation.activeProviderProfileId]
-      : config.providers.map(({ id }) => id);
-    for (const profileId of profileIds) {
-      const profile = await this.#configuration.getProvider(profileId);
-      if (!profile || profile.providerId !== 'openai') continue;
-      const configuration = toOpenAIConfiguration(profile);
-      if (!configuration) continue;
-      this.#providers.replace(new OpenAIProvider(configuration));
-      this.#providerId = 'openai';
-      return;
+    this.#speechProviders.clear();
+    this.#textProviders.clear();
+    this.#speechProviders.register(this.#mockProvider);
+    this.#textProviders.register(this.#mockProvider);
+    this.#speechProviderId = 'mock';
+
+    const speechProfileId = config.dictation.activeSpeechProviderProfileId;
+    if (speechProfileId) {
+      const profile = await this.#configuration.getProvider(speechProfileId);
+      if (!profile) {
+        throw new Error('Active speech provider profile does not exist');
+      }
+      const provider = createSpeechProvider(profile);
+      this.#speechProviders.replace(provider);
+      this.#speechProviderId = provider.id;
+    }
+
+    this.#textProviderId =
+      this.#speechProviderId === 'mock' ? 'mock' : undefined;
+    const textProfileId = config.dictation.activeTextProviderProfileId;
+    if (textProfileId) {
+      const profile = await this.#configuration.getProvider(textProfileId);
+      if (!profile) {
+        throw new Error('Active text provider profile does not exist');
+      }
+      const provider = createTextProvider(profile);
+      this.#textProviders.replace(provider);
+      this.#textProviderId = provider.id;
     }
   }
 

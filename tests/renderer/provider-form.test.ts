@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { getProviderPreset } from '../../src/renderer/logic/provider-catalog';
 import {
   emptyProviderForm,
+  selectProviderPreset,
+  selectTextEndpointType,
   toProviderInput,
   validateBaseUrlInput,
   validateProviderForm,
@@ -8,32 +11,43 @@ import {
 } from '../../src/renderer/logic/provider-form';
 
 const validForm = (): ProviderFormState => ({
-  ...emptyProviderForm(),
+  ...emptyProviderForm('text'),
   apiKey: 'sk-test',
-  id: 'openai-main',
+  model: 'test-model',
 });
 
 describe('validateProviderForm', () => {
-  it('accepts a complete profile', () => {
+  it('accepts a complete text profile', () => {
     expect(validateProviderForm(validForm())).toEqual({});
   });
 
-  it('requires an id, models and api key', () => {
+  it('requires an id, name, model, endpoint, and new API key', () => {
     const errors = validateProviderForm({
-      allowInsecurePrivateEndpoint: false,
+      ...validForm(),
       apiKey: '   ',
       baseUrl: '',
       id: '',
-      textModel: '',
-      transcriptionModel: '',
+      model: '',
+      name: '',
     });
 
     expect(errors).toEqual({
       apiKey: 'required',
+      baseUrl: 'required',
       id: 'required',
-      textModel: 'required',
-      transcriptionModel: 'required',
+      model: 'required',
+      name: 'required',
     });
+  });
+
+  it('allows a blank API key while editing a configured profile', () => {
+    expect(
+      validateProviderForm({
+        ...validForm(),
+        apiKey: '',
+        hasStoredApiKey: true,
+      }).apiKey,
+    ).toBeUndefined();
   });
 
   it('rejects ids the backend pattern would reject', () => {
@@ -57,15 +71,23 @@ describe('validateProviderForm', () => {
   it('flags models beyond the backend length limit', () => {
     const errors = validateProviderForm({
       ...validForm(),
-      textModel: 'm'.repeat(201),
+      model: 'm'.repeat(201),
     });
-    expect(errors.textModel).toBe('tooLong');
+    expect(errors.model).toBe('tooLong');
+  });
+
+  it('rejects a preset that does not match the adapter', () => {
+    const errors = validateProviderForm({
+      ...validForm(),
+      providerId: 'anthropic-text',
+    });
+    expect(errors.presetId).toBe('invalidPreset');
   });
 });
 
 describe('validateBaseUrlInput', () => {
-  it('treats a blank value as the provider default', () => {
-    expect(validateBaseUrlInput('', false)).toBeUndefined();
+  it('requires an endpoint', () => {
+    expect(validateBaseUrlInput('', false)).toBe('required');
   });
 
   it('accepts https endpoints', () => {
@@ -91,34 +113,121 @@ describe('validateBaseUrlInput', () => {
   });
 });
 
+describe('selectProviderPreset', () => {
+  it('switches protocol defaults and allocates a matching profile id', () => {
+    const anthropic = getProviderPreset('anthropic-text');
+    expect(anthropic).toBeDefined();
+    if (!anthropic) return;
+
+    const selected = selectProviderPreset(
+      validForm(),
+      anthropic,
+      new Set(['anthropic-text']),
+      false,
+    );
+    expect(selected).toMatchObject({
+      baseUrl: 'https://api.anthropic.com/v1',
+      id: 'anthropic-text-2',
+      model: '',
+      presetId: 'anthropic-text',
+      providerId: 'anthropic-text',
+    });
+  });
+
+  it('preserves the profile id when editing', () => {
+    const deepSeek = getProviderPreset('deepseek-text');
+    expect(deepSeek).toBeDefined();
+    if (!deepSeek) return;
+
+    const selected = selectProviderPreset(
+      { ...validForm(), id: 'my-profile' },
+      deepSeek,
+      new Set(['my-profile']),
+      true,
+    );
+    expect(selected.id).toBe('my-profile');
+  });
+
+  it('requires a provider-specific API key after switching presets', () => {
+    const anthropic = getProviderPreset('anthropic-text');
+    expect(anthropic).toBeDefined();
+    if (!anthropic) return;
+
+    const selected = selectProviderPreset(
+      {
+        ...validForm(),
+        apiKey: '',
+        hasStoredApiKey: true,
+        id: 'existing-openai',
+      },
+      anthropic,
+      new Set(['existing-openai']),
+      true,
+    );
+
+    expect(selected).toMatchObject({
+      apiKey: '',
+      hasStoredApiKey: false,
+      id: 'existing-openai',
+    });
+    expect(validateProviderForm(selected).apiKey).toBe('required');
+  });
+});
+
+describe('selectTextEndpointType', () => {
+  it('switches the custom text protocol and requires its own API key', () => {
+    const custom = getProviderPreset('custom-text');
+    expect(custom).toBeDefined();
+    if (!custom) return;
+    const form = selectProviderPreset(validForm(), custom, new Set(), false);
+
+    const selected = selectTextEndpointType(
+      { ...form, hasStoredApiKey: true },
+      'anthropic-text',
+    );
+
+    expect(selected).toMatchObject({
+      apiKey: '',
+      hasStoredApiKey: false,
+      presetId: 'custom-text',
+      providerId: 'anthropic-text',
+    });
+    expect(validateProviderForm(selected).apiKey).toBe('required');
+  });
+});
+
 describe('toProviderInput', () => {
-  it('trims values and omits an empty base url', () => {
+  it('trims values and serializes the selected adapter', () => {
     const input = toProviderInput({
-      allowInsecurePrivateEndpoint: false,
+      ...validForm(),
       apiKey: ' sk-test ',
-      baseUrl: '   ',
-      id: ' openai-main ',
-      textModel: ' gpt-4o-mini ',
-      transcriptionModel: ' whisper-1 ',
+      baseUrl: ' https://api.openai.com/v1 ',
+      id: ' openai-text ',
+      model: ' gpt-5-mini ',
+      name: ' Main OpenAI ',
     });
 
     expect(input).toEqual({
-      id: 'openai-main',
-      providerId: 'openai',
+      id: 'openai-text',
+      kind: 'text',
+      providerId: 'openai-responses-text',
       secrets: { apiKey: 'sk-test' },
       values: {
         allowInsecurePrivateEndpoint: false,
-        textModel: 'gpt-4o-mini',
-        transcriptionModel: 'whisper-1',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-5-mini',
+        name: 'Main OpenAI',
+        presetId: 'openai-text',
       },
     });
   });
 
-  it('keeps a provided base url', () => {
+  it('omits an unchanged stored API key', () => {
     const input = toProviderInput({
       ...validForm(),
-      baseUrl: 'https://proxy.example.com/v1',
+      apiKey: '',
+      hasStoredApiKey: true,
     });
-    expect(input.values.baseUrl).toBe('https://proxy.example.com/v1');
+    expect(input.secrets).toEqual({});
   });
 });

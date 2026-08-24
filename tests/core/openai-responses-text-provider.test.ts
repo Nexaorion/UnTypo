@@ -1,0 +1,97 @@
+import { describe, expect, it, vi } from 'vitest';
+import { OpenAIResponsesTextProvider } from '../../src/core/providers/openai-responses-text-provider';
+
+const configuration = {
+  apiKey: 'sk-openai-test',
+  baseUrl: 'https://gateway.example.com/v1/',
+  displayName: 'Responses Gateway',
+  id: 'responses-gateway',
+  model: 'response-model',
+};
+
+describe('OpenAIResponsesTextProvider', () => {
+  it('uses the Responses endpoint and extracts output content', async () => {
+    const request = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            output: [
+              {
+                content: [
+                  {
+                    text: JSON.stringify({
+                      explicitTargetLanguage: 'en-US',
+                      intent: 'translation',
+                    }),
+                    type: 'output_text',
+                  },
+                ],
+                type: 'message',
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const provider = new OpenAIResponsesTextProvider(configuration, request);
+
+    await expect(
+      provider.classifyIntent('翻译成英文', {
+        defaultTargetLanguage: 'zh-CN',
+        dictionary: [],
+        locale: 'zh-CN',
+      }),
+    ).resolves.toEqual({
+      explicitTargetLanguage: 'en-US',
+      intent: 'translation',
+    });
+
+    const [url, init] = request.mock.calls[0] ?? [];
+    expect(url).toBe('https://gateway.example.com/v1/responses');
+    expect(init?.headers).toMatchObject({
+      Authorization: 'Bearer sk-openai-test',
+      'Content-Type': 'application/json',
+    });
+    if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
+    expect(JSON.parse(init.body)).toMatchObject({
+      input: '翻译成英文',
+      model: 'response-model',
+      store: false,
+    });
+  });
+
+  it('accepts an output_text convenience field', async () => {
+    const provider = new OpenAIResponsesTextProvider(
+      configuration,
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ output_text: 'polished text' }), {
+            status: 200,
+          }),
+        ),
+      ),
+    );
+
+    await expect(
+      provider.polish('text', { dictionary: [], locale: 'en-US' }),
+    ).resolves.toBe('polished text');
+  });
+
+  it('surfaces a provider error message', async () => {
+    const provider = new OpenAIResponsesTextProvider(
+      configuration,
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ error: { message: 'Bad key' } }), {
+            status: 401,
+          }),
+        ),
+      ),
+    );
+
+    await expect(
+      provider.polish('text', { dictionary: [], locale: 'en-US' }),
+    ).rejects.toThrow('Bad key');
+  });
+});

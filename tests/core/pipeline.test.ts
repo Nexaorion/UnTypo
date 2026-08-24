@@ -31,10 +31,13 @@ describe('DictationPipeline', () => {
     });
     const translate = vi.spyOn(provider, 'translate');
 
-    const result = await new DictationPipeline(provider).process(audio, {
-      ...options,
-      explicitTargetLanguage: 'en-US',
-    });
+    const result = await new DictationPipeline(provider, provider).process(
+      audio,
+      {
+        ...options,
+        explicitTargetLanguage: 'en-US',
+      },
+    );
 
     expect(result.outputText).toBe('Hello');
     expect(translate).toHaveBeenCalledWith(
@@ -51,7 +54,7 @@ describe('DictationPipeline', () => {
       translatedText: { 'en-US': 'Hello', 'zh-CN': '你好' },
     });
 
-    const result = await new DictationPipeline(provider).process(
+    const result = await new DictationPipeline(provider, provider).process(
       audio,
       options,
     );
@@ -72,7 +75,7 @@ describe('DictationPipeline', () => {
       { intentDetection: false },
     );
 
-    const result = await new DictationPipeline(provider).process(
+    const result = await new DictationPipeline(provider, provider).process(
       audio,
       options,
     );
@@ -91,7 +94,7 @@ describe('DictationPipeline', () => {
     });
     const generate = vi.spyOn(provider, 'generateFromInstruction');
 
-    await new DictationPipeline(provider).process(audio, {
+    await new DictationPipeline(provider, provider).process(audio, {
       ...options,
       profile: { displayName: 'Private Name', signature: 'Private Signature' },
     });
@@ -107,8 +110,37 @@ describe('DictationPipeline', () => {
 
     await expect(
       pipeline.process({ ...audio, bytes: new Uint8Array() }, options),
-    ).rejects.toMatchObject<Partial<ProviderContractError>>({
+    ).rejects.toMatchObject({
       code: 'INVALID_OPTIONS',
+    } satisfies Partial<ProviderContractError>);
+  });
+
+  it('returns the raw transcript when no text provider is selected', async () => {
+    const speech = new MockDictationProvider({
+      polishedText: 'This must not be used',
+      transcript: '  raw speech result  ',
+    });
+
+    await expect(
+      new DictationPipeline(speech).process(audio, options),
+    ).resolves.toMatchObject({
+      intent: 'transcription',
+      outputText: 'raw speech result',
+      rawTranscript: 'raw speech result',
+    });
+  });
+
+  it('mixes independent speech and text providers', async () => {
+    const speech = new MockDictationProvider({ transcript: 'raw transcript' });
+    const text = new MockDictationProvider({
+      polishedText: 'Polished by another provider',
+    });
+
+    await expect(
+      new DictationPipeline(speech, text).process(audio, options),
+    ).resolves.toMatchObject({
+      outputText: 'Polished by another provider',
+      rawTranscript: 'raw transcript',
     });
   });
 
@@ -121,8 +153,8 @@ describe('DictationPipeline', () => {
         ...options,
         signal: controller.signal,
       }),
-    ).rejects.toMatchObject<Partial<ProviderContractError>>({
+    ).rejects.toMatchObject({
       code: 'ABORTED',
-    });
+    } satisfies Partial<ProviderContractError>);
   });
 });

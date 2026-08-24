@@ -1,9 +1,10 @@
 import type { UserProfileContext } from '../../core/providers/contracts.js';
 import type {
   ClientHistoryQuery,
-  ClientJsonValue,
   ClientProviderInput,
   ClientSettingsUpdate,
+  ModelProviderId,
+  ModelProviderKind,
 } from '../../shared/ipc.js';
 
 const profileIdPattern = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
@@ -23,25 +24,6 @@ const assertOnlyKeys = (
 
 const isLanguage = (value: unknown): value is 'en-US' | 'zh-CN' =>
   value === 'en-US' || value === 'zh-CN';
-
-const isJsonValue = (value: unknown, depth = 0): value is ClientJsonValue => {
-  if (depth > 10) return false;
-  if (
-    value === null ||
-    typeof value === 'boolean' ||
-    typeof value === 'string'
-  ) {
-    return true;
-  }
-  if (typeof value === 'number') return Number.isFinite(value);
-  if (Array.isArray(value)) {
-    return value.every((entry) => isJsonValue(entry, depth + 1));
-  }
-  return (
-    isRecord(value) &&
-    Object.values(value).every((entry) => isJsonValue(entry, depth + 1))
-  );
-};
 
 const optionalString = (
   value: unknown,
@@ -86,7 +68,8 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
     assertOnlyKeys(
       value.dictation,
       [
-        'activeProviderProfileId',
+        'activeSpeechProviderProfileId',
+        'activeTextProviderProfileId',
         'defaultTargetLanguage',
         'hotkeyAccelerator',
         'hotkeyMode',
@@ -95,16 +78,27 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
       'Dictation settings',
     );
     const dictation: NonNullable<ClientSettingsUpdate['dictation']> = {};
-    if (value.dictation.activeProviderProfileId !== undefined) {
+    if (value.dictation.activeSpeechProviderProfileId !== undefined) {
       if (
-        value.dictation.activeProviderProfileId !== null &&
-        (typeof value.dictation.activeProviderProfileId !== 'string' ||
-          !profileIdPattern.test(value.dictation.activeProviderProfileId))
+        value.dictation.activeSpeechProviderProfileId !== null &&
+        (typeof value.dictation.activeSpeechProviderProfileId !== 'string' ||
+          !profileIdPattern.test(value.dictation.activeSpeechProviderProfileId))
       ) {
-        throw new Error('Invalid active provider profile');
+        throw new Error('Invalid active speech provider profile');
       }
-      dictation.activeProviderProfileId =
-        value.dictation.activeProviderProfileId;
+      dictation.activeSpeechProviderProfileId =
+        value.dictation.activeSpeechProviderProfileId;
+    }
+    if (value.dictation.activeTextProviderProfileId !== undefined) {
+      if (
+        value.dictation.activeTextProviderProfileId !== null &&
+        (typeof value.dictation.activeTextProviderProfileId !== 'string' ||
+          !profileIdPattern.test(value.dictation.activeTextProviderProfileId))
+      ) {
+        throw new Error('Invalid active text provider profile');
+      }
+      dictation.activeTextProviderProfileId =
+        value.dictation.activeTextProviderProfileId;
     }
     if (value.dictation.defaultTargetLanguage !== undefined) {
       if (!isLanguage(value.dictation.defaultTargetLanguage))
@@ -211,49 +205,82 @@ export const parseProviderInput = (value: unknown): ClientProviderInput => {
   if (!isRecord(value)) throw new Error('Invalid provider profile');
   assertOnlyKeys(
     value,
-    ['id', 'providerId', 'secrets', 'values'],
+    ['id', 'kind', 'providerId', 'secrets', 'values'],
     'Provider profile',
   );
   if (
     typeof value.id !== 'string' ||
     !profileIdPattern.test(value.id) ||
-    value.providerId !== 'openai' ||
+    (value.kind !== 'speech' && value.kind !== 'text') ||
     !isRecord(value.secrets) ||
     !isRecord(value.values)
   ) {
     throw new Error('Invalid provider profile');
   }
+  const providerKinds: Readonly<Record<ModelProviderId, ModelProviderKind>> = {
+    'aliyun-bailian-speech': 'speech',
+    'anthropic-text': 'text',
+    'openai-compatible-speech': 'speech',
+    'openai-compatible-text': 'text',
+    'openai-responses-text': 'text',
+  };
+  if (
+    typeof value.providerId !== 'string' ||
+    !(value.providerId in providerKinds) ||
+    providerKinds[value.providerId as ModelProviderId] !== value.kind
+  ) {
+    throw new Error('Provider kind does not match provider id');
+  }
   assertOnlyKeys(value.secrets, ['apiKey'], 'Provider secrets');
   assertOnlyKeys(
     value.values,
-    [
-      'allowInsecurePrivateEndpoint',
-      'baseUrl',
-      'textModel',
-      'transcriptionModel',
-    ],
+    ['allowInsecurePrivateEndpoint', 'baseUrl', 'model', 'name', 'presetId'],
     'Provider values',
   );
   if (
-    typeof value.secrets.apiKey !== 'string' ||
-    value.secrets.apiKey.length === 0 ||
-    value.secrets.apiKey.length > 16_384 ||
-    typeof value.values.textModel !== 'string' ||
-    value.values.textModel.length === 0 ||
-    value.values.textModel.length > 200 ||
-    typeof value.values.transcriptionModel !== 'string' ||
-    value.values.transcriptionModel.length === 0 ||
-    value.values.transcriptionModel.length > 200 ||
-    (value.values.baseUrl !== undefined &&
-      (typeof value.values.baseUrl !== 'string' ||
-        value.values.baseUrl.length > 2_048)) ||
+    (value.secrets.apiKey !== undefined &&
+      (typeof value.secrets.apiKey !== 'string' ||
+        value.secrets.apiKey.length > 16_384)) ||
+    typeof value.values.name !== 'string' ||
+    value.values.name.trim().length === 0 ||
+    value.values.name.length > 200 ||
+    typeof value.values.presetId !== 'string' ||
+    value.values.presetId.trim().length === 0 ||
+    value.values.presetId.length > 100 ||
+    typeof value.values.model !== 'string' ||
+    value.values.model.trim().length === 0 ||
+    value.values.model.length > 200 ||
+    typeof value.values.baseUrl !== 'string' ||
+    value.values.baseUrl.trim().length === 0 ||
+    value.values.baseUrl.length > 2_048 ||
     (value.values.allowInsecurePrivateEndpoint !== undefined &&
-      typeof value.values.allowInsecurePrivateEndpoint !== 'boolean') ||
-    !Object.values(value.values).every((entry) => isJsonValue(entry))
+      typeof value.values.allowInsecurePrivateEndpoint !== 'boolean')
   ) {
-    throw new Error('Invalid OpenAI provider configuration');
+    throw new Error('Invalid provider configuration');
   }
-  return value as unknown as ClientProviderInput;
+  const apiKey =
+    typeof value.secrets.apiKey === 'string' &&
+    value.secrets.apiKey.trim().length > 0
+      ? value.secrets.apiKey
+      : undefined;
+  return {
+    id: value.id,
+    kind: value.kind,
+    providerId: value.providerId as ModelProviderId,
+    secrets: apiKey ? { apiKey } : {},
+    values: {
+      name: value.values.name,
+      presetId: value.values.presetId,
+      model: value.values.model,
+      baseUrl: value.values.baseUrl,
+      ...(typeof value.values.allowInsecurePrivateEndpoint === 'boolean'
+        ? {
+            allowInsecurePrivateEndpoint:
+              value.values.allowInsecurePrivateEndpoint,
+          }
+        : {}),
+    },
+  };
 };
 
 export const parseProfileId = (value: unknown): string => {

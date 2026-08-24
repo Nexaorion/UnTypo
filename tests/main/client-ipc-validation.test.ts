@@ -12,7 +12,8 @@ describe('client IPC validation', () => {
     expect(
       parseSettingsUpdate({
         dictation: {
-          activeProviderProfileId: 'primary-openai',
+          activeSpeechProviderProfileId: 'primary-speech',
+          activeTextProviderProfileId: 'primary-text',
           hotkeyAccelerator: 'Ctrl+Shift+Space',
           hotkeyMode: 'toggle',
         },
@@ -20,7 +21,10 @@ describe('client IPC validation', () => {
         history: { enabled: false, retentionDays: 0 },
       }),
     ).toMatchObject({
-      dictation: { activeProviderProfileId: 'primary-openai' },
+      dictation: {
+        activeSpeechProviderProfileId: 'primary-speech',
+        activeTextProviderProfileId: 'primary-text',
+      },
       general: { locale: 'en-US' },
       history: { enabled: false, retentionDays: 0 },
     });
@@ -34,6 +38,11 @@ describe('client IPC validation', () => {
     expect(() => parseSettingsUpdate({ admin: true })).toThrow(
       'unsupported field',
     );
+    expect(() =>
+      parseSettingsUpdate({
+        dictation: { activeProviderProfileId: 'legacy-profile' },
+      }),
+    ).toThrow('unsupported field');
     expect(() => parseHistoryQuery({ limit: 501 })).toThrow(
       'Invalid history query',
     );
@@ -42,31 +51,97 @@ describe('client IPC validation', () => {
     );
   });
 
-  it('accepts only the supported BYOK provider shape', () => {
-    expect(
+  it.each([
+    ['text', 'openai-compatible-text', 'openai-text'],
+    ['text', 'openai-responses-text', 'openai-text'],
+    ['text', 'anthropic-text', 'anthropic-text'],
+    ['speech', 'openai-compatible-speech', 'openai-speech'],
+    ['speech', 'aliyun-bailian-speech', 'aliyun-bailian-speech'],
+  ] as const)(
+    'accepts the %s/%s provider shape',
+    (kind, providerId, presetId) => {
+      expect(
+        parseProviderInput({
+          id: `${kind}-${presetId}`,
+          kind,
+          providerId,
+          secrets: { apiKey: 'secret' },
+          values: {
+            allowInsecurePrivateEndpoint: false,
+            baseUrl: 'https://provider.example.test/v1',
+            model: 'test-model',
+            name: 'Test provider',
+            presetId,
+          },
+        }),
+      ).toMatchObject({ kind, providerId });
+    },
+  );
+
+  it('enforces provider ids jointly with their kind', () => {
+    expect(() =>
       parseProviderInput({
-        id: 'primary-openai',
-        providerId: 'openai',
-        secrets: { apiKey: 'sk-secret' },
+        id: 'mismatched-profile',
+        kind: 'text',
+        providerId: 'aliyun-bailian-speech',
+        secrets: { apiKey: 'secret' },
         values: {
-          baseUrl: 'https://api.openai.com/v1',
-          textModel: 'gpt-test',
-          transcriptionModel: 'gpt-transcribe-test',
+          baseUrl: 'https://dashscope.aliyuncs.com/api/v1',
+          model: 'qwen-audio-3.0-asr-flash',
+          name: 'Aliyun Bailian',
+          presetId: 'aliyun-bailian-speech',
         },
       }),
-    ).toMatchObject({ id: 'primary-openai', providerId: 'openai' });
+    ).toThrow('does not match');
+  });
+
+  it('normalizes an empty edit API key to omission', () => {
+    expect(
+      parseProviderInput({
+        id: 'existing-text',
+        kind: 'text',
+        providerId: 'openai-compatible-text',
+        secrets: { apiKey: '' },
+        values: {
+          baseUrl: 'https://api.openai.com/v1',
+          model: 'gpt-4o-mini',
+          name: 'OpenAI',
+          presetId: 'openai-text',
+        },
+      }).secrets,
+    ).toEqual({});
+  });
+
+  it('rejects secret-like or unbounded provider values', () => {
     expect(() =>
       parseProviderInput({
         id: 'unsafe',
-        providerId: 'openai',
-        secrets: { apiKey: 'sk-secret' },
+        kind: 'text',
+        providerId: 'openai-compatible-text',
+        secrets: { apiKey: 'secret' },
         values: {
           apiKey: 'plaintext-in-values',
-          textModel: 'gpt-test',
-          transcriptionModel: 'gpt-transcribe-test',
+          baseUrl: 'https://api.openai.com/v1',
+          model: 'gpt-4o-mini',
+          name: 'OpenAI',
+          presetId: 'openai-text',
         },
       }),
     ).toThrow('unsupported field');
+    expect(() =>
+      parseProviderInput({
+        id: 'too-long',
+        kind: 'speech',
+        providerId: 'openai-compatible-speech',
+        secrets: { apiKey: 'secret' },
+        values: {
+          baseUrl: `https://example.test/${'x'.repeat(2_048)}`,
+          model: 'whisper-1',
+          name: 'OpenAI Speech',
+          presetId: 'openai-speech',
+        },
+      }),
+    ).toThrow('Invalid provider configuration');
   });
 
   it('bounds the encrypted personal profile fields', () => {

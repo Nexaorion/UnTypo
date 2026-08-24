@@ -1,14 +1,36 @@
 import {
-  assertProviderContract,
+  assertSpeechProviderContract,
+  assertTextProviderContract,
   ProviderContractError,
-  type DictationProvider,
+  type ProviderIdentity,
+  type SpeechRecognitionProvider,
+  type TextGenerationProvider,
 } from './contracts.js';
 
-export class ProviderRegistry {
-  readonly #providers = new Map<string, DictationProvider>();
+type ContractAssertion<T extends ProviderIdentity> = (provider: T) => void;
 
-  register(provider: DictationProvider): void {
-    assertProviderContract(provider);
+class RoleProviderRegistry<T extends ProviderIdentity> {
+  readonly #assertContract: ContractAssertion<T>;
+  readonly #providers = new Map<string, T>();
+
+  constructor(assertContract: ContractAssertion<T>) {
+    this.#assertContract = assertContract;
+  }
+
+  clear(): void {
+    this.#providers.clear();
+  }
+
+  get(providerId: string): T | undefined {
+    return this.#providers.get(providerId);
+  }
+
+  list(): readonly T[] {
+    return [...this.#providers.values()];
+  }
+
+  register(provider: T): void {
+    this.#assertContract(provider);
     if (this.#providers.has(provider.id)) {
       throw new ProviderContractError(
         'DUPLICATE_PROVIDER',
@@ -18,20 +40,12 @@ export class ProviderRegistry {
     this.#providers.set(provider.id, provider);
   }
 
-  replace(provider: DictationProvider): void {
-    assertProviderContract(provider);
+  replace(provider: T): void {
+    this.#assertContract(provider);
     this.#providers.set(provider.id, provider);
   }
 
-  get(providerId: string): DictationProvider | undefined {
-    return this.#providers.get(providerId);
-  }
-
-  list(): readonly DictationProvider[] {
-    return [...this.#providers.values()];
-  }
-
-  require(providerId: string): DictationProvider {
+  require(providerId: string): T {
     const provider = this.get(providerId);
     if (!provider) {
       throw new ProviderContractError(
@@ -42,3 +56,18 @@ export class ProviderRegistry {
     return provider;
   }
 }
+
+export class SpeechProviderRegistry extends RoleProviderRegistry<SpeechRecognitionProvider> {
+  constructor() {
+    super(assertSpeechProviderContract);
+  }
+}
+
+export class TextProviderRegistry extends RoleProviderRegistry<TextGenerationProvider> {
+  constructor() {
+    super(assertTextProviderContract);
+  }
+}
+
+/** @deprecated Use SpeechProviderRegistry and TextProviderRegistry. */
+export class ProviderRegistry extends SpeechProviderRegistry {}

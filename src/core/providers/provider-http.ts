@@ -1,0 +1,189 @@
+import { ProviderContractError } from './contracts.js';
+
+export interface ProviderConnectionConfiguration {
+  allowInsecurePrivateEndpoint?: boolean;
+  apiKey: string;
+  baseUrl?: string;
+  displayName: string;
+  id: string;
+  model: string;
+}
+
+export interface ResolvedProviderConnectionConfiguration {
+  apiKey: string;
+  baseUrl: string;
+  displayName: string;
+  id: string;
+  model: string;
+}
+
+const providerIdPattern = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+const privateHostPattern =
+  /^(localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|\[?::1\]?|\[?f[cd][0-9a-f:]+\]?|[^.]+\.local)$/iu;
+
+export const normalizeProviderBaseUrl = (
+  value: string,
+  allowInsecurePrivateEndpoint = false,
+): string => {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new ProviderContractError(
+      'INVALID_OPTIONS',
+      'Provider endpoint is not a valid URL',
+    );
+  }
+
+  if (
+    url.protocol !== 'https:' &&
+    !(
+      allowInsecurePrivateEndpoint &&
+      url.protocol === 'http:' &&
+      privateHostPattern.test(url.hostname)
+    )
+  ) {
+    throw new ProviderContractError(
+      'INVALID_OPTIONS',
+      'Provider endpoints must use HTTPS unless explicit private-network access is enabled',
+    );
+  }
+  if (url.username || url.password) {
+    throw new ProviderContractError(
+      'INVALID_OPTIONS',
+      'Provider endpoints cannot contain embedded credentials',
+    );
+  }
+
+  url.pathname = url.pathname.replace(/\/+$/u, '');
+  url.search = '';
+  url.hash = '';
+  return url.toString().replace(/\/$/u, '');
+};
+
+export const resolveProviderConfiguration = (
+  configuration: ProviderConnectionConfiguration,
+  defaults: { baseUrl: string; model?: string },
+): ResolvedProviderConnectionConfiguration => {
+  const id = configuration.id.trim();
+  const displayName = configuration.displayName.trim();
+  const apiKey = configuration.apiKey.trim();
+  const model = configuration.model.trim() || defaults.model?.trim() || '';
+  if (!providerIdPattern.test(id)) {
+    throw new ProviderContractError(
+      'INVALID_OPTIONS',
+      'Provider id is invalid',
+    );
+  }
+  if (!displayName || !apiKey || !model) {
+    throw new ProviderContractError(
+      'INVALID_OPTIONS',
+      'Provider display name, API key, and model are required',
+    );
+  }
+
+  return {
+    apiKey,
+    baseUrl: normalizeProviderBaseUrl(
+      configuration.baseUrl?.trim() || defaults.baseUrl,
+      configuration.allowInsecurePrivateEndpoint ?? false,
+    ),
+    displayName,
+    id,
+    model,
+  };
+};
+
+export const providerUrl = (baseUrl: string, pathname: string): string =>
+  `${baseUrl}${pathname.startsWith('/') ? pathname : `/${pathname}`}`;
+
+const responseMessage = (payload: unknown): string | undefined => {
+  if (typeof payload !== 'object' || payload === null) return undefined;
+  const record = payload as Record<string, unknown>;
+  if (typeof record.message === 'string' && record.message.trim()) {
+    return record.message;
+  }
+  if (typeof record.error === 'string' && record.error.trim()) {
+    return record.error;
+  }
+  if (typeof record.error === 'object' && record.error !== null) {
+    const message = (record.error as Record<string, unknown>).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return undefined;
+};
+
+const successfulErrorEnvelopeMessage = (
+  payload: unknown,
+): string | undefined => {
+  if (typeof payload !== 'object' || payload === null) return undefined;
+  const record = payload as Record<string, unknown>;
+  if (
+    'error' in record &&
+    record.error !== undefined &&
+    record.error !== null
+  ) {
+    if (typeof record.error === 'object') {
+      const error = record.error as Record<string, unknown>;
+      for (const value of [error.message, error.code, error.type]) {
+        if (typeof value === 'string' && value.trim()) return value;
+      }
+    }
+    return responseMessage(payload) ?? 'Provider returned an error response';
+  }
+
+  const code = record.code;
+  if (
+    (typeof code === 'string' && code.trim() && code !== '0') ||
+    (typeof code === 'number' && code !== 0 && code !== 200)
+  ) {
+    return responseMessage(payload) ?? String(code);
+  }
+  return undefined;
+};
+
+export const readProviderJson = async (
+  response: Response,
+  providerName: string,
+): Promise<unknown> => {
+  const source = await response.text();
+  let payload: unknown = {};
+  if (source) {
+    try {
+      payload = JSON.parse(source) as unknown;
+    } catch {
+      if (response.ok) {
+        throw new ProviderContractError(
+          'INVALID_PROVIDER',
+          `${providerName} returned invalid JSON`,
+        );
+      }
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      responseMessage(payload) ??
+        `${providerName} request failed with status ${String(response.status)}`,
+    );
+  }
+  const envelopeError = successfulErrorEnvelopeMessage(payload);
+  if (envelopeError) {
+    throw new Error(`${providerName} returned an error: ${envelopeError}`);
+  }
+  return payload;
+};
+
+export const providerConfigSchema = {
+  additionalProperties: false,
+  properties: {
+    allowInsecurePrivateEndpoint: { type: 'boolean' },
+    apiKey: { format: 'password', title: 'API Key', type: 'string' },
+    baseUrl: { format: 'uri', title: 'Base URL', type: 'string' },
+    displayName: { title: 'Display name', type: 'string' },
+    id: { title: 'ID', type: 'string' },
+    model: { title: 'Model', type: 'string' },
+  },
+  required: ['id', 'displayName', 'apiKey', 'model'],
+  type: 'object',
+} as const;

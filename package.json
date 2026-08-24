@@ -53,6 +53,7 @@
   "dependencies": {
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
+    "@lobehub/icons-static-svg": "1.94.0",
     "@mui/icons-material": "9.3.1",
     "@mui/material": "9.3.1",
     "better-sqlite3": "13.0.3"

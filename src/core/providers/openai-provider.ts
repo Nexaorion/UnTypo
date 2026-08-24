@@ -160,7 +160,7 @@ export class OpenAIProvider implements DictationProvider {
     options: TranscribeOptions,
   ): Promise<TranscriptResult> {
     const form = new FormData();
-    const bytes = audio.bytes.slice().buffer;
+    const bytes = Uint8Array.from(audio.bytes).buffer;
     form.append(
       'file',
       new Blob([bytes], { type: audio.mimeType }),

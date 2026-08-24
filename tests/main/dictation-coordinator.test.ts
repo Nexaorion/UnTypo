@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AudioPayload } from '../../src/core/providers/contracts';
 import { MockDictationProvider } from '../../src/core/providers/mock-provider';
-import { ProviderRegistry } from '../../src/core/providers/registry';
+import {
+  SpeechProviderRegistry,
+  TextProviderRegistry,
+} from '../../src/core/providers/registry';
 import { DictationCoordinator } from '../../src/main/dictation/coordinator';
 import { NativeHotkeyAction } from '../../src/main/native/protocol';
 import type { NativeTargetSnapshot } from '../../src/main/native/protocol';
@@ -21,14 +24,15 @@ const audio: AudioPayload = {
   sampleRateHz: 48_000,
 };
 
-const createCoordinator = (injected: boolean) => {
-  const providers = new ProviderRegistry();
-  providers.register(
-    new MockDictationProvider({
-      polishedText: 'Final mock result',
-      transcript: 'raw mock result',
-    }),
-  );
+const createCoordinator = (injected: boolean, withTextProvider = true) => {
+  const speechProviders = new SpeechProviderRegistry();
+  const textProviders = new TextProviderRegistry();
+  const provider = new MockDictationProvider({
+    polishedText: 'Final mock result',
+    transcript: 'raw mock result',
+  });
+  speechProviders.register(provider);
+  textProviders.register(provider);
   const show = vi.fn();
   const record = vi.fn();
   const start = vi.fn(() => Promise.resolve('recording-session'));
@@ -50,14 +54,16 @@ const createCoordinator = (injected: boolean) => {
         dictionary: [],
         language: 'en-US',
       },
-      providerId: 'mock',
+      speechProviderId: 'mock',
+      ...(withTextProvider ? { textProviderId: 'mock' } : {}),
       uiLanguage: 'en-US',
     }),
     history: { record },
     injection: { inject },
     native: { captureTarget: () => Promise.resolve(target) },
-    providers,
     recorder: { start, stop },
+    speechProviders,
+    textProviders,
   });
   return { coordinator, inject, record, show, start, stop };
 };
@@ -99,5 +105,22 @@ describe('DictationCoordinator', () => {
       expect.objectContaining({ outputText: 'Final mock result' }),
     );
     expect(runtime.coordinator.state).toBe('idle');
+  });
+
+  it('injects the raw transcript when no text provider is active', async () => {
+    const runtime = createCoordinator(true, false);
+
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Start);
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Stop);
+
+    expect(runtime.inject).toHaveBeenCalledWith('raw mock result', target);
+    expect(runtime.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputText: 'raw mock result',
+        providerId: 'mock',
+        rawTranscript: 'raw mock result',
+      }),
+      { enabled: true, retentionDays: 30 },
+    );
   });
 });

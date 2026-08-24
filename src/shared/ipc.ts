@@ -24,23 +24,43 @@ export type ClientJsonValue =
   | readonly ClientJsonValue[]
   | { readonly [key: string]: ClientJsonValue };
 
+export type ModelProviderKind = 'speech' | 'text';
+
+export type ModelProviderId =
+  | 'aliyun-bailian-speech'
+  | 'anthropic-text'
+  | 'openai-compatible-speech'
+  | 'openai-compatible-text'
+  | 'openai-responses-text';
+
+export interface ClientProviderValues {
+  allowInsecurePrivateEndpoint?: boolean;
+  baseUrl: string;
+  model: string;
+  name: string;
+  presetId: string;
+}
+
 export interface ClientProviderInput {
   id: string;
-  providerId: string;
+  kind: ModelProviderKind;
+  providerId: ModelProviderId;
   secrets: Readonly<Record<string, string>>;
-  values: Readonly<Record<string, ClientJsonValue>>;
+  values: Readonly<ClientProviderValues>;
 }
 
 export interface ClientProviderSummary {
   configuredSecretKeys: readonly string[];
   id: string;
-  providerId: string;
-  values: Readonly<Record<string, ClientJsonValue>>;
+  kind: ModelProviderKind;
+  providerId: ModelProviderId;
+  values: Readonly<ClientProviderValues>;
 }
 
 export interface ClientSettingsSnapshot {
   dictation: {
-    activeProviderProfileId?: string;
+    activeSpeechProviderProfileId?: string;
+    activeTextProviderProfileId?: string;
     defaultTargetLanguage: SupportedLanguage;
     hotkeyAccelerator: string;
     hotkeyMode: 'push-to-talk' | 'toggle';
@@ -58,7 +78,8 @@ export interface ClientSettingsSnapshot {
 
 export interface ClientSettingsUpdate {
   dictation?: {
-    activeProviderProfileId?: string | null;
+    activeSpeechProviderProfileId?: string | null;
+    activeTextProviderProfileId?: string | null;
     defaultTargetLanguage?: SupportedLanguage;
     hotkeyAccelerator?: string;
     hotkeyMode?: 'push-to-talk' | 'toggle';

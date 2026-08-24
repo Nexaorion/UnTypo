@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { ProviderRegistry } from '../../src/core/providers/registry';
+import {
+  ProviderRegistry,
+  SpeechProviderRegistry,
+  TextProviderRegistry,
+} from '../../src/core/providers/registry';
 import { MockDictationProvider } from '../../src/core/providers/mock-provider';
 
 describe('ProviderRegistry', () => {
@@ -31,5 +35,27 @@ describe('ProviderRegistry', () => {
     expect(() => registry.register(new MockDictationProvider())).toThrow(
       'already registered',
     );
+  });
+
+  it('keeps speech and text profiles in independent registries', () => {
+    const provider = new MockDictationProvider();
+    const speech = new SpeechProviderRegistry();
+    const text = new TextProviderRegistry();
+
+    speech.register(provider);
+    text.register(provider);
+
+    expect(speech.require('mock')).toBe(provider);
+    expect(text.require('mock')).toBe(provider);
+  });
+
+  it('clears all instances for either provider role', () => {
+    const speech = new SpeechProviderRegistry();
+    speech.register(new MockDictationProvider());
+
+    speech.clear();
+
+    expect(speech.list()).toEqual([]);
+    expect(speech.get('mock')).toBeUndefined();
   });
 });

@@ -4,7 +4,10 @@ import type {
   ProcessResult,
   SupportedLanguage,
 } from '../../core/providers/contracts.js';
-import type { ProviderRegistry } from '../../core/providers/registry.js';
+import type {
+  SpeechProviderRegistry,
+  TextProviderRegistry,
+} from '../../core/providers/registry.js';
 import type { HistoryPolicy } from '../storage/configuration.js';
 import type { NewHistoryRecord } from '../storage/history.js';
 import type {
@@ -47,7 +50,8 @@ export interface DictationContext {
   history: HistoryPolicy;
   modelName?: string;
   options: ProcessOptions;
-  providerId: string;
+  speechProviderId: string;
+  textProviderId?: string;
   uiLanguage: SupportedLanguage;
 }
 
@@ -57,8 +61,9 @@ export interface DictationCoordinatorDependencies {
   history: HistoryPort;
   injection: InjectionPort;
   native: NativeTargetPort;
-  providers: ProviderRegistry;
   recorder: RecorderPort;
+  speechProviders: SpeechProviderRegistry;
+  textProviders: TextProviderRegistry;
 }
 
 const toRecordingTarget = (target: NativeTargetSnapshot): TargetSnapshot => ({
@@ -107,11 +112,16 @@ export class DictationCoordinator {
         this.#dependencies.recorder.stop(),
         this.#dependencies.getContext(),
       ]);
-      const provider = this.#dependencies.providers.require(context.providerId);
-      const result = await new DictationPipeline(provider).process(
-        recording.audio,
-        context.options,
+      const speechProvider = this.#dependencies.speechProviders.require(
+        context.speechProviderId,
       );
+      const textProvider = context.textProviderId
+        ? this.#dependencies.textProviders.require(context.textProviderId)
+        : undefined;
+      const result = await new DictationPipeline(
+        speechProvider,
+        textProvider,
+      ).process(recording.audio, context.options);
       const injection = await this.#dependencies.injection.inject(
         result.outputText,
         target,
@@ -124,7 +134,7 @@ export class DictationCoordinator {
           language: context.uiLanguage,
           ...(context.modelName ? { modelName: context.modelName } : {}),
           outputText: result.outputText,
-          providerId: provider.id,
+          providerId: speechProvider.id,
           rawTranscript: result.rawTranscript,
         },
         context.history,

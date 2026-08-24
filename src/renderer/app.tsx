@@ -4,13 +4,17 @@ import { I18nProvider, useI18n } from './i18n/context.js';
 import { DictionarySection } from './sections/dictionary.js';
 import { HistorySection } from './sections/history.js';
 import { HomeSection } from './sections/home.js';
-import { ProvidersSection } from './sections/providers.js';
-import { SettingsSection } from './sections/settings.js';
+import {
+  SettingsDialog,
+  type SettingsTab,
+} from './sections/settings-dialog.js';
 import { useClientStore, type ClientStore } from './state/client.js';
 import { ToastProvider } from './ui/toast.js';
 
 const Shell = ({ store }: { store: ClientStore }) => {
   const [page, setPage] = useState<AppPage>('home');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('settings');
   const userName = store.runtime?.userName ?? 'User';
 
   const content =
@@ -18,10 +22,6 @@ const Shell = ({ store }: { store: ClientStore }) => {
       <HistorySection store={store} />
     ) : page === 'dictionary' ? (
       <DictionarySection store={store} />
-    ) : page === 'settings' ? (
-      <SettingsSection store={store} />
-    ) : page === 'models' ? (
-      <ProvidersSection store={store} />
     ) : (
       <HomeSection
         history={store.history}
@@ -36,9 +36,26 @@ const Shell = ({ store }: { store: ClientStore }) => {
     );
 
   return (
-    <AppShell onSelect={setPage} page={page} version={store.runtime?.version}>
-      {content}
-    </AppShell>
+    <>
+      <AppShell
+        onOpenSettings={(tab) => {
+          setSettingsTab(tab);
+          setSettingsOpen(true);
+        }}
+        onSelect={setPage}
+        page={page}
+        version={store.runtime?.version}
+      >
+        {content}
+      </AppShell>
+      <SettingsDialog
+        onOpenChange={setSettingsOpen}
+        onTabChange={setSettingsTab}
+        open={settingsOpen}
+        store={store}
+        tab={settingsTab}
+      />
+    </>
   );
 };
 
