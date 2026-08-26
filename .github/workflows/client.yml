@@ -81,15 +81,18 @@ jobs:
     needs: verify-windows-client
     if: >-
       github.event_name != 'pull_request' &&
-      github.ref == 'refs/heads/preview' &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/preview') &&
       github.repository == 'Nexaorion/UnTypo'
     runs-on: windows-latest
     timeout-minutes: 45
     concurrency:
-      group: windows-release-${{ github.repository }}-${{ github.ref }}
+      group: windows-release-${{ github.repository }}
       cancel-in-progress: false
     permissions:
       contents: write
+    env:
+      RELEASE_BRANCH: ${{ github.ref_name }}
+      IS_PRERELEASE: ${{ github.ref == 'refs/heads/preview' }}
 
     steps:
       - name: Check out source
@@ -108,46 +111,21 @@ jobs:
           Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "version=$version" -Encoding utf8NoBOM
           Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "tag=v$version" -Encoding utf8NoBOM
 
-      - name: Confirm release commit is current preview head
+      - name: Confirm release commit is current branch head
         id: branch
         shell: pwsh
         run: |
-          & git fetch origin preview
-          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch the preview branch' }
-          $previewHead = (& git rev-parse origin/preview).Trim()
-          $isCurrent = $previewHead -eq $env:GITHUB_SHA
+          & git fetch origin $env:RELEASE_BRANCH
+          if ($LASTEXITCODE -ne 0) { throw "Unable to fetch the $env:RELEASE_BRANCH branch" }
+          $branchHead = (& git rev-parse "origin/$env:RELEASE_BRANCH").Trim()
+          $isCurrent = $branchHead -eq $env:GITHUB_SHA
           if (-not $isCurrent) {
-            Write-Host "Skipping release because $env:GITHUB_SHA is no longer the preview branch head"
+            Write-Host "Skipping release because $env:GITHUB_SHA is no longer the $env:RELEASE_BRANCH branch head"
           }
           Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "is_current=$($isCurrent.ToString().ToLowerInvariant())" -Encoding utf8NoBOM
 
-      - name: Check release state
-        id: state
-        if: steps.branch.outputs.is_current == 'true'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
-        run: |
-          & git fetch --force --tags origin
-          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch remote tags' }
-
-          & git rev-parse --verify --quiet "refs/tags/$env:RELEASE_TAG" *> $null
-          $tagExists = $LASTEXITCODE -eq 0
-          if ($tagExists) {
-            $tagCommit = (& git rev-list -n 1 "refs/tags/$env:RELEASE_TAG").Trim()
-            if ($tagCommit -ne $env:GITHUB_SHA) {
-              throw "Tag $env:RELEASE_TAG already points to $tagCommit; bump package.json version before releasing this commit"
-            }
-          }
-
-          $null = & gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json id 2>$null
-          $releaseExists = $LASTEXITCODE -eq 0
-          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "tag_exists=$($tagExists.ToString().ToLowerInvariant())" -Encoding utf8NoBOM
-          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "should_publish=$((!$releaseExists).ToString().ToLowerInvariant())" -Encoding utf8NoBOM
-
       - name: Set up Node.js
-        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        if: steps.branch.outputs.is_current == 'true'
         uses: actions/setup-node@v6
         with:
           cache: npm
@@ -155,35 +133,55 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Install locked dependencies
-        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        if: steps.branch.outputs.is_current == 'true'
         run: npm ci
 
       - name: Build Electron client and Native Helper
-        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        if: steps.branch.outputs.is_current == 'true'
         run: npm run build
 
-      - name: Create version tag
-        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true' && steps.state.outputs.tag_exists != 'true'
+      - name: Create or update version tag
+        if: steps.branch.outputs.is_current == 'true'
         shell: pwsh
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
+          & git fetch --force --tags origin
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch remote tags' }
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          & git tag --annotate $env:RELEASE_TAG $env:GITHUB_SHA --message "Release $env:RELEASE_TAG"
-          if ($LASTEXITCODE -ne 0) { throw "Unable to create tag $env:RELEASE_TAG" }
-          & git push origin "refs/tags/$env:RELEASE_TAG"
+          & git tag --force --annotate $env:RELEASE_TAG $env:GITHUB_SHA --message "Release $env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { throw "Unable to create or update tag $env:RELEASE_TAG" }
+          & git push --force origin "refs/tags/$env:RELEASE_TAG"
           if ($LASTEXITCODE -ne 0) { throw "Unable to push tag $env:RELEASE_TAG" }
 
       - name: Publish Windows installer and update metadata
-        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        if: steps.branch.outputs.is_current == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          EP_GH_IGNORE_TIME: true
+          EP_PRE_RELEASE: ${{ env.IS_PRERELEASE }}
         run: '& .\node_modules\.bin\electron-builder.cmd --win nsis --publish always'
 
+      - name: Set release channel
+        if: steps.branch.outputs.is_current == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $arguments = @('release', 'edit', $env:RELEASE_TAG, '--repo', $env:GITHUB_REPOSITORY, '--draft=false')
+          if ($env:IS_PRERELEASE -eq 'true') {
+            $arguments += '--prerelease'
+          } else {
+            $arguments += '--prerelease=false'
+          }
+          & gh @arguments
+          if ($LASTEXITCODE -ne 0) { throw "Unable to set the release channel for $env:RELEASE_TAG" }
+
       - name: Publish installer checksum
-        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        if: steps.branch.outputs.is_current == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -197,7 +195,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Unable to publish checksum for $env:RELEASE_TAG" }
 
       - name: Verify published release assets
-        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        if: steps.branch.outputs.is_current == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -206,7 +204,10 @@ jobs:
         run: |
           $release = & gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json isDraft,isPrerelease,assets | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw "Unable to load release $env:RELEASE_TAG" }
-          if ($release.isDraft -or $release.isPrerelease) { throw "Release $env:RELEASE_TAG is not published" }
+          $expectedPrerelease = $env:IS_PRERELEASE -eq 'true'
+          if ($release.isDraft -or ($release.isPrerelease -ne $expectedPrerelease)) {
+            throw "Release $env:RELEASE_TAG does not match the expected release channel"
+          }
 
           $assetNames = @($release.assets | ForEach-Object { $_.name })
           $requiredAssets = @(
