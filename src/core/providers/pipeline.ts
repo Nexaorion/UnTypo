@@ -149,6 +149,7 @@ export class DictationPipeline {
       dictionary: options.dictionary,
       locale: options.language,
       signal: options.signal,
+      windowContext: options.windowContext,
     });
     return typeof classification === 'string'
       ? { intent: classification }

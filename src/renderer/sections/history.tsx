@@ -34,7 +34,7 @@ export const HistorySection = ({ store }: { store: ClientStore }) => {
   }, [store.reloadHistory]);
 
   const copy = (text: string) =>
-    void run('copy', () => navigator.clipboard.writeText(text), {
+    void run('copy', () => store.copyText(text), {
       successMessage: t('history.copied'),
     });
 

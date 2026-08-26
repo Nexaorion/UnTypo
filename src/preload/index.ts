@@ -21,6 +21,7 @@ const DIAGNOSTIC_CHANGED_CHANNEL = 'client:diagnostics-changed';
 const channels = {
   acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
   clearHistory: 'client:clear-history',
+  copyText: 'client:copy-text',
   exportDiagnostics: 'client:export-diagnostics',
   getDiagnostics: 'client:get-diagnostics',
   getSnapshot: 'client:get-snapshot',
@@ -44,6 +45,8 @@ const api: UntypoApi = {
     ) as Promise<ClientDiagnosticSnapshot>,
   clearHistory: () =>
     ipcRenderer.invoke(channels.clearHistory) as Promise<number>,
+  copyText: (text: string) =>
+    ipcRenderer.invoke(channels.copyText, text) as Promise<void>,
   exportDiagnostics: (request: ClientDiagnosticExportRequest) =>
     ipcRenderer.invoke(
       channels.exportDiagnostics,

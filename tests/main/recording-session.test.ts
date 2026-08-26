@@ -21,10 +21,14 @@ describe('RecordingSessionManager', () => {
       ...metadata,
       durationMs: 750,
       peakLevel: 0.42,
+      speechDurationMs: 320,
+      voiceDetected: true,
     });
 
     expect(completed).toMatchObject({ sessionId, target });
     expect(completed.peakLevel).toBe(0.42);
+    expect(completed.speechDurationMs).toBe(320);
+    expect(completed.voiceDetected).toBe(true);
     expect(completed.audio).toMatchObject({
       bytes: new Uint8Array([1, 2, 3]),
       durationMs: 750,
@@ -54,6 +58,42 @@ describe('RecordingSessionManager', () => {
         ...metadata,
         durationMs: 500,
         peakLevel: Number.NaN,
+        speechDurationMs: 0,
+        voiceDetected: false,
+      }),
+    ).toThrow('invalid stop metadata');
+  });
+
+  it('rejects an inconsistent local voice activity result', () => {
+    const manager = new RecordingSessionManager();
+    const sessionId = manager.begin(target);
+    manager.markStarted(sessionId, metadata);
+    manager.requestStop();
+
+    expect(() =>
+      manager.complete(sessionId, {
+        ...metadata,
+        durationMs: 500,
+        peakLevel: 0.2,
+        speechDurationMs: 80,
+        voiceDetected: true,
+      }),
+    ).toThrow('invalid stop metadata');
+  });
+
+  it('rejects missing voice detection for sustained local voice activity', () => {
+    const manager = new RecordingSessionManager();
+    const sessionId = manager.begin(target);
+    manager.markStarted(sessionId, metadata);
+    manager.requestStop();
+
+    expect(() =>
+      manager.complete(sessionId, {
+        ...metadata,
+        durationMs: 500,
+        peakLevel: 0.2,
+        speechDurationMs: 160,
+        voiceDetected: false,
       }),
     ).toThrow('invalid stop metadata');
   });

@@ -31,6 +31,7 @@ const requireApi = (): UntypoApi => {
 export interface ClientStore {
   acknowledgeDiagnostics: (issueIds: readonly string[]) => Promise<void>;
   clearHistory: () => Promise<void>;
+  copyText: (text: string) => Promise<void>;
   diagnostics: ClientDiagnosticSnapshot | null;
   exportDiagnostics: (
     request: ClientDiagnosticExportRequest,
@@ -150,6 +151,11 @@ export const useClientStore = (): ClientStore => {
     });
   }, []);
 
+  const copyText = useCallback(
+    (text: string) => requireApi().copyText(text),
+    [],
+  );
+
   const acknowledgeDiagnostics = useCallback(
     async (issueIds: readonly string[]) => {
       const next = await requireApi().acknowledgeDiagnostics(issueIds);
@@ -206,6 +212,7 @@ export const useClientStore = (): ClientStore => {
   return {
     acknowledgeDiagnostics,
     clearHistory,
+    copyText,
     diagnostics,
     exportDiagnostics,
     history,

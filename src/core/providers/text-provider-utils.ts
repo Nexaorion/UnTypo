@@ -16,8 +16,15 @@ export const textProviderCapabilities: Readonly<ProviderCapabilities> = {
   streamingPartial: false,
 };
 
-export const intentInstructions = (context: IntentContext): string =>
-  `Classify the user's spoken text as transcription, translation, or instruction. Detect an explicitly spoken translation target if it is Simplified Chinese or English. The configured fallback target is ${context.defaultTargetLanguage}. Return only JSON with keys intent and explicitTargetLanguage. intent must be transcription, translation, or instruction. explicitTargetLanguage must be zh-CN, en-US, or null.`;
+export const intentInstructions = (context: IntentContext): string => {
+  const baseInstruction = `Classify the user's spoken text as transcription, translation, or instruction.`;
+
+  const contextHint = context.windowContext?.isTextEntry
+    ? ` CRITICAL: The user is dictating text INTO AN APPLICATION (like ChatGPT, Claude, messaging apps, etc.). They want YOU TO TRANSCRIBE their exact words, NOT to execute them as commands. Example: If they say "help me write a letter", they want that TEXT TRANSCRIBED into the application - they are NOT asking you (the transcription system) to write a letter for them. The application itself will handle their request. Your job is ONLY transcription. ALWAYS classify as "transcription" unless they explicitly say something like "transcription system, please generate..." (which never happens). Default: "transcription".`
+    : ' Classify as instruction only when explicitly requesting content generation (e.g., "help me write an email", "generate a script"). When in doubt, choose transcription.';
+
+  return `${baseInstruction}${contextHint} Detect an explicitly spoken translation target if it is Simplified Chinese or English. The configured fallback target is ${context.defaultTargetLanguage}. Return only JSON with keys intent and explicitTargetLanguage. intent must be transcription, translation, or instruction. explicitTargetLanguage must be zh-CN, en-US, or null.`;
+};
 
 export const parseIntentClassification = (
   source: string,
@@ -76,7 +83,9 @@ export const generationInstructions = (
   dictionary: readonly string[],
 ): string => {
   const terms = dictionary.join(', ');
-  return `Follow the spoken instruction and generate the requested content in ${locale}. Return only the finished content.${terms ? ` Preserve these terms exactly: ${terms}.` : ''}`;
+  const languageName =
+    locale === 'zh-CN' ? 'Simplified Chinese (简体中文)' : 'English';
+  return `Follow the spoken instruction and generate the requested content. IMPORTANT: The user spoke in ${languageName}, so you MUST generate the content in ${languageName} as well, unless they explicitly requested a different language (e.g., "write this in English" or "用英文写"). Match the user's spoken language. Return only the finished content.${terms ? ` Preserve these terms exactly: ${terms}.` : ''}`;
 };
 
 export const polishInstructions = (

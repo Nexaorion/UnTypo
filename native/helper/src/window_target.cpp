@@ -4,8 +4,11 @@
 #include <objbase.h>
 #include <UIAutomation.h>
 #include <wrl/client.h>
+#include <Psapi.h>
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 namespace untypo {
 
@@ -44,6 +47,68 @@ DWORD IntegrityLevelForProcess(DWORD process_id) {
   return level;
 }
 
+std::wstring GetWindowTitle(HWND window) {
+  if (window == nullptr) return L"";
+  const int length = GetWindowTextLengthW(window);
+  if (length <= 0) return L"";
+  std::vector<wchar_t> buffer(length + 1);
+  const int result = GetWindowTextW(window, buffer.data(), length + 1);
+  if (result <= 0) return L"";
+  return std::wstring(buffer.data(), result);
+}
+
+std::wstring GetProcessName(DWORD process_id) {
+  if (process_id == 0) return L"";
+  const HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process_id);
+  if (process == nullptr) return L"";
+
+  std::vector<wchar_t> buffer(MAX_PATH);
+  DWORD size = static_cast<DWORD>(buffer.size());
+  if (QueryFullProcessImageNameW(process, 0, buffer.data(), &size) && size > 0) {
+    std::wstring full_path(buffer.data(), size);
+    const size_t last_slash = full_path.find_last_of(L"\\/");
+    CloseHandle(process);
+    if (last_slash != std::wstring::npos) {
+      return full_path.substr(last_slash + 1);
+    }
+    return full_path;
+  }
+  CloseHandle(process);
+  return L"";
+}
+
+std::vector<std::uint8_t> EncodeTargetSnapshot(
+    std::uint64_t window_handle,
+    std::uint32_t process_id,
+    std::uint8_t editable,
+    std::uint8_t higher_integrity,
+    const std::wstring& window_title,
+    const std::wstring& process_name) {
+  std::vector<std::uint8_t> payload;
+  payload.resize(14);
+
+  *reinterpret_cast<std::uint64_t*>(&payload[0]) = window_handle;
+  *reinterpret_cast<std::uint32_t*>(&payload[8]) = process_id;
+  payload[12] = editable;
+  payload[13] = higher_integrity;
+
+  // Add window title length and content
+  const std::uint16_t title_length = static_cast<std::uint16_t>(window_title.length());
+  payload.push_back(title_length & 0xFF);
+  payload.push_back((title_length >> 8) & 0xFF);
+  const auto* title_bytes = reinterpret_cast<const std::uint8_t*>(window_title.c_str());
+  payload.insert(payload.end(), title_bytes, title_bytes + title_length * sizeof(wchar_t));
+
+  // Add process name length and content
+  const std::uint16_t name_length = static_cast<std::uint16_t>(process_name.length());
+  payload.push_back(name_length & 0xFF);
+  payload.push_back((name_length >> 8) & 0xFF);
+  const auto* name_bytes = reinterpret_cast<const std::uint8_t*>(process_name.c_str());
+  payload.insert(payload.end(), name_bytes, name_bytes + name_length * sizeof(wchar_t));
+
+  return payload;
+}
+
 }
 
 TargetSnapshotPayload WindowTargetService::Capture() const {
@@ -52,6 +117,10 @@ TargetSnapshotPayload WindowTargetService::Capture() const {
   if (window != nullptr) {
     GetWindowThreadProcessId(window, &process_id);
   }
+
+  const std::wstring window_title = GetWindowTitle(window);
+  const std::wstring process_name = GetProcessName(process_id);
+
   return {
       reinterpret_cast<std::uint64_t>(window),
       process_id,

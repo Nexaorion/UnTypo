@@ -8,6 +8,7 @@ import type {
 } from '../../shared/ipc.js';
 
 const profileIdPattern = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+const maximumClipboardTextLength = 1_000_000;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -317,4 +318,11 @@ export const parseHistoryQuery = (value: unknown): ClientHistoryQuery => {
     ...(typeof limit === 'number' ? { limit } : {}),
     ...(typeof offset === 'number' ? { offset } : {}),
   };
+};
+
+export const parseClipboardText = (value: unknown): string => {
+  if (typeof value !== 'string' || value.length > maximumClipboardTextLength) {
+    throw new Error('Invalid clipboard text');
+  }
+  return value;
 };

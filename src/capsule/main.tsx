@@ -65,14 +65,19 @@ const Capsule = () => {
   if (!status) return null;
   const viewModel = capsuleViewModel(status);
   const terminal = status.type === 'error' || status.type === 'success';
+  const confirmMode = status.type === 'confirm';
 
   return (
     <main
       aria-live={viewModel.ariaLive}
       className="capsule"
       data-status={status.type}
-      onPointerEnter={() => terminal && window.capsule.setInteractive(true)}
-      onPointerLeave={() => terminal && window.capsule.setInteractive(false)}
+      onPointerEnter={() =>
+        (terminal || confirmMode) && window.capsule.setInteractive(true)
+      }
+      onPointerLeave={() =>
+        (terminal || confirmMode) && window.capsule.setInteractive(false)
+      }
       role="status"
     >
       {status.type === 'recording' ? (
@@ -80,6 +85,8 @@ const Capsule = () => {
       ) : status.type === 'processing' ? (
         <ProcessingVisual />
       ) : status.type === 'success' ? (
+        <SuccessVisual />
+      ) : status.type === 'confirm' ? (
         <SuccessVisual />
       ) : (
         <ErrorVisual />
@@ -90,7 +97,20 @@ const Capsule = () => {
         <p>{viewModel.detail}</p>
       </div>
 
-      {terminal ? (
+      {confirmMode ? (
+        <div className="capsule-actions">
+          <button onClick={() => window.capsule.confirm()} type="button">
+            {viewModel.confirmAcceptLabel}
+          </button>
+          <button
+            onClick={() => window.capsule.reject()}
+            type="button"
+            className="capsule-secondary"
+          >
+            {viewModel.confirmRejectLabel}
+          </button>
+        </div>
+      ) : terminal ? (
         <div className="capsule-actions">
           {viewModel.showCopy ? (
             <button onClick={() => window.capsule.copy()} type="button">

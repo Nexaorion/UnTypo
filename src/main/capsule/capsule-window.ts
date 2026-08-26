@@ -27,11 +27,17 @@ const capsuleBounds = {
 
 const isTerminalStatus = (
   status: CapsuleStatus | undefined,
-): status is Extract<CapsuleStatus, { type: 'error' | 'success' }> =>
-  status?.type === 'error' || status?.type === 'success';
+): status is Extract<
+  CapsuleStatus,
+  { type: 'error' | 'success' | 'confirm' }
+> =>
+  status?.type === 'error' ||
+  status?.type === 'success' ||
+  status?.type === 'confirm';
 
 export class CapsuleWindowController {
   #autoCloseTimer?: NodeJS.Timeout;
+  #confirmResolve?: (useProcessed: boolean) => void;
   #loading?: Promise<BrowserWindow>;
   #rendererReady = false;
   #status?: CapsuleStatus;
@@ -39,8 +45,10 @@ export class CapsuleWindowController {
 
   constructor() {
     ipcMain.on(CAPSULE_CHANNELS.close, this.handleClose);
+    ipcMain.on(CAPSULE_CHANNELS.confirm, this.handleConfirm);
     ipcMain.on(CAPSULE_CHANNELS.copy, this.handleCopy);
     ipcMain.on(CAPSULE_CHANNELS.ready, this.handleReady);
+    ipcMain.on(CAPSULE_CHANNELS.reject, this.handleReject);
     ipcMain.on(CAPSULE_CHANNELS.setInteractive, this.handleSetInteractive);
   }
 
@@ -51,6 +59,24 @@ export class CapsuleWindowController {
 
   async showProcessing(locale: SupportedLanguage): Promise<void> {
     await this.present({ locale, type: 'processing' });
+  }
+
+  async showConfirm(
+    result: ProcessResult,
+    locale: SupportedLanguage,
+  ): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      this.#confirmResolve = resolve;
+      void this.present({
+        intent: result.intent,
+        locale,
+        outputText: result.outputText,
+        rawTranscript: result.rawTranscript ?? result.outputText,
+        type: 'confirm',
+      }).catch(() => {
+        if (this.#confirmResolve === resolve) this.close();
+      });
+    });
   }
 
   async showSuccess(
@@ -93,6 +119,7 @@ export class CapsuleWindowController {
     this.#autoCloseTimer = undefined;
     this.#rendererReady = false;
     this.#status = undefined;
+    this.resolveConfirmation(false);
     this.#window?.destroy();
     this.#window = undefined;
   }
@@ -100,8 +127,10 @@ export class CapsuleWindowController {
   destroy(): void {
     this.close();
     ipcMain.removeListener(CAPSULE_CHANNELS.close, this.handleClose);
+    ipcMain.removeListener(CAPSULE_CHANNELS.confirm, this.handleConfirm);
     ipcMain.removeListener(CAPSULE_CHANNELS.copy, this.handleCopy);
     ipcMain.removeListener(CAPSULE_CHANNELS.ready, this.handleReady);
+    ipcMain.removeListener(CAPSULE_CHANNELS.reject, this.handleReject);
     ipcMain.removeListener(
       CAPSULE_CHANNELS.setInteractive,
       this.handleSetInteractive,
@@ -110,6 +139,20 @@ export class CapsuleWindowController {
 
   private readonly handleClose = (event: IpcMainEvent): void => {
     if (this.isExpectedSender(event)) this.close();
+  };
+
+  private readonly handleConfirm = (event: IpcMainEvent): void => {
+    if (!this.isExpectedSender(event) || this.#status?.type !== 'confirm')
+      return;
+    this.resolveConfirmation(true);
+    this.close();
+  };
+
+  private readonly handleReject = (event: IpcMainEvent): void => {
+    if (!this.isExpectedSender(event) || this.#status?.type !== 'confirm')
+      return;
+    this.resolveConfirmation(false);
+    this.close();
   };
 
   private readonly handleCopy = (event: IpcMainEvent): void => {
@@ -140,6 +183,12 @@ export class CapsuleWindowController {
 
   private isExpectedSender(event: IpcMainEvent): boolean {
     return event.sender.id === this.#window?.webContents.id;
+  }
+
+  private resolveConfirmation(useProcessed: boolean): void {
+    const resolve = this.#confirmResolve;
+    this.#confirmResolve = undefined;
+    resolve?.(useProcessed);
   }
 
   private async present(status: CapsuleStatus): Promise<void> {
@@ -247,7 +296,7 @@ export class CapsuleWindowController {
     status: CapsuleStatus,
   ): void {
     const bounds =
-      status.type === 'success'
+      status.type === 'success' || status.type === 'confirm'
         ? capsuleBounds.success
         : status.type === 'error'
           ? capsuleBounds.error

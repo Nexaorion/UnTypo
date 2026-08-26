@@ -64,6 +64,7 @@ const createCoordinator = ({
   const showError = vi.fn((reason: CapsuleErrorReason) => {
     events.push(`error:${reason}`);
   });
+  const showConfirm = vi.fn(() => true);
   const showProcessing = vi.fn(() => events.push('processing'));
   const showRecording = vi.fn(() => events.push('recording'));
   const showSuccess = vi.fn(
@@ -79,6 +80,8 @@ const createCoordinator = ({
       peakLevel: 0.45,
       sessionId: 'recording-session',
       target,
+      speechDurationMs: 320,
+      voiceDetected: true,
     }),
   );
   const inject = vi.fn(() => Promise.resolve({ injected }));
@@ -112,6 +115,7 @@ const createCoordinator = ({
     injection: { inject },
     native: { captureTarget: () => Promise.resolve(target) },
     presenter: {
+      showConfirm,
       showError,
       showProcessing,
       showRecording,
@@ -132,6 +136,7 @@ const createCoordinator = ({
     recordIssue,
     runWithOperation,
     showError,
+    showConfirm,
     showProcessing,
     showRecording,
     showSuccess,
@@ -376,6 +381,8 @@ describe('DictationCoordinator', () => {
       peakLevel: 0,
       sessionId: 'recording-session',
       target,
+      speechDurationMs: 0,
+      voiceDetected: false,
     });
 
     await runtime.coordinator.start();
@@ -396,6 +403,27 @@ describe('DictationCoordinator', () => {
       source: 'recorder.signal',
     });
     expect(signalIssue?.audio?.durationMs).toBe(500);
+    expect(runtime.coordinator.state).toBe('idle');
+  });
+
+  it('does not call the speech provider when local voice activity is absent', async () => {
+    const runtime = createCoordinator();
+    const transcribe = vi.spyOn(runtime.provider, 'transcribe');
+    runtime.stop.mockResolvedValueOnce({
+      audio,
+      peakLevel: 0.08,
+      sessionId: 'recording-session',
+      target,
+      speechDurationMs: 0,
+      voiceDetected: false,
+    });
+
+    await runtime.coordinator.start();
+    await runtime.coordinator.stop();
+
+    expect(transcribe).not.toHaveBeenCalled();
+    expect(runtime.showError).toHaveBeenCalledWith('no-speech');
+    expect(runtime.recordIssue).not.toHaveBeenCalled();
     expect(runtime.coordinator.state).toBe('idle');
   });
 

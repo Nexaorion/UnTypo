@@ -13,6 +13,7 @@ const electronMocks = vi.hoisted(() => {
     ),
     removeListener: vi.fn(),
   };
+  const loadURL = vi.fn(() => Promise.resolve());
   const screen = {
     getCursorScreenPoint: vi.fn(() => ({ x: 100, y: 100 })),
     getDisplayNearestPoint: vi.fn(() => ({
@@ -31,7 +32,7 @@ const electronMocks = vi.hoisted(() => {
       }),
       isDestroyed: vi.fn(() => destroyed),
       isVisible: vi.fn(() => visible),
-      loadURL: vi.fn(() => Promise.resolve()),
+      loadURL,
       once: vi.fn((event: string, handler: () => void) => {
         if (event === 'closed') closedHandler = handler;
       }),
@@ -53,7 +54,15 @@ const electronMocks = vi.hoisted(() => {
     windows.push(window);
     return window;
   });
-  return { BrowserWindow, clipboard, handlers, ipcMain, screen, windows };
+  return {
+    BrowserWindow,
+    clipboard,
+    handlers,
+    ipcMain,
+    loadURL,
+    screen,
+    windows,
+  };
 });
 
 vi.mock('electron', () => ({
@@ -66,6 +75,11 @@ vi.mock('electron', () => ({
 import { CapsuleWindowController } from '../../src/main/capsule/capsule-window';
 
 const event = { sender: { id: 77 } };
+const confirmResult = {
+  intent: 'instruction' as const,
+  outputText: 'Generated text',
+  rawTranscript: 'Original request',
+};
 
 describe('CapsuleWindowController', () => {
   beforeEach(() => {
@@ -75,6 +89,8 @@ describe('CapsuleWindowController', () => {
     electronMocks.handlers.clear();
     electronMocks.ipcMain.on.mockClear();
     electronMocks.ipcMain.removeListener.mockClear();
+    electronMocks.loadURL.mockReset();
+    electronMocks.loadURL.mockResolvedValue(undefined);
     electronMocks.windows.length = 0;
   });
 
@@ -149,5 +165,25 @@ describe('CapsuleWindowController', () => {
       'Copied result',
     );
     controller.destroy();
+  });
+
+  it('rejects a pending confirmation when the capsule closes', async () => {
+    const controller = new CapsuleWindowController();
+    const confirmation = controller.showConfirm(confirmResult, 'en-US');
+
+    controller.close();
+
+    await expect(confirmation).resolves.toBe(false);
+  });
+
+  it('rejects a pending confirmation when its capsule cannot load', async () => {
+    electronMocks.loadURL.mockRejectedValueOnce(
+      new Error('capsule load failed'),
+    );
+    const controller = new CapsuleWindowController();
+
+    await expect(controller.showConfirm(confirmResult, 'en-US')).resolves.toBe(
+      false,
+    );
   });
 });

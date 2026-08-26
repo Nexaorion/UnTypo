@@ -91,5 +91,16 @@ describe('capsuleViewModel', () => {
       detail: 'No speech was recognized. Please try again.',
       title: 'Nothing recognized',
     });
+
+    expect(
+      capsuleViewModel({
+        locale: 'zh-CN',
+        reason: 'no-speech',
+        type: 'error',
+      }),
+    ).toMatchObject({
+      detail: 'UnTypo 没有识别到人声，请重试',
+      title: '你好像没说话？',
+    });
   });
 });

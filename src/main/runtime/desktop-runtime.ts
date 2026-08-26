@@ -259,6 +259,8 @@ export class DesktopRuntime {
       ),
       native: this.#native,
       presenter: {
+        showConfirm: (result) =>
+          this.#capsule.showConfirm(result, this.#locale),
         showError: (reason, detail) =>
           this.#capsule.showError(reason, this.#locale, detail),
         showProcessing: () => this.#capsule.showProcessing(this.#locale),

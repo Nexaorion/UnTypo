@@ -4,6 +4,7 @@ import type {
   RecorderStartMetadata,
   RecorderStopMetadata,
 } from '../../shared/recorder-ipc.js';
+import { MINIMUM_VOICE_ACTIVITY_DURATION_MS } from '../../shared/recorder-ipc.js';
 import { InMemoryAudioBuffer } from './audio-buffer.js';
 
 export interface TargetSnapshot {
@@ -16,6 +17,8 @@ export interface CompletedRecording {
   peakLevel: number;
   sessionId: string;
   target: TargetSnapshot;
+  speechDurationMs: number;
+  voiceDetected: boolean;
 }
 
 export type RecordingState = 'idle' | 'starting' | 'recording' | 'stopping';
@@ -88,7 +91,13 @@ export class RecordingSessionManager {
       stopped.durationMs < 0 ||
       !Number.isFinite(stopped.peakLevel) ||
       stopped.peakLevel < 0 ||
-      stopped.peakLevel > 1
+      stopped.peakLevel > 1 ||
+      !Number.isFinite(stopped.speechDurationMs) ||
+      stopped.speechDurationMs < 0 ||
+      stopped.speechDurationMs > stopped.durationMs ||
+      typeof stopped.voiceDetected !== 'boolean' ||
+      stopped.voiceDetected !==
+        stopped.speechDurationMs >= MINIMUM_VOICE_ACTIVITY_DURATION_MS
     ) {
       throw new Error('Recorder sent invalid stop metadata');
     }
@@ -103,7 +112,9 @@ export class RecordingSessionManager {
       },
       peakLevel: stopped.peakLevel,
       sessionId,
+      speechDurationMs: stopped.speechDurationMs,
       target: { ...this.#target },
+      voiceDetected: stopped.voiceDetected,
     };
     this.reset();
     return completed;

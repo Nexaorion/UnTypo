@@ -248,6 +248,17 @@ button {
   cursor: pointer;
   font-size: 12px;
   font-weight: 700;
+  transition: opacity 150ms ease-out;
+}
+
+.capsule-actions button:hover {
+  opacity: 0.88;
+}
+
+.capsule-actions button.capsule-secondary {
+  border-color: var(--capsule-control-border);
+  background: var(--capsule-surface-raised);
+  color: var(--capsule-text);
 }
 
 .capsule-actions .capsule-close {

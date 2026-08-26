@@ -53,6 +53,13 @@ export interface IntentContext {
   dictionary: readonly string[];
   locale: SupportedLanguage;
   signal?: AbortSignal;
+  windowContext?: WindowContext;
+}
+
+export interface WindowContext {
+  isTextEntry: boolean;
+  processId: number;
+  windowHandle: string;
 }
 
 export interface IntentClassificationResult {
@@ -88,6 +95,7 @@ export interface ProcessOptions {
   profile?: UserProfileContext;
   signal?: AbortSignal;
   tone?: string;
+  windowContext?: WindowContext;
 }
 
 export interface ProcessResult {

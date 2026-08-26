@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseClipboardText,
   parseDictionary,
   parseHistoryQuery,
   parseProfile,
@@ -80,6 +81,15 @@ describe('client IPC validation', () => {
         dictation: { microphoneDeviceId: 'x'.repeat(513) },
       }),
     ).toThrow('Invalid microphone device');
+    expect(() => parseClipboardText('x'.repeat(1_000_001))).toThrow(
+      'Invalid clipboard text',
+    );
+  });
+
+  it('accepts text for the trusted clipboard bridge', () => {
+    expect(parseClipboardText('Copied history record')).toBe(
+      'Copied history record',
+    );
   });
 
   it.each([
