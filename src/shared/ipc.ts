@@ -77,6 +77,7 @@ export interface ClientSettingsSnapshot {
     hotkeyAccelerator: string;
     language: SupportedLanguage;
     microphoneDeviceId?: string;
+    microphoneDeviceLabel?: string;
   };
   general: {
     launchAtLogin: boolean;
@@ -96,6 +97,7 @@ export interface ClientSettingsUpdate {
     hotkeyAccelerator?: string;
     language?: SupportedLanguage;
     microphoneDeviceId?: string | null;
+    microphoneDeviceLabel?: string | null;
   };
   general?: {
     launchAtLogin?: boolean;

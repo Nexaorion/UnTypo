@@ -176,9 +176,28 @@ export const SettingsSection = ({
   );
 
   const microphoneDeviceId = settings.dictation.microphoneDeviceId ?? '';
-  const selectedMicrophone = microphones.find(
+  const microphoneDeviceLabel = settings.dictation.microphoneDeviceLabel;
+
+  let selectedMicrophone = microphones.find(
     ({ deviceId }) => deviceId === microphoneDeviceId,
   );
+
+  if (!selectedMicrophone && microphoneDeviceId && microphoneDeviceLabel) {
+    selectedMicrophone = microphones.find(
+      ({ label }) => label === microphoneDeviceLabel,
+    );
+    if (selectedMicrophone) {
+      void run('microphone', () =>
+        store.updateSettings({
+          dictation: {
+            microphoneDeviceId: selectedMicrophone.deviceId,
+            microphoneDeviceLabel: selectedMicrophone.label,
+          },
+        }),
+      );
+    }
+  }
+
   const selectedMicrophoneMissing =
     microphoneDeviceId.length > 0 &&
     !microphonesLoading &&
@@ -214,10 +233,17 @@ export const SettingsSection = ({
               label={t('settings.microphone')}
               onChange={(event) => {
                 const next = event.target.value;
+                const selectedDevice = microphones.find(
+                  ({ deviceId }) => deviceId === next,
+                );
                 void run('microphone', () =>
                   store.updateSettings({
                     dictation: {
                       microphoneDeviceId: next.length > 0 ? next : null,
+                      microphoneDeviceLabel:
+                        next.length > 0 && selectedDevice
+                          ? selectedDevice.label
+                          : null,
                     },
                   }),
                 );
