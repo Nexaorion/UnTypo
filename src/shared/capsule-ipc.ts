@@ -12,7 +12,12 @@ export const CAPSULE_CHANNELS = {
 } as const;
 
 export type CapsuleErrorReason =
-  'configuration' | 'empty' | 'microphone' | 'provider' | 'unknown';
+  | 'configuration'
+  | 'empty'
+  | 'microphone'
+  | 'no-speech'
+  | 'provider'
+  | 'unknown';
 
 export type CapsuleStatus =
   | {

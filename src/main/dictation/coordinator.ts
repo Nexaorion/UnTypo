@@ -268,6 +268,8 @@ export class DictationCoordinator {
           payloadSizeBytes: recording.audio.bytes.byteLength,
           peakLevel: recording.peakLevel,
           sampleRateHz: recording.audio.sampleRateHz,
+          speechDurationMs: recording.speechDurationMs,
+          voiceDetected: recording.voiceDetected,
         },
         message: 'Recording captured for processing',
         operationId,
@@ -297,6 +299,24 @@ export class DictationCoordinator {
           ),
         );
         throw error;
+      }
+
+      if (!recording.voiceDetected) {
+        this.log({
+          context: {
+            durationMs: recording.audio.durationMs,
+            peakLevel: recording.peakLevel,
+            speechDurationMs: recording.speechDurationMs,
+          },
+          message:
+            'Recording skipped because no local voice activity was detected',
+          operationId,
+          scope: 'recorder.voice-activity',
+        });
+        await this.present(() =>
+          this.#dependencies.presenter.showError('no-speech'),
+        );
+        return;
       }
 
       const speechProvider = this.#dependencies.speechProviders.require(

@@ -4,6 +4,7 @@ import type {
 } from '../shared/recorder-ipc';
 import type { ProviderAudioFormat } from '../core/providers/contracts';
 import { recorderAudioConstraints } from './device-selection';
+import { VoiceActivityDetector } from './voice-activity';
 import { BAILIAN_WAV_SAMPLE_RATE_HZ, encodePcm16Wav } from './wav';
 
 interface ActiveRecorder {
@@ -18,11 +19,13 @@ interface ActiveRecorder {
   sessionId: string;
   startedAt: number;
   stream: MediaStream;
+  voiceActivity: VoiceActivityDetector;
 }
 
 interface RecorderLevelMeter {
   analyser: AnalyserNode;
   context: AudioContext;
+  frequencies: Float32Array<ArrayBuffer>;
   samples: Float32Array<ArrayBuffer>;
   source: MediaStreamAudioSourceNode;
   timer: number;
@@ -111,10 +114,11 @@ const startLevelMeter = (recorder: ActiveRecorder): void => {
     context = new AudioContext();
     source = context.createMediaStreamSource(recorder.stream);
     analyser = context.createAnalyser();
-    analyser.fftSize = 512;
+    analyser.fftSize = 2_048;
     source.connect(analyser);
 
     const samples = new Float32Array(analyser.fftSize);
+    const frequencies = new Float32Array(analyser.frequencyBinCount);
     const timer = window.setInterval(() => {
       const meter = recorder.levelMeter;
       if (!meter) return;
@@ -125,13 +129,27 @@ const startLevelMeter = (recorder: ActiveRecorder): void => {
         const rms = Math.sqrt(sumOfSquares / meter.samples.length);
         const level = Math.min(1, Math.max(0, rms * 5));
         recorder.peakLevel = Math.max(recorder.peakLevel, level);
+        meter.analyser.getFloatFrequencyData(meter.frequencies);
+        recorder.voiceActivity.observe(
+          meter.samples,
+          meter.frequencies,
+          meter.context.sampleRate,
+          LEVEL_INTERVAL_MILLISECONDS,
+        );
         window.recorder.sendLevel(recorder.sessionId, level);
       } catch {
         stopLevelMeter(recorder);
       }
     }, LEVEL_INTERVAL_MILLISECONDS);
 
-    recorder.levelMeter = { analyser, context, samples, source, timer };
+    recorder.levelMeter = {
+      analyser,
+      context,
+      frequencies,
+      samples,
+      source,
+      timer,
+    };
     if (context.state === 'suspended') {
       void context.resume().catch(() => {
         if (recorder.levelMeter?.context === context) {
@@ -193,6 +211,7 @@ const start = async (
     sessionId,
     startedAt: performance.now(),
     stream,
+    voiceActivity: new VoiceActivityDetector(),
   };
   activeRecorder = recorder;
 
@@ -244,6 +263,7 @@ const start = async (
         ...recorder.metadata,
         durationMs,
         peakLevel: recorder.peakLevel,
+        ...recorder.voiceActivity.snapshot(),
       };
       window.recorder.sendStopped(sessionId, stopped);
     })().catch((error: unknown) => {

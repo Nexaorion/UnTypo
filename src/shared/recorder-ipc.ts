@@ -10,6 +10,8 @@ export const RECORDER_CHANNELS = {
   stopped: 'recorder:stopped',
 } as const;
 
+export const MINIMUM_VOICE_ACTIVITY_DURATION_MS = 160;
+
 export interface RecorderStartMetadata {
   channels: number;
   mimeType: string;
@@ -19,6 +21,8 @@ export interface RecorderStartMetadata {
 export interface RecorderStopMetadata extends RecorderStartMetadata {
   durationMs: number;
   peakLevel: number;
+  speechDurationMs: number;
+  voiceDetected: boolean;
 }
 
 export interface RecorderDeviceInfo {
