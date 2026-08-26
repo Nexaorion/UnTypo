@@ -124,7 +124,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           EP_GH_IGNORE_TIME: true
           EP_PRE_RELEASE: ${{ env.IS_PRERELEASE }}
-        run: '& .\node_modules\.bin\electron-builder.cmd --win nsis --publish always'
+        run: |
+          $arguments = @('--win', 'nsis', '--publish', 'always')
+          if ($env:IS_PRERELEASE -eq 'true') {
+            $arguments += '--config.publish.tagNamePrefix=preview-v'
+          }
+          & .\node_modules\.bin\electron-builder.cmd @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to publish the Windows installer' }
 
       - name: Set release channel
         if: steps.branch.outputs.is_current == 'true'
