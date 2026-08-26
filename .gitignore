@@ -6,6 +6,7 @@ dist/
 release/
 coverage/
 artifacts/
+megalinter-reports/
 
 *.log
 *.local

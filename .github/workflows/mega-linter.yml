@@ -23,6 +23,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          cache: npm
+          node-version: 22
+
+      - name: Install locked lint dependencies
+        run: npm ci --include=dev --ignore-scripts
+
       - name: Scan code quality
         uses: oxsecurity/megalinter@v10
         env:
