@@ -75,3 +75,147 @@ jobs:
           path: |
             release/*.exe
             release/SHA256SUMS.txt
+
+  publish-windows-release:
+    name: Publish Windows release
+    needs: verify-windows-client
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/preview' &&
+      github.repository == 'Nexaorion/UnTypo'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    concurrency:
+      group: windows-release-${{ github.repository }}-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release version
+        id: version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$') {
+            throw "package.json version '$version' is not a valid SemVer version"
+          }
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "version=$version" -Encoding utf8NoBOM
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "tag=v$version" -Encoding utf8NoBOM
+
+      - name: Confirm release commit is current preview head
+        id: branch
+        shell: pwsh
+        run: |
+          & git fetch origin preview
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch the preview branch' }
+          $previewHead = (& git rev-parse origin/preview).Trim()
+          $isCurrent = $previewHead -eq $env:GITHUB_SHA
+          if (-not $isCurrent) {
+            Write-Host "Skipping release because $env:GITHUB_SHA is no longer the preview branch head"
+          }
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "is_current=$($isCurrent.ToString().ToLowerInvariant())" -Encoding utf8NoBOM
+
+      - name: Check release state
+        id: state
+        if: steps.branch.outputs.is_current == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          & git fetch --force --tags origin
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch remote tags' }
+
+          & git rev-parse --verify --quiet "refs/tags/$env:RELEASE_TAG" *> $null
+          $tagExists = $LASTEXITCODE -eq 0
+          if ($tagExists) {
+            $tagCommit = (& git rev-list -n 1 "refs/tags/$env:RELEASE_TAG").Trim()
+            if ($tagCommit -ne $env:GITHUB_SHA) {
+              throw "Tag $env:RELEASE_TAG already points to $tagCommit; bump package.json version before releasing this commit"
+            }
+          }
+
+          $null = & gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json id 2>$null
+          $releaseExists = $LASTEXITCODE -eq 0
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "tag_exists=$($tagExists.ToString().ToLowerInvariant())" -Encoding utf8NoBOM
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "should_publish=$((!$releaseExists).ToString().ToLowerInvariant())" -Encoding utf8NoBOM
+
+      - name: Set up Node.js
+        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        uses: actions/setup-node@v6
+        with:
+          cache: npm
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install locked dependencies
+        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        run: npm ci
+
+      - name: Build Electron client and Native Helper
+        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        run: npm run build
+
+      - name: Create version tag
+        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true' && steps.state.outputs.tag_exists != 'true'
+        shell: pwsh
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          & git tag --annotate $env:RELEASE_TAG $env:GITHUB_SHA --message "Release $env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { throw "Unable to create tag $env:RELEASE_TAG" }
+          & git push origin "refs/tags/$env:RELEASE_TAG"
+          if ($LASTEXITCODE -ne 0) { throw "Unable to push tag $env:RELEASE_TAG" }
+
+      - name: Publish Windows installer and update metadata
+        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: '& .\node_modules\.bin\electron-builder.cmd --win nsis --publish always'
+
+      - name: Publish installer checksum
+        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $installers = Get-ChildItem -LiteralPath release -Filter *.exe -File
+          if ($installers.Count -ne 1) { throw "Expected one installer, found $($installers.Count)" }
+          $hash = Get-FileHash -LiteralPath $installers[0].FullName -Algorithm SHA256
+          Set-Content -LiteralPath release\SHA256SUMS.txt -Value "$($hash.Hash)  $($installers[0].Name)"
+          & gh release upload $env:RELEASE_TAG release\SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw "Unable to publish checksum for $env:RELEASE_TAG" }
+
+      - name: Verify published release assets
+        if: steps.branch.outputs.is_current == 'true' && steps.state.outputs.should_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $release = & gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json isDraft,isPrerelease,assets | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "Unable to load release $env:RELEASE_TAG" }
+          if ($release.isDraft -or $release.isPrerelease) { throw "Release $env:RELEASE_TAG is not published" }
+
+          $assetNames = @($release.assets | ForEach-Object { $_.name })
+          $requiredAssets = @(
+            "UnTypo-$env:RELEASE_VERSION-x64.exe",
+            "UnTypo-$env:RELEASE_VERSION-x64.exe.blockmap",
+            'latest.yml',
+            'SHA256SUMS.txt'
+          )
+          $missingAssets = @($requiredAssets | Where-Object { $_ -notin $assetNames })
+          if ($missingAssets.Count -gt 0) {
+            throw "Release $env:RELEASE_TAG is missing required auto-update assets: $($missingAssets -join ', ')"
+          }

@@ -10,6 +10,11 @@ electronLanguages:
   - zh-CN
 directories:
   output: release
+publish:
+  provider: github
+  owner: Nexaorion
+  repo: UnTypo
+  releaseType: release
 files:
   - dist/**/*
   - package.json
