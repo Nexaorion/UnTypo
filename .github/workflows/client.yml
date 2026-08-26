@@ -117,6 +117,36 @@ jobs:
           & git push --force origin "refs/tags/$env:RELEASE_TAG"
           if ($LASTEXITCODE -ne 0) { throw "Unable to push tag $env:RELEASE_TAG" }
 
+      - name: Create or reuse draft release
+        if: steps.branch.outputs.is_current == 'true'
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $releaseJson = & gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:RELEASE_TAG" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            $release = $releaseJson | ConvertFrom-Json
+          } elseif ($LASTEXITCODE -eq 1) {
+            $arguments = @(
+              'api', '--method', 'POST', "repos/$env:GITHUB_REPOSITORY/releases",
+              '-f', "tag_name=$env:RELEASE_TAG",
+              '-f', "target_commitish=$env:GITHUB_SHA",
+              '-f', "name=$env:RELEASE_VERSION",
+              '-F', 'draft=true'
+            )
+            if ($env:IS_PRERELEASE -eq 'true') {
+              $arguments += @('-F', 'prerelease=true')
+            }
+            $release = (& gh @arguments) | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw "Unable to create draft release $env:RELEASE_TAG" }
+          } else {
+            throw "Unable to look up release $env:RELEASE_TAG"
+          }
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "id=$($release.id)" -Encoding utf8NoBOM
+
       - name: Publish Windows installer and update metadata
         if: steps.branch.outputs.is_current == 'true'
         shell: pwsh
@@ -132,21 +162,17 @@ jobs:
           & .\node_modules\.bin\electron-builder.cmd @arguments
           if ($LASTEXITCODE -ne 0) { throw 'Unable to publish the Windows installer' }
 
-      - name: Set release channel
+      - name: Publish release channel
         if: steps.branch.outputs.is_current == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_ID: ${{ steps.release.outputs.id }}
         run: |
-          $arguments = @('release', 'edit', $env:RELEASE_TAG, '--repo', $env:GITHUB_REPOSITORY, '--draft=false')
-          if ($env:IS_PRERELEASE -eq 'true') {
-            $arguments += '--prerelease'
-          } else {
-            $arguments += '--prerelease=false'
-          }
+          $prerelease = if ($env:IS_PRERELEASE -eq 'true') { 'true' } else { 'false' }
+          $arguments = @('api', '--method', 'PATCH', "repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID", '-F', 'draft=false', '-F', "prerelease=$prerelease")
           & gh @arguments
-          if ($LASTEXITCODE -ne 0) { throw "Unable to set the release channel for $env:RELEASE_TAG" }
+          if ($LASTEXITCODE -ne 0) { throw "Unable to publish release ID $env:RELEASE_ID" }
 
       - name: Publish installer checksum
         if: steps.branch.outputs.is_current == 'true'
@@ -167,14 +193,14 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_ID: ${{ steps.release.outputs.id }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          $release = & gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json isDraft,isPrerelease,assets | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0) { throw "Unable to load release $env:RELEASE_TAG" }
+          $release = & gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "Unable to load release ID $env:RELEASE_ID" }
           $expectedPrerelease = $env:IS_PRERELEASE -eq 'true'
           if ($release.isDraft -or ($release.isPrerelease -ne $expectedPrerelease)) {
-            throw "Release $env:RELEASE_TAG does not match the expected release channel"
+            throw "Release ID $env:RELEASE_ID does not match the expected release channel"
           }
 
           $assetNames = @($release.assets | ForEach-Object { $_.name })
@@ -186,5 +212,5 @@ jobs:
           )
           $missingAssets = @($requiredAssets | Where-Object { $_ -notin $assetNames })
           if ($missingAssets.Count -gt 0) {
-            throw "Release $env:RELEASE_TAG is missing required auto-update assets: $($missingAssets -join ', ')"
+            throw "Release ID $env:RELEASE_ID is missing required auto-update assets: $($missingAssets -join ', ')"
           }
