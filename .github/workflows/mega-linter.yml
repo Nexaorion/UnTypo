@@ -1,0 +1,40 @@
+name: MegaLinter
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  megalinter:
+    name: MegaLinter
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Scan code quality
+        uses: oxsecurity/megalinter@v10
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload scan reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: megalinter-reports
+          if-no-files-found: warn
+          include-hidden-files: true
+          path: |
+            megalinter-reports
+            mega-linter.log
