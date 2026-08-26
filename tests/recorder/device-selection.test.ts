@@ -10,9 +10,9 @@ describe('recorderAudioConstraints', () => {
     });
   });
 
-  it('requests the selected microphone as ideal', () => {
+  it('requires the explicitly selected microphone', () => {
     expect(recorderAudioConstraints('microphone-1')).toMatchObject({
-      deviceId: { ideal: 'microphone-1' },
+      deviceId: { exact: 'microphone-1' },
     });
   });
 });
