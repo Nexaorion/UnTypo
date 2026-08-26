@@ -57,6 +57,7 @@ export interface IntentContext {
 }
 
 export interface WindowContext {
+  isTextEntry: boolean;
   processId: number;
   windowHandle: string;
 }

@@ -326,6 +326,9 @@ export class DictationCoordinator {
       const textProvider = context.textProviderId
         ? this.#dependencies.textProviders.require(context.textProviderId)
         : undefined;
+      const processingSignal = context.options.signal
+        ? AbortSignal.any([context.options.signal, AbortSignal.timeout(60_000)])
+        : AbortSignal.timeout(60_000);
       let result: ProcessResult;
       try {
         const processRecording = () =>
@@ -333,14 +336,10 @@ export class DictationCoordinator {
             recording.audio,
             {
               ...context.options,
-              signal: context.options.signal
-                ? AbortSignal.any([
-                    context.options.signal,
-                    AbortSignal.timeout(60_000),
-                  ])
-                : AbortSignal.timeout(60_000),
+              signal: processingSignal,
               windowContext: target
                 ? {
+                    isTextEntry: target.editable,
                     processId: target.processId,
                     windowHandle: target.windowHandle,
                   }
@@ -413,7 +412,7 @@ export class DictationCoordinator {
                   ? await textProvider.polish(result.rawTranscript, {
                       dictionary: context.options.dictionary,
                       locale: context.options.language,
-                      signal: context.options.signal,
+                      signal: processingSignal,
                     })
                   : result.rawTranscript;
 

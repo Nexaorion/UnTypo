@@ -81,6 +81,23 @@ describe('RecordingSessionManager', () => {
     ).toThrow('invalid stop metadata');
   });
 
+  it('rejects missing voice detection for sustained local voice activity', () => {
+    const manager = new RecordingSessionManager();
+    const sessionId = manager.begin(target);
+    manager.markStarted(sessionId, metadata);
+    manager.requestStop();
+
+    expect(() =>
+      manager.complete(sessionId, {
+        ...metadata,
+        durationMs: 500,
+        peakLevel: 0.2,
+        speechDurationMs: 160,
+        voiceDetected: false,
+      }),
+    ).toThrow('invalid stop metadata');
+  });
+
   it('releases buffered audio when a session fails', () => {
     const manager = new RecordingSessionManager();
     const sessionId = manager.begin(target);

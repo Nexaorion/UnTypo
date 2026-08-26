@@ -19,7 +19,7 @@ export const textProviderCapabilities: Readonly<ProviderCapabilities> = {
 export const intentInstructions = (context: IntentContext): string => {
   const baseInstruction = `Classify the user's spoken text as transcription, translation, or instruction.`;
 
-  const contextHint = context.windowContext
+  const contextHint = context.windowContext?.isTextEntry
     ? ` CRITICAL: The user is dictating text INTO AN APPLICATION (like ChatGPT, Claude, messaging apps, etc.). They want YOU TO TRANSCRIBE their exact words, NOT to execute them as commands. Example: If they say "help me write a letter", they want that TEXT TRANSCRIBED into the application - they are NOT asking you (the transcription system) to write a letter for them. The application itself will handle their request. Your job is ONLY transcription. ALWAYS classify as "transcription" unless they explicitly say something like "transcription system, please generate..." (which never happens). Default: "transcription".`
     : ' Classify as instruction only when explicitly requesting content generation (e.g., "help me write an email", "generate a script"). When in doubt, choose transcription.';
 

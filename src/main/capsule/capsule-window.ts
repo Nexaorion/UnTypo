@@ -73,6 +73,8 @@ export class CapsuleWindowController {
         outputText: result.outputText,
         rawTranscript: result.rawTranscript ?? result.outputText,
         type: 'confirm',
+      }).catch(() => {
+        if (this.#confirmResolve === resolve) this.close();
       });
     });
   }
@@ -117,7 +119,7 @@ export class CapsuleWindowController {
     this.#autoCloseTimer = undefined;
     this.#rendererReady = false;
     this.#status = undefined;
-    this.#confirmResolve = undefined;
+    this.resolveConfirmation(false);
     this.#window?.destroy();
     this.#window = undefined;
   }
@@ -142,19 +144,15 @@ export class CapsuleWindowController {
   private readonly handleConfirm = (event: IpcMainEvent): void => {
     if (!this.isExpectedSender(event) || this.#status?.type !== 'confirm')
       return;
-    const resolve = this.#confirmResolve;
-    this.#confirmResolve = undefined;
+    this.resolveConfirmation(true);
     this.close();
-    resolve?.(true);
   };
 
   private readonly handleReject = (event: IpcMainEvent): void => {
     if (!this.isExpectedSender(event) || this.#status?.type !== 'confirm')
       return;
-    const resolve = this.#confirmResolve;
-    this.#confirmResolve = undefined;
+    this.resolveConfirmation(false);
     this.close();
-    resolve?.(false);
   };
 
   private readonly handleCopy = (event: IpcMainEvent): void => {
@@ -185,6 +183,12 @@ export class CapsuleWindowController {
 
   private isExpectedSender(event: IpcMainEvent): boolean {
     return event.sender.id === this.#window?.webContents.id;
+  }
+
+  private resolveConfirmation(useProcessed: boolean): void {
+    const resolve = this.#confirmResolve;
+    this.#confirmResolve = undefined;
+    resolve?.(useProcessed);
   }
 
   private async present(status: CapsuleStatus): Promise<void> {

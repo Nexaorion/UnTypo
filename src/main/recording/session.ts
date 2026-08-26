@@ -96,8 +96,8 @@ export class RecordingSessionManager {
       stopped.speechDurationMs < 0 ||
       stopped.speechDurationMs > stopped.durationMs ||
       typeof stopped.voiceDetected !== 'boolean' ||
-      (stopped.voiceDetected &&
-        stopped.speechDurationMs < MINIMUM_VOICE_ACTIVITY_DURATION_MS)
+      stopped.voiceDetected !==
+        stopped.speechDurationMs >= MINIMUM_VOICE_ACTIVITY_DURATION_MS
     ) {
       throw new Error('Recorder sent invalid stop metadata');
     }
