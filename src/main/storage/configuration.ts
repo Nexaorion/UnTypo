@@ -37,12 +37,9 @@ export interface StoredClientConfig {
     defaultTargetLanguage: SupportedLanguage;
     fastMode?: boolean;
     hotkeyAccelerator: string;
-    hotkeyTranslationAccelerator?: string;
-    hotkeyInstructionAccelerator?: string;
     intentClassificationModel?: string;
     language: SupportedLanguage;
     microphoneDeviceId?: string;
-    microphoneDeviceLabel?: string;
   };
   dictionary: readonly string[];
   encryptedProfile?: EncryptedValue;
@@ -289,10 +286,6 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
       dictation.hotkeyMode !== 'push-to-talk' &&
       dictation.hotkeyMode !== 'toggle') ||
     (dictation.fastMode !== undefined && typeof dictation.fastMode !== 'boolean') ||
-    (dictation.hotkeyTranslationAccelerator !== undefined &&
-      !isNonEmptyString(dictation.hotkeyTranslationAccelerator, 128)) ||
-    (dictation.hotkeyInstructionAccelerator !== undefined &&
-      !isNonEmptyString(dictation.hotkeyInstructionAccelerator, 128)) ||
     (dictation.intentClassificationModel !== undefined &&
       !isNonEmptyString(dictation.intentClassificationModel, 200)) ||
     (dictation.activeSpeechProviderProfileId !== undefined &&
@@ -303,8 +296,6 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
         !profileIdPattern.test(dictation.activeTextProviderProfileId))) ||
     (dictation.microphoneDeviceId !== undefined &&
       !isNonEmptyString(dictation.microphoneDeviceId, 512)) ||
-    (dictation.microphoneDeviceLabel !== undefined &&
-      !isNonEmptyString(dictation.microphoneDeviceLabel, 512)) ||
     !Array.isArray(value.providers)
   ) {
     throw new Error('Invalid configuration data');
@@ -349,13 +340,16 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
         dictation.defaultTargetLanguage,
         'default target language',
       ),
+      ...(typeof dictation.fastMode === 'boolean'
+        ? { fastMode: dictation.fastMode }
+        : {}),
       hotkeyAccelerator: migrateDefaultHotkey(dictation.hotkeyAccelerator),
+      ...(typeof dictation.intentClassificationModel === 'string'
+        ? { intentClassificationModel: dictation.intentClassificationModel }
+        : {}),
       language: assertLanguage(dictation.language, 'dictation language'),
       ...(typeof dictation.microphoneDeviceId === 'string'
         ? { microphoneDeviceId: dictation.microphoneDeviceId }
-        : {}),
-      ...(typeof dictation.microphoneDeviceLabel === 'string'
-        ? { microphoneDeviceLabel: dictation.microphoneDeviceLabel }
         : {}),
     },
     providers,

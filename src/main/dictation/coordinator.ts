@@ -72,7 +72,9 @@ export interface HistoryPort {
 }
 
 export interface DictationContext {
+  fastMode?: boolean;
   history: HistoryPolicy;
+  intentClassificationModel?: string;
   modelName?: string;
   microphoneDeviceId?: string;
   options: ProcessOptions;
@@ -336,6 +338,9 @@ export class DictationCoordinator {
             recording.audio,
             {
               ...context.options,
+              ...(context.fastMode
+                ? { fastMode: true, forcedIntent: 'transcription' }
+                : {}),
               signal: processingSignal,
               windowContext: target
                 ? {

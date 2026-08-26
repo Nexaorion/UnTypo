@@ -72,6 +72,16 @@ const smokeTestSource = `
     if (hotkeyCapture.querySelectorAll('kbd').length < 1)
       return 'hotkey-keycaps';
 
+    const fastMode = settingsPanel.querySelector('[role="switch"]');
+    if (!(fastMode instanceof HTMLInputElement)) return 'fast-mode-switch';
+    const fastModeWasEnabled = fastMode.checked;
+    fastMode.click();
+    await wait(120);
+    if (fastMode.checked === fastModeWasEnabled) return 'fast-mode-toggle';
+    fastMode.click();
+    await wait(120);
+    if (fastMode.checked !== fastModeWasEnabled) return 'fast-mode-restore';
+
     const settingsClose = settingsRoot.querySelector('[data-testid="settings-close"]');
     if (!settingsClose) return 'settings-close';
     settingsClose.click();

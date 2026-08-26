@@ -90,6 +90,9 @@ export interface ProcessOptions {
   defaultTargetLanguage: SupportedLanguage;
   dictionary: readonly string[];
   explicitTargetLanguage?: SupportedLanguage;
+  fastMode?: boolean;
+  forcedIntent?: DictationIntent;
+  intentClassificationModel?: string;
   language: SupportedLanguage;
   preferIntegratedProcess?: boolean;
   profile?: UserProfileContext;

@@ -234,6 +234,12 @@ export class DesktopRuntime {
         );
         return {
           history: current.history,
+          ...(current.dictation.fastMode !== undefined
+            ? { fastMode: current.dictation.fastMode }
+            : {}),
+          ...(current.dictation.intentClassificationModel
+            ? { intentClassificationModel: current.dictation.intentClassificationModel }
+            : {}),
           modelName: activeSpeechProfile?.values.model ?? speechProviderId,
           ...(current.dictation.microphoneDeviceId
             ? { microphoneDeviceId: current.dictation.microphoneDeviceId }
@@ -241,6 +247,12 @@ export class DesktopRuntime {
           options: {
             defaultTargetLanguage: current.dictation.defaultTargetLanguage,
             dictionary: current.dictionary,
+            ...(current.dictation.fastMode !== undefined
+              ? { fastMode: current.dictation.fastMode }
+              : {}),
+            ...(current.dictation.intentClassificationModel
+              ? { intentClassificationModel: current.dictation.intentClassificationModel }
+              : {}),
             language: current.dictation.language,
             preferIntegratedProcess: false,
             profile: await this.#configuration.getProfile(),
@@ -308,6 +320,7 @@ export class DesktopRuntime {
       this.#started = true;
       this.#diagnostics.log({
         context: {
+          fastModeEnabled: config.dictation.fastMode === true,
           speechProviderConfigured: this.#speechProviderId !== undefined,
           textProviderConfigured: this.#textProviderId !== undefined,
         },
@@ -366,7 +379,16 @@ export class DesktopRuntime {
               }
             : {}),
           defaultTargetLanguage: config.dictation.defaultTargetLanguage,
+          ...(config.dictation.fastMode !== undefined
+            ? { fastMode: config.dictation.fastMode }
+            : {}),
           hotkeyAccelerator: config.dictation.hotkeyAccelerator,
+          ...(config.dictation.intentClassificationModel
+            ? {
+                intentClassificationModel:
+                  config.dictation.intentClassificationModel,
+              }
+            : {}),
           language: config.dictation.language,
           ...(config.dictation.microphoneDeviceId
             ? { microphoneDeviceId: config.dictation.microphoneDeviceId }
@@ -430,6 +452,7 @@ export class DesktopRuntime {
         const {
           activeSpeechProviderProfileId,
           activeTextProviderProfileId,
+          intentClassificationModel,
           microphoneDeviceId,
           ...dictationUpdate
         } = update.dictation ?? {};
@@ -444,6 +467,11 @@ export class DesktopRuntime {
           delete dictation.activeTextProviderProfileId;
         } else if (activeTextProviderProfileId !== undefined) {
           dictation.activeTextProviderProfileId = activeTextProviderProfileId;
+        }
+        if (intentClassificationModel === null) {
+          delete dictation.intentClassificationModel;
+        } else if (intentClassificationModel !== undefined) {
+          dictation.intentClassificationModel = intentClassificationModel;
         }
         if (microphoneDeviceId === null) {
           delete dictation.microphoneDeviceId;

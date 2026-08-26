@@ -4,5 +4,5 @@ export const recorderAudioConstraints = (
   autoGainControl: true,
   echoCancellation: true,
   noiseSuppression: true,
-  ...(microphoneDeviceId ? { deviceId: { ideal: microphoneDeviceId } } : {}),
+  ...(microphoneDeviceId ? { deviceId: { exact: microphoneDeviceId } } : {}),
 });

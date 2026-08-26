@@ -91,6 +91,35 @@ export class DictationPipeline {
       usage: transcript.usage,
     };
 
+    if (options.fastMode && options.forcedIntent) {
+      try {
+        const outputText = await this.route(
+          options.forcedIntent,
+          rawTranscript,
+          options,
+          undefined,
+        );
+        const result: ProcessResult = {
+          intent: this.resolveAvailableIntent(options.forcedIntent),
+          outputText,
+          rawTranscript,
+          usage: transcript.usage,
+        };
+
+        assertProcessResult(result);
+        return result;
+      } catch (error) {
+        throwIfAborted(options.signal);
+        if (
+          error instanceof ProviderContractError &&
+          (error.code === 'ABORTED' || error.code === 'EMPTY_RESULT')
+        ) {
+          throw error;
+        }
+        throw new RecoverablePostProcessingError(fallbackResult, error);
+      }
+    }
+
     try {
       const classification = await this.classify(rawTranscript, options);
       const outputText = await this.route(

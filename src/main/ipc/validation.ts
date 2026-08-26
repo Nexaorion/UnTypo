@@ -72,9 +72,12 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         'activeSpeechProviderProfileId',
         'activeTextProviderProfileId',
         'defaultTargetLanguage',
+        'fastMode',
         'hotkeyAccelerator',
+        'intentClassificationModel',
         'language',
         'microphoneDeviceId',
+        'microphoneDeviceLabel',
       ],
       'Dictation settings',
     );
@@ -106,6 +109,11 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         throw new Error('Invalid target language');
       dictation.defaultTargetLanguage = value.dictation.defaultTargetLanguage;
     }
+    if (value.dictation.fastMode !== undefined) {
+      if (typeof value.dictation.fastMode !== 'boolean')
+        throw new Error('Invalid fast mode setting');
+      dictation.fastMode = value.dictation.fastMode;
+    }
     if (value.dictation.hotkeyAccelerator !== undefined) {
       if (
         typeof value.dictation.hotkeyAccelerator !== 'string' ||
@@ -115,6 +123,23 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         throw new Error('Invalid hotkey accelerator');
       }
       dictation.hotkeyAccelerator = value.dictation.hotkeyAccelerator;
+    }
+    if (value.dictation.intentClassificationModel !== undefined) {
+      if (
+        value.dictation.intentClassificationModel !== null &&
+        (typeof value.dictation.intentClassificationModel !== 'string' ||
+          value.dictation.intentClassificationModel.length === 0 ||
+          value.dictation.intentClassificationModel.length > 200)
+      ) {
+        throw new Error('Invalid intent classification model');
+      }
+      dictation.intentClassificationModel =
+        value.dictation.intentClassificationModel;
+    }
+    if (value.dictation.language !== undefined) {
+      if (!isLanguage(value.dictation.language))
+        throw new Error('Invalid dictation language');
+      dictation.language = value.dictation.language;
     }
     if (value.dictation.microphoneDeviceId !== undefined) {
       if (
@@ -126,11 +151,6 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         throw new Error('Invalid microphone device');
       }
       dictation.microphoneDeviceId = value.dictation.microphoneDeviceId;
-    }
-    if (value.dictation.language !== undefined) {
-      if (!isLanguage(value.dictation.language))
-        throw new Error('Invalid dictation language');
-      dictation.language = value.dictation.language;
     }
     result.dictation = dictation;
   }

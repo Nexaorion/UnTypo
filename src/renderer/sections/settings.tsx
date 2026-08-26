@@ -176,28 +176,9 @@ export const SettingsSection = ({
   );
 
   const microphoneDeviceId = settings.dictation.microphoneDeviceId ?? '';
-  const microphoneDeviceLabel = settings.dictation.microphoneDeviceLabel;
-
-  let selectedMicrophone = microphones.find(
+  const selectedMicrophone = microphones.find(
     ({ deviceId }) => deviceId === microphoneDeviceId,
   );
-
-  if (!selectedMicrophone && microphoneDeviceId && microphoneDeviceLabel) {
-    selectedMicrophone = microphones.find(
-      ({ label }) => label === microphoneDeviceLabel,
-    );
-    if (selectedMicrophone) {
-      void run('microphone', () =>
-        store.updateSettings({
-          dictation: {
-            microphoneDeviceId: selectedMicrophone.deviceId,
-            microphoneDeviceLabel: selectedMicrophone.label,
-          },
-        }),
-      );
-    }
-  }
-
   const selectedMicrophoneMissing =
     microphoneDeviceId.length > 0 &&
     !microphonesLoading &&
@@ -233,17 +214,10 @@ export const SettingsSection = ({
               label={t('settings.microphone')}
               onChange={(event) => {
                 const next = event.target.value;
-                const selectedDevice = microphones.find(
-                  ({ deviceId }) => deviceId === next,
-                );
                 void run('microphone', () =>
                   store.updateSettings({
                     dictation: {
                       microphoneDeviceId: next.length > 0 ? next : null,
-                      microphoneDeviceLabel:
-                        next.length > 0 && selectedDevice
-                          ? selectedDevice.label
-                          : null,
                     },
                   }),
                 );
@@ -300,6 +274,35 @@ export const SettingsSection = ({
             onChange={saveHotkey}
             value={hotkey}
           />
+          <SwitchField
+            checked={settings.dictation.fastMode ?? false}
+            description={t('settings.fastModeHint')}
+            label={t('settings.fastMode')}
+            onCheckedChange={(checked) =>
+              void run('fastMode', () =>
+                store.updateSettings({ dictation: { fastMode: checked } }),
+              )
+            }
+          />
+          {!settings.dictation.fastMode && (
+            <Field
+              helperText={t('settings.intentClassificationModelHint')}
+              label={t('settings.intentClassificationModel')}
+              onChange={(event) => {
+                const value = event.target.value;
+                void run('intentClassificationModel', () =>
+                  store.updateSettings({
+                    dictation: {
+                      intentClassificationModel: value.length > 0 ? value : null,
+                    },
+                  }),
+                );
+              }}
+              placeholder={t('settings.intentClassificationModelPlaceholder')}
+              slotProps={{ htmlInput: { maxLength: 200 } }}
+              value={settings.dictation.intentClassificationModel ?? ''}
+            />
+          )}
           {languageSelect(
             t('settings.dictationLanguage'),
             settings.dictation.language,
