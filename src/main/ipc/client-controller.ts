@@ -1,4 +1,4 @@
-import { ipcMain, type IpcMainInvokeEvent } from 'electron';
+import { clipboard, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import type { UserProfileContext } from '../../core/providers/contracts.js';
 import type {
   ClientDiagnosticExportRequest,
@@ -24,6 +24,7 @@ import {
 } from './diagnostic-validation.js';
 import {
   parseDictionary,
+  parseClipboardText,
   parseHistoryQuery,
   parseProfile,
   parseProfileId,
@@ -78,6 +79,7 @@ export class ClientIpcController {
     ipcMain.handle(IPC_CHANNELS.testProvider, this.testProvider);
     ipcMain.handle(IPC_CHANNELS.listHistory, this.listHistory);
     ipcMain.handle(IPC_CHANNELS.clearHistory, this.clearHistory);
+    ipcMain.handle(IPC_CHANNELS.copyText, this.copyText);
   }
 
   destroy(): void {
@@ -97,6 +99,7 @@ export class ClientIpcController {
       IPC_CHANNELS.testProvider,
       IPC_CHANNELS.listHistory,
       IPC_CHANNELS.clearHistory,
+      IPC_CHANNELS.copyText,
     ]) {
       ipcMain.removeHandler(channel);
     }
@@ -190,6 +193,14 @@ export class ClientIpcController {
   private readonly clearHistory = (event: IpcMainInvokeEvent): number => {
     trust(event);
     return this.#backend.clearHistory();
+  };
+
+  private readonly copyText = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): void => {
+    trust(event);
+    clipboard.writeText(parseClipboardText(value));
   };
 
   private readonly exportDiagnostics = (

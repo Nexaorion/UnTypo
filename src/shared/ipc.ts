@@ -13,6 +13,7 @@ import type {
 export const IPC_CHANNELS = {
   acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
   clearHistory: 'client:clear-history',
+  copyText: 'client:copy-text',
   exportDiagnostics: 'client:export-diagnostics',
   getDiagnostics: 'client:get-diagnostics',
   getSnapshot: 'client:get-snapshot',
@@ -155,6 +156,7 @@ export interface UntypoApi {
     issueIds: readonly string[],
   ) => Promise<ClientDiagnosticSnapshot>;
   clearHistory: () => Promise<number>;
+  copyText: (text: string) => Promise<void>;
   exportDiagnostics: (
     request: ClientDiagnosticExportRequest,
   ) => Promise<ClientDiagnosticExportResult>;
