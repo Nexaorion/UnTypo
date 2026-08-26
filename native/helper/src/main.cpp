@@ -63,17 +63,20 @@ bool ValidArguments(const Arguments& arguments) {
 
 int RunSelfTest() {
   if (sizeof(untypo::FrameHeader) != 12 ||
+      sizeof(untypo::HotkeyConfiguration) != 8 ||
+      sizeof(untypo::HotkeyConfigurationResultPayload) != 4 ||
       sizeof(untypo::TargetSnapshotPayload) != 14 ||
-      untypo::kProtocolVersion != 1) {
+      untypo::kProtocolVersion != 2) {
     return 1;
   }
   return 0;
 }
 
-}
+}  // namespace
 
-int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-  SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32 | LOAD_LIBRARY_SEARCH_USER_DIRS);
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
+  SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32 |
+                           LOAD_LIBRARY_SEARCH_USER_DIRS);
   HeapSetInformation(nullptr, HeapEnableTerminationOnCorruption, nullptr, 0);
 
   const Arguments arguments = ParseArguments();
@@ -88,8 +91,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   untypo::HotkeyMonitor hotkey;
 
   untypo::PipeCallbacks callbacks;
-  callbacks.configure_hotkey = [&hotkey](const untypo::HotkeyConfiguration& value) {
-    hotkey.Configure(value);
+  callbacks.configure_hotkey = [&hotkey](
+                                     const untypo::HotkeyConfiguration& value) {
+    return hotkey.Configure(value);
   };
   callbacks.capture_target = [&targets] { return targets.Capture(); };
   callbacks.paste = [&targets](const untypo::PasteRequestPayload& request) {
@@ -102,14 +106,14 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
     PostThreadMessageW(main_thread_id, WM_QUIT, 0, 0);
   };
 
-  if (!pipe.Start(arguments.pipe_name, arguments.token, std::move(callbacks))) {
-    return 3;
-  }
-  if (!hotkey.Install([&pipe](untypo::HotkeyAction action) {
-        pipe.SendHotkey(action);
-      })) {
-    pipe.Stop();
+  if (!hotkey.Install(
+          [&pipe](untypo::HotkeyAction action) { pipe.SendHotkey(action); },
+          instance)) {
     return 4;
+  }
+  if (!pipe.Start(arguments.pipe_name, arguments.token, std::move(callbacks))) {
+    hotkey.Uninstall();
+    return 3;
   }
 
   MSG message{};

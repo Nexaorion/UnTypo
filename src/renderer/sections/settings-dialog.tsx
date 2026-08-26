@@ -173,12 +173,14 @@ const SettingsNavigation = ({
 };
 
 export const SettingsDialog = ({
+  onOpenDiagnostics,
   onOpenChange,
   onTabChange,
   open,
   store,
   tab,
 }: {
+  onOpenDiagnostics: () => void;
   onOpenChange: (open: boolean) => void;
   onTabChange: (tab: SettingsTab) => void;
   open: boolean;
@@ -260,7 +262,10 @@ export const SettingsDialog = ({
           </DialogTitle>
           <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <SettingsPanel tab="settings" value={tab}>
-              <SettingsSection store={store} />
+              <SettingsSection
+                onOpenDiagnostics={onOpenDiagnostics}
+                store={store}
+              />
             </SettingsPanel>
             <SettingsPanel tab="models" value={tab}>
               <ProvidersSection store={store} />

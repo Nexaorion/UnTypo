@@ -13,6 +13,7 @@ export interface TargetSnapshot {
 
 export interface CompletedRecording {
   audio: AudioPayload;
+  peakLevel: number;
   sessionId: string;
   target: TargetSnapshot;
 }
@@ -82,6 +83,15 @@ export class RecordingSessionManager {
     if (this.#state !== 'stopping' || !this.#buffer || !this.#target) {
       throw new Error('Recorder stopped in an invalid state');
     }
+    if (
+      !Number.isFinite(stopped.durationMs) ||
+      stopped.durationMs < 0 ||
+      !Number.isFinite(stopped.peakLevel) ||
+      stopped.peakLevel < 0 ||
+      stopped.peakLevel > 1
+    ) {
+      throw new Error('Recorder sent invalid stop metadata');
+    }
     const metadata = this.#metadata ?? stopped;
     const completed: CompletedRecording = {
       audio: {
@@ -91,6 +101,7 @@ export class RecordingSessionManager {
         mimeType: metadata.mimeType,
         sampleRateHz: metadata.sampleRateHz,
       },
+      peakLevel: stopped.peakLevel,
       sessionId,
       target: { ...this.#target },
     };

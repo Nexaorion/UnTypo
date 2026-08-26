@@ -3,13 +3,24 @@ import type {
   SupportedLanguage,
   UserProfileContext,
 } from '../core/providers/contracts.js';
+import type {
+  ClientDiagnosticExportRequest,
+  ClientDiagnosticExportResult,
+  ClientDiagnosticSnapshot,
+  ClientRendererIssueInput,
+} from './diagnostics.js';
 
 export const IPC_CHANNELS = {
+  acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
   clearHistory: 'client:clear-history',
+  exportDiagnostics: 'client:export-diagnostics',
+  getDiagnostics: 'client:get-diagnostics',
   getSnapshot: 'client:get-snapshot',
   getUsageStats: 'client:get-usage-stats',
+  listMicrophones: 'client:list-microphones',
   listHistory: 'client:list-history',
   ping: 'app:ping',
+  reportRendererIssue: 'client:report-renderer-issue',
   removeProvider: 'client:remove-provider',
   setDictionary: 'client:set-dictionary',
   setProfile: 'client:set-profile',
@@ -63,8 +74,8 @@ export interface ClientSettingsSnapshot {
     activeTextProviderProfileId?: string;
     defaultTargetLanguage: SupportedLanguage;
     hotkeyAccelerator: string;
-    hotkeyMode: 'push-to-talk' | 'toggle';
     language: SupportedLanguage;
+    microphoneDeviceId?: string;
   };
   general: {
     launchAtLogin: boolean;
@@ -82,8 +93,8 @@ export interface ClientSettingsUpdate {
     activeTextProviderProfileId?: string | null;
     defaultTargetLanguage?: SupportedLanguage;
     hotkeyAccelerator?: string;
-    hotkeyMode?: 'push-to-talk' | 'toggle';
     language?: SupportedLanguage;
+    microphoneDeviceId?: string | null;
   };
   general?: {
     launchAtLogin?: boolean;
@@ -122,6 +133,11 @@ export interface ClientUsageStats {
   usageCount: number;
 }
 
+export interface ClientMicrophoneDevice {
+  deviceId: string;
+  label: string;
+}
+
 export interface ClientHistoryQuery {
   limit?: number;
   offset?: number;
@@ -135,14 +151,24 @@ export interface PingResponse {
 }
 
 export interface UntypoApi {
+  acknowledgeDiagnostics: (
+    issueIds: readonly string[],
+  ) => Promise<ClientDiagnosticSnapshot>;
   clearHistory: () => Promise<number>;
+  exportDiagnostics: (
+    request: ClientDiagnosticExportRequest,
+  ) => Promise<ClientDiagnosticExportResult>;
+  getDiagnostics: () => Promise<ClientDiagnosticSnapshot>;
   getSnapshot: () => Promise<ClientSnapshot>;
   getUsageStats: () => Promise<ClientUsageStats>;
   listHistory: (
     query?: ClientHistoryQuery,
   ) => Promise<readonly ClientHistoryRecord[]>;
+  listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
+  onDiagnosticsChanged: (listener: () => void) => () => void;
   ping: () => Promise<PingResponse>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
+  reportRendererIssue: (issue: ClientRendererIssueInput) => Promise<void>;
   setDictionary: (entries: readonly string[]) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;

@@ -72,8 +72,8 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         'activeTextProviderProfileId',
         'defaultTargetLanguage',
         'hotkeyAccelerator',
-        'hotkeyMode',
         'language',
+        'microphoneDeviceId',
       ],
       'Dictation settings',
     );
@@ -115,14 +115,16 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
       }
       dictation.hotkeyAccelerator = value.dictation.hotkeyAccelerator;
     }
-    if (value.dictation.hotkeyMode !== undefined) {
+    if (value.dictation.microphoneDeviceId !== undefined) {
       if (
-        value.dictation.hotkeyMode !== 'push-to-talk' &&
-        value.dictation.hotkeyMode !== 'toggle'
+        value.dictation.microphoneDeviceId !== null &&
+        (typeof value.dictation.microphoneDeviceId !== 'string' ||
+          value.dictation.microphoneDeviceId.length === 0 ||
+          value.dictation.microphoneDeviceId.length > 512)
       ) {
-        throw new Error('Invalid hotkey mode');
+        throw new Error('Invalid microphone device');
       }
-      dictation.hotkeyMode = value.dictation.hotkeyMode;
+      dictation.microphoneDeviceId = value.dictation.microphoneDeviceId;
     }
     if (value.dictation.language !== undefined) {
       if (!isLanguage(value.dictation.language))

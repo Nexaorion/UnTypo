@@ -6,8 +6,33 @@ import {
   parseProviderInput,
   parseSettingsUpdate,
 } from '../../src/main/ipc/validation';
+import {
+  parseDiagnosticExportRequest,
+  parseDiagnosticIssueIds,
+  parseRendererIssue,
+} from '../../src/main/ipc/diagnostic-validation';
 
 describe('client IPC validation', () => {
+  it('validates diagnostic export and renderer issue payloads', () => {
+    const issueId = 'ec1e6ca3-dc50-412c-9aff-3eac670ff5de';
+    expect(
+      parseDiagnosticExportRequest({ includeAudio: true, issueIds: [issueId] }),
+    ).toEqual({ includeAudio: true, issueIds: [issueId] });
+    expect(
+      parseRendererIssue({
+        line: 42,
+        message: 'Renderer failed',
+        source: 'app://renderer/index.js',
+      }),
+    ).toMatchObject({ line: 42, message: 'Renderer failed' });
+    expect(() => parseDiagnosticIssueIds(['not-an-issue-id'])).toThrow(
+      'Invalid diagnostic issue ids',
+    );
+    expect(() =>
+      parseRendererIssue({ message: 'Renderer failed', token: 'secret' }),
+    ).toThrow('unsupported field');
+  });
+
   it('accepts bounded settings and history requests', () => {
     expect(
       parseSettingsUpdate({
@@ -15,7 +40,7 @@ describe('client IPC validation', () => {
           activeSpeechProviderProfileId: 'primary-speech',
           activeTextProviderProfileId: 'primary-text',
           hotkeyAccelerator: 'Ctrl+Shift+Space',
-          hotkeyMode: 'toggle',
+          microphoneDeviceId: 'microphone-1',
         },
         general: { locale: 'en-US' },
         history: { enabled: false, retentionDays: 0 },
@@ -24,6 +49,7 @@ describe('client IPC validation', () => {
       dictation: {
         activeSpeechProviderProfileId: 'primary-speech',
         activeTextProviderProfileId: 'primary-text',
+        microphoneDeviceId: 'microphone-1',
       },
       general: { locale: 'en-US' },
       history: { enabled: false, retentionDays: 0 },
@@ -49,6 +75,11 @@ describe('client IPC validation', () => {
     expect(() => parseDictionary(['x'.repeat(129)])).toThrow(
       'Invalid dictionary',
     );
+    expect(() =>
+      parseSettingsUpdate({
+        dictation: { microphoneDeviceId: 'x'.repeat(513) },
+      }),
+    ).toThrow('Invalid microphone device');
   });
 
   it.each([

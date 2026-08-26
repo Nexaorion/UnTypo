@@ -1,17 +1,22 @@
+import BugReportOutlinedIcon from '@mui/icons-material/BugReportOutlined';
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import Button from '@mui/material/Button';
+import FormLabel from '@mui/material/FormLabel';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
-import { useEffect, useState } from 'react';
+import Typography from '@mui/material/Typography';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SupportedLanguage } from '../../core/providers/contracts.js';
+import type { ClientMicrophoneDevice } from '../../shared/ipc.js';
 import { useI18n } from '../i18n/context.js';
 import {
-  acceleratorFromEvent,
   formatHotkeyAccelerator,
   isValidHotkeyAccelerator,
 } from '../logic/hotkey.js';
-import type { ClientStore } from '../state/client.js';
+import { describeError, type ClientStore } from '../state/client.js';
 import { useAction } from '../state/use-action.js';
 import { Field } from '../ui/field.js';
+import { HotkeyField } from '../ui/hotkey-field.js';
 import { Card, Page, PageHeader } from '../ui/page.js';
 import { SwitchField } from '../ui/switch-field.js';
 
@@ -22,14 +27,31 @@ const LANGUAGES: readonly { label: string; value: SupportedLanguage }[] = [
   { label: 'English', value: 'en-US' },
 ];
 
-export const SettingsSection = ({ store }: { store: ClientStore }) => {
+export const SettingsSection = ({
+  onOpenDiagnostics,
+  store,
+}: {
+  onOpenDiagnostics: () => void;
+  store: ClientStore;
+}) => {
   const { t } = useI18n();
   const { isPending, run } = useAction();
   const settings = store.snapshot?.settings;
   const profile = store.snapshot?.profile;
+  const listMicrophones = store.listMicrophones;
+  const pendingDiagnosticCount =
+    store.diagnostics?.issues.filter(
+      ({ acknowledgedAt }) => acknowledgedAt === undefined,
+    ).length ?? 0;
 
   const [hotkey, setHotkey] = useState('');
   const [hotkeyError, setHotkeyError] = useState<string | undefined>(undefined);
+  const [microphones, setMicrophones] = useState<
+    readonly ClientMicrophoneDevice[]
+  >([]);
+  const [microphoneError, setMicrophoneError] = useState<string>();
+  const [microphonesLoading, setMicrophonesLoading] = useState(false);
+  const microphoneRequest = useRef(0);
   const [retention, setRetention] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [preferredName, setPreferredName] = useState('');
@@ -48,6 +70,32 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
     setSignature(profile?.signature ?? '');
   }, [profile?.displayName, profile?.preferredName, profile?.signature]);
 
+  const refreshMicrophones = useCallback(async () => {
+    const request = microphoneRequest.current + 1;
+    microphoneRequest.current = request;
+    setMicrophonesLoading(true);
+    setMicrophoneError(undefined);
+    try {
+      const devices = await listMicrophones();
+      if (microphoneRequest.current === request) setMicrophones(devices);
+    } catch (error) {
+      if (microphoneRequest.current === request) {
+        setMicrophoneError(
+          describeError(error) ?? t('settings.microphoneUnavailable'),
+        );
+      }
+    } finally {
+      if (microphoneRequest.current === request) setMicrophonesLoading(false);
+    }
+  }, [listMicrophones, t]);
+
+  useEffect(() => {
+    void refreshMicrophones();
+    return () => {
+      microphoneRequest.current += 1;
+    };
+  }, [refreshMicrophones]);
+
   if (!settings) {
     return (
       <Page>
@@ -64,8 +112,22 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
     }
     setHotkeyError(undefined);
     setHotkey(normalized);
-    void run('hotkey', () =>
-      store.updateSettings({ dictation: { hotkeyAccelerator: normalized } }),
+    if (normalized === settings.dictation.hotkeyAccelerator) return;
+    const failureMessage = (error: unknown) =>
+      error instanceof Error && error.message.includes('HOTKEY_CONFLICT')
+        ? t('field.hotkeyConflict')
+        : t('field.hotkeyUnavailable');
+    void run(
+      'hotkey',
+      () =>
+        store.updateSettings({ dictation: { hotkeyAccelerator: normalized } }),
+      {
+        describeError: failureMessage,
+        onError: (error) => {
+          setHotkey(settings.dictation.hotkeyAccelerator);
+          setHotkeyError(failureMessage(error));
+        },
+      },
     );
   };
 
@@ -113,49 +175,103 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
     </Field>
   );
 
+  const microphoneDeviceId = settings.dictation.microphoneDeviceId ?? '';
+  const selectedMicrophone = microphones.find(
+    ({ deviceId }) => deviceId === microphoneDeviceId,
+  );
+  const selectedMicrophoneMissing =
+    microphoneDeviceId.length > 0 &&
+    !microphonesLoading &&
+    !microphoneError &&
+    !selectedMicrophone;
+  const microphoneHelperText = microphoneError
+    ? microphoneError
+    : selectedMicrophoneMissing
+      ? t('settings.microphoneMissing')
+      : selectedMicrophone
+        ? t('settings.microphoneSelectedHint', {
+            device: selectedMicrophone.label,
+          })
+        : microphones.length === 0 && !microphonesLoading
+          ? t('settings.microphoneEmpty')
+          : t('settings.microphoneAutoHint');
+
   return (
     <Page>
       <PageHeader title={t('settings.title')} />
 
       <Card title={t('settings.group.dictation')}>
         <Stack sx={{ gap: 2.5 }}>
-          <Field
-            label={t('settings.hotkeyMode')}
-            onChange={(event) =>
-              void run('hotkeyMode', () =>
-                store.updateSettings({
-                  dictation: {
-                    hotkeyMode:
-                      event.target.value === 'toggle'
-                        ? 'toggle'
-                        : 'push-to-talk',
-                  },
-                }),
-              )
-            }
-            select
-            value={settings.dictation.hotkeyMode}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            sx={{ alignItems: { sm: 'flex-start' }, gap: 1.25 }}
           >
-            <MenuItem value="push-to-talk">
-              {t('settings.hotkeyMode.pushToTalk')}
-            </MenuItem>
-            <MenuItem value="toggle">
-              {t('settings.hotkeyMode.toggle')}
-            </MenuItem>
-          </Field>
-          <Field
-            autoComplete="off"
-            error={hotkeyError !== undefined}
-            helperText={hotkeyError}
+            <Field
+              data-testid="microphone-select"
+              disabled={isPending('microphone')}
+              error={Boolean(microphoneError || selectedMicrophoneMissing)}
+              helperText={microphoneHelperText}
+              label={t('settings.microphone')}
+              onChange={(event) => {
+                const next = event.target.value;
+                void run('microphone', () =>
+                  store.updateSettings({
+                    dictation: {
+                      microphoneDeviceId: next.length > 0 ? next : null,
+                    },
+                  }),
+                );
+              }}
+              select
+              value={microphoneDeviceId}
+            >
+              <MenuItem value="">{t('settings.microphoneAuto')}</MenuItem>
+              {selectedMicrophoneMissing ? (
+                <MenuItem value={microphoneDeviceId}>
+                  {t('settings.microphoneMissing')}
+                </MenuItem>
+              ) : null}
+              {microphones
+                .filter(({ deviceId }) => deviceId !== 'default')
+                .map((device) => (
+                  <MenuItem key={device.deviceId} value={device.deviceId}>
+                    {device.label}
+                  </MenuItem>
+                ))}
+            </Field>
+            <Stack
+              sx={{
+                flex: '0 0 auto',
+                gap: 0.75,
+                width: { xs: '100%', sm: 'auto' },
+              }}
+            >
+              <FormLabel
+                aria-hidden="true"
+                sx={{
+                  display: { xs: 'none', sm: 'block' },
+                  visibility: 'hidden',
+                }}
+              >
+                {t('settings.microphone')}
+              </FormLabel>
+              <Button
+                data-testid="microphone-refresh"
+                disabled={microphonesLoading}
+                onClick={() => void refreshMicrophones()}
+                startIcon={<RefreshRoundedIcon />}
+                sx={{ height: 44, minHeight: 44, px: 2.25 }}
+                variant="outlined"
+              >
+                {t('action.refresh')}
+              </Button>
+            </Stack>
+          </Stack>
+          <HotkeyField
+            error={hotkeyError}
             label={t('settings.hotkey')}
-            onBlur={() => saveHotkey(hotkey)}
-            onChange={(event) => setHotkey(event.target.value)}
-            onKeyDown={(event) => {
-              const captured = acceleratorFromEvent(event);
-              if (!captured) return;
-              event.preventDefault();
-              saveHotkey(captured);
-            }}
+            listeningText={t('settings.hotkeyHint')}
+            onChange={saveHotkey}
             value={hotkey}
           />
           {languageSelect(
@@ -223,6 +339,33 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
             type="number"
             value={retention}
           />
+        </Stack>
+      </Card>
+
+      <Card
+        actions={
+          <Button
+            data-testid="diagnostics-open"
+            onClick={onOpenDiagnostics}
+            startIcon={<BugReportOutlinedIcon />}
+            variant="outlined"
+          >
+            {t('settings.diagnosticsOpen')}
+          </Button>
+        }
+        title={t('settings.group.diagnostics')}
+      >
+        <Stack sx={{ gap: 0.75 }}>
+          <Typography variant="body2">
+            {t('settings.diagnosticsDescription')}
+          </Typography>
+          <Typography color="text.secondary" variant="caption">
+            {pendingDiagnosticCount > 0
+              ? t('settings.diagnosticsPending', {
+                  count: String(pendingDiagnosticCount),
+                })
+              : t('settings.diagnosticsReady')}
+          </Typography>
         </Stack>
       </Card>
 

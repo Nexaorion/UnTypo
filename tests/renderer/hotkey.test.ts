@@ -3,14 +3,19 @@ import { parseHotkeyAccelerator } from '../../src/main/native/hotkey';
 import {
   acceleratorFromEvent,
   formatHotkeyAccelerator,
+  hotkeyKeycapLabels,
   isValidHotkeyAccelerator,
+  modifierAcceleratorFromEvent,
 } from '../../src/renderer/logic/hotkey';
 
 const accepted = [
   'Ctrl+Shift+Space',
   'Alt+F4',
   'Win+K',
+  'Alt',
+  'Ctrl+0',
   'Ctrl+1',
+  'Ctrl+Numpad0',
   'Escape',
   'Ctrl+Alt+Shift+Win+PageDown',
   'F24',
@@ -22,18 +27,14 @@ describe('isValidHotkeyAccelerator', () => {
   it('agrees with the main-process parser on accepted accelerators', () => {
     for (const accelerator of accepted) {
       expect(isValidHotkeyAccelerator(accelerator)).toBe(true);
-      expect(() =>
-        parseHotkeyAccelerator(accelerator, 'push-to-talk'),
-      ).not.toThrow();
+      expect(() => parseHotkeyAccelerator(accelerator)).not.toThrow();
     }
   });
 
   it('agrees with the main-process parser on rejected accelerators', () => {
     for (const accelerator of rejected) {
       expect(isValidHotkeyAccelerator(accelerator)).toBe(false);
-      expect(() =>
-        parseHotkeyAccelerator(accelerator, 'push-to-talk'),
-      ).toThrow();
+      expect(() => parseHotkeyAccelerator(accelerator)).toThrow();
     }
   });
 
@@ -87,5 +88,31 @@ describe('acceleratorFromEvent', () => {
     };
     expect(acceleratorFromEvent({ ...base, key: 'ArrowUp' })).toBe('Ctrl+Up');
     expect(acceleratorFromEvent({ ...base, key: 'F7' })).toBe('Ctrl+F7');
+  });
+
+  it('distinguishes the number row from the numeric keypad', () => {
+    const base = {
+      altKey: false,
+      ctrlKey: true,
+      key: '0',
+      metaKey: false,
+      shiftKey: false,
+    };
+    expect(acceleratorFromEvent({ ...base, code: 'Digit0' })).toBe('Ctrl+0');
+    expect(acceleratorFromEvent({ ...base, code: 'Numpad0' })).toBe(
+      'Ctrl+Numpad0',
+    );
+  });
+
+  it('identifies modifiers for keyup-only Alt capture', () => {
+    expect(modifierAcceleratorFromEvent({ key: 'Alt' })).toBe('Alt');
+    expect(modifierAcceleratorFromEvent({ key: 'Control' })).toBe('Ctrl');
+  });
+});
+
+describe('hotkeyKeycapLabels', () => {
+  it('creates display labels without changing the stored accelerator', () => {
+    expect(hotkeyKeycapLabels('Ctrl+0')).toEqual(['Ctrl', '0']);
+    expect(hotkeyKeycapLabels('Ctrl+Numpad0')).toEqual(['Ctrl', 'Num 0']);
   });
 });

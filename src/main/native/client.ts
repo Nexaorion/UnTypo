@@ -4,13 +4,14 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import {
   NativeFrameDecoder,
+  NativeHotkeyAction,
   NativeMessageType,
+  decodeHotkeyConfigurationResult,
   decodeTargetSnapshot,
   encodeHotkeyConfiguration,
   encodeNativeFrame,
   encodePasteRequest,
   type NativeFrame,
-  type NativeHotkeyAction,
   type NativeHotkeyConfiguration,
   type NativePasteStatus,
   type NativeTargetSnapshot,
@@ -24,6 +25,22 @@ interface PendingResponse {
 }
 
 export type NativeHotkeyListener = (action: NativeHotkeyAction) => void;
+
+export class NativeHotkeyRegistrationError extends Error {
+  readonly windowsErrorCode: number;
+
+  constructor(windowsErrorCode: number) {
+    super(
+      `Native hotkey registration failed with Windows error ${String(windowsErrorCode)}`,
+    );
+    this.name = 'NativeHotkeyRegistrationError';
+    this.windowsErrorCode = windowsErrorCode;
+  }
+}
+
+export const isNativeHotkeyConflictError = (error: unknown): boolean =>
+  error instanceof NativeHotkeyRegistrationError &&
+  error.windowsErrorCode === 1409;
 
 const wait = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -89,11 +106,16 @@ export class NativeHelperClient {
     }
   }
 
-  configureHotkey(configuration: NativeHotkeyConfiguration): void {
-    this.write(
+  async configureHotkey(
+    configuration: NativeHotkeyConfiguration,
+  ): Promise<void> {
+    const frame = await this.request(
       NativeMessageType.ConfigureHotkey,
       encodeHotkeyConfiguration(configuration),
+      NativeMessageType.HotkeyConfigured,
     );
+    const errorCode = decodeHotkeyConfigurationResult(frame.payload);
+    if (errorCode !== 0) throw new NativeHotkeyRegistrationError(errorCode);
   }
 
   async captureTarget(): Promise<NativeTargetSnapshot> {
@@ -199,7 +221,9 @@ export class NativeHelperClient {
     if (frame.type === NativeMessageType.HotkeyEvent) {
       if (frame.payload.byteLength !== 1) return;
       const action = frame.payload.readUInt8(0);
-      for (const listener of this.#hotkeyListeners) listener(action);
+      if (action !== Number(NativeHotkeyAction.Toggle)) return;
+      for (const listener of this.#hotkeyListeners)
+        listener(NativeHotkeyAction.Toggle);
       return;
     }
     const pending = this.#pending;

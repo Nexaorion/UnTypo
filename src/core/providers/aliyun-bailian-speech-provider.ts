@@ -66,6 +66,7 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
   readonly displayName: string;
   readonly id: string;
   readonly kind = 'builtin' as const;
+  readonly preferredAudioFormat = 'wav' as const;
   readonly #apiKey: string;
   readonly #baseUrl: string;
   readonly #fetch: typeof fetch;

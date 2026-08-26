@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UserProfileContext } from '../../core/providers/contracts.js';
 import type {
+  ClientDiagnosticExportRequest,
+  ClientDiagnosticExportResult,
+  ClientDiagnosticSnapshot,
+} from '../../shared/diagnostics.js';
+import type {
   ClientHistoryRecord,
+  ClientMicrophoneDevice,
   ClientProviderInput,
   ClientSettingsUpdate,
   ClientSnapshot,
@@ -23,10 +29,17 @@ const requireApi = (): UntypoApi => {
 };
 
 export interface ClientStore {
+  acknowledgeDiagnostics: (issueIds: readonly string[]) => Promise<void>;
   clearHistory: () => Promise<void>;
+  diagnostics: ClientDiagnosticSnapshot | null;
+  exportDiagnostics: (
+    request: ClientDiagnosticExportRequest,
+  ) => Promise<ClientDiagnosticExportResult>;
   history: readonly ClientHistoryRecord[];
   historyExhausted: boolean;
   loadMoreHistory: () => Promise<void>;
+  listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
+  reloadDiagnostics: () => Promise<void>;
   reloadHistory: () => Promise<void>;
   removeProvider: (profileId: string) => Promise<void>;
   runtime: PingResponse | null;
@@ -41,6 +54,8 @@ export interface ClientStore {
 
 export const useClientStore = (): ClientStore => {
   const [snapshot, setSnapshot] = useState<ClientSnapshot | null>(null);
+  const [diagnostics, setDiagnostics] =
+    useState<ClientDiagnosticSnapshot | null>(null);
   const [runtime, setRuntime] = useState<PingResponse | null>(null);
   const [history, setHistory] = useState<readonly ClientHistoryRecord[]>([]);
   const [historyExhausted, setHistoryExhausted] = useState(false);
@@ -58,20 +73,43 @@ export const useClientStore = (): ClientStore => {
     const api = window.untypo;
     if (!api) return;
     void (async () => {
-      const [nextRuntime, nextSnapshot, page, nextUsage] = await Promise.all([
-        api.ping(),
-        api.getSnapshot(),
-        api.listHistory({ limit: HISTORY_PAGE_SIZE }),
-        api.getUsageStats(),
-      ]);
+      const [nextRuntime, nextSnapshot, page, nextUsage, nextDiagnostics] =
+        await Promise.all([
+          api.ping(),
+          api.getSnapshot(),
+          api.listHistory({ limit: HISTORY_PAGE_SIZE }),
+          api.getUsageStats(),
+          api.getDiagnostics(),
+        ]);
       if (!mounted.current) return;
       setRuntime(nextRuntime);
       setSnapshot(nextSnapshot);
       setHistory(page);
       setHistoryExhausted(page.length < HISTORY_PAGE_SIZE);
       setUsage(nextUsage);
-    })();
+      setDiagnostics(nextDiagnostics);
+    })().catch((error: unknown) => {
+      void api
+        .reportRendererIssue({
+          message: describeError(error) ?? 'Renderer initialization failed',
+          stack: error instanceof Error ? error.stack : undefined,
+        })
+        .catch(() => undefined);
+    });
   }, []);
+
+  const reloadDiagnostics = useCallback(async () => {
+    const next = await requireApi().getDiagnostics();
+    if (mounted.current) setDiagnostics(next);
+  }, []);
+
+  useEffect(() => {
+    const api = window.untypo;
+    if (!api) return;
+    return api.onDiagnosticsChanged(() => {
+      void reloadDiagnostics();
+    });
+  }, [reloadDiagnostics]);
 
   const applySnapshot = useCallback((next: ClientSnapshot) => {
     if (mounted.current) setSnapshot(next);
@@ -98,6 +136,8 @@ export const useClientStore = (): ClientStore => {
     setHistoryExhausted(page.length < HISTORY_PAGE_SIZE);
   }, [history.length]);
 
+  const listMicrophones = useCallback(() => requireApi().listMicrophones(), []);
+
   const clearHistory = useCallback(async () => {
     await requireApi().clearHistory();
     if (!mounted.current) return;
@@ -109,6 +149,20 @@ export const useClientStore = (): ClientStore => {
       usageCount: 0,
     });
   }, []);
+
+  const acknowledgeDiagnostics = useCallback(
+    async (issueIds: readonly string[]) => {
+      const next = await requireApi().acknowledgeDiagnostics(issueIds);
+      if (mounted.current) setDiagnostics(next);
+    },
+    [],
+  );
+
+  const exportDiagnostics = useCallback(
+    (request: ClientDiagnosticExportRequest) =>
+      requireApi().exportDiagnostics(request),
+    [],
+  );
 
   const updateSettings = useCallback(
     async (update: ClientSettingsUpdate) => {
@@ -150,10 +204,15 @@ export const useClientStore = (): ClientStore => {
   }, []);
 
   return {
+    acknowledgeDiagnostics,
     clearHistory,
+    diagnostics,
+    exportDiagnostics,
     history,
     historyExhausted,
     loadMoreHistory,
+    listMicrophones,
+    reloadDiagnostics,
     reloadHistory,
     removeProvider,
     runtime,

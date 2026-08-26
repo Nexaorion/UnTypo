@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  GenerationContext,
-  ProviderContractError,
-  AudioPayload,
-  ProcessOptions,
+import {
+  type AudioPayload,
+  type GenerationContext,
+  type ProcessOptions,
+  type ProviderContractError,
 } from '../../src/core/providers/contracts';
 import { MockDictationProvider } from '../../src/core/providers/mock-provider';
-import { DictationPipeline } from '../../src/core/providers/pipeline';
+import {
+  DictationPipeline,
+  RecoverablePostProcessingError,
+} from '../../src/core/providers/pipeline';
 
 const audio: AudioPayload = {
   bytes: new Uint8Array([1]),
@@ -20,6 +23,29 @@ const options: ProcessOptions = {
   defaultTargetLanguage: 'zh-CN',
   dictionary: ['UnTypo'],
   language: 'en-US',
+};
+
+const expectRecoverableRawTranscript = async (
+  operation: Promise<unknown>,
+  cause: unknown,
+): Promise<void> => {
+  let thrown: unknown;
+  try {
+    await operation;
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect(thrown).toBeInstanceOf(RecoverablePostProcessingError);
+  expect(thrown).toMatchObject({
+    fallbackResult: {
+      intent: 'transcription',
+      outputText: 'raw transcript',
+      rawTranscript: 'raw transcript',
+      usage: { audioDurationMs: 500 },
+    },
+  });
+  expect((thrown as RecoverablePostProcessingError).cause).toBe(cause);
 };
 
 describe('DictationPipeline', () => {
@@ -142,6 +168,92 @@ describe('DictationPipeline', () => {
       outputText: 'Polished by another provider',
       rawTranscript: 'raw transcript',
     });
+  });
+
+  it('preserves the raw transcript when intent classification fails', async () => {
+    const speech = new MockDictationProvider({ transcript: 'raw transcript' });
+    const text = new MockDictationProvider();
+    const failure = new Error('classification unavailable');
+    vi.spyOn(text, 'classifyIntent').mockRejectedValueOnce(failure);
+
+    await expectRecoverableRawTranscript(
+      new DictationPipeline(speech, text).process(audio, options),
+      failure,
+    );
+  });
+
+  it('preserves the raw transcript when polishing fails', async () => {
+    const speech = new MockDictationProvider({ transcript: 'raw transcript' });
+    const text = new MockDictationProvider();
+    const failure = new Error('polishing unavailable');
+    vi.spyOn(text, 'polish').mockRejectedValueOnce(failure);
+
+    await expectRecoverableRawTranscript(
+      new DictationPipeline(speech, text).process(audio, options),
+      failure,
+    );
+  });
+
+  it('preserves the raw transcript when routed text generation fails', async () => {
+    const speech = new MockDictationProvider({ transcript: 'raw transcript' });
+    const text = new MockDictationProvider();
+    const failure = new Error('translation unavailable');
+    vi.spyOn(text, 'classifyIntent').mockResolvedValueOnce({
+      intent: 'translation',
+    });
+    vi.spyOn(text, 'translate').mockRejectedValueOnce(failure);
+
+    await expectRecoverableRawTranscript(
+      new DictationPipeline(speech, text).process(audio, options),
+      failure,
+    );
+  });
+
+  it('keeps speech and empty-transcript failures hard', async () => {
+    const speechFailure = new Error('speech unavailable');
+    const failedSpeech = new MockDictationProvider();
+    vi.spyOn(failedSpeech, 'transcribe').mockRejectedValueOnce(speechFailure);
+
+    await expect(
+      new DictationPipeline(failedSpeech, new MockDictationProvider()).process(
+        audio,
+        options,
+      ),
+    ).rejects.toBe(speechFailure);
+
+    await expect(
+      new DictationPipeline(
+        new MockDictationProvider({ transcript: '   ' }),
+        new MockDictationProvider(),
+      ).process(audio, options),
+    ).rejects.toMatchObject({ code: 'EMPTY_RESULT' });
+  });
+
+  it('keeps an empty text post-processing result hard', async () => {
+    const speech = new MockDictationProvider({ transcript: 'raw transcript' });
+    const text = new MockDictationProvider();
+    vi.spyOn(text, 'polish').mockResolvedValueOnce('   ');
+
+    await expect(
+      new DictationPipeline(speech, text).process(audio, options),
+    ).rejects.toMatchObject({ code: 'EMPTY_RESULT' });
+  });
+
+  it('keeps an abort during text post-processing hard', async () => {
+    const controller = new AbortController();
+    const speech = new MockDictationProvider({ transcript: 'raw transcript' });
+    const text = new MockDictationProvider();
+    vi.spyOn(text, 'classifyIntent').mockImplementationOnce(() => {
+      controller.abort();
+      return Promise.reject(new Error('request aborted'));
+    });
+
+    await expect(
+      new DictationPipeline(speech, text).process(audio, {
+        ...options,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ code: 'ABORTED' });
   });
 
   it('stops before provider work when cancelled', async () => {

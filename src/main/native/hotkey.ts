@@ -1,4 +1,3 @@
-import type { HotkeyMode } from '../storage/configuration.js';
 import type { NativeHotkeyConfiguration } from './protocol.js';
 
 const MOD_ALT = 0x0001;
@@ -16,6 +15,21 @@ const namedKeys: Readonly<Record<string, number>> = {
   home: 0x24,
   insert: 0x2d,
   left: 0x25,
+  numpad0: 0x60,
+  numpad1: 0x61,
+  numpad2: 0x62,
+  numpad3: 0x63,
+  numpad4: 0x64,
+  numpad5: 0x65,
+  numpad6: 0x66,
+  numpad7: 0x67,
+  numpad8: 0x68,
+  numpad9: 0x69,
+  numpadadd: 0x6b,
+  numpaddecimal: 0x6e,
+  numpaddivide: 0x6f,
+  numpadmultiply: 0x6a,
+  numpadsubtract: 0x6d,
   pagedown: 0x22,
   pageup: 0x21,
   right: 0x27,
@@ -37,13 +51,21 @@ const parseVirtualKey = (value: string): number => {
 
 export const parseHotkeyAccelerator = (
   accelerator: string,
-  mode: HotkeyMode,
 ): NativeHotkeyConfiguration => {
   const parts = accelerator
     .split('+')
     .map((part) => part.trim())
     .filter(Boolean);
   if (parts.length === 0) throw new Error('Hotkey accelerator is empty');
+
+  if (parts.length === 1) {
+    const modifierVirtualKeys: Readonly<Record<string, number>> = {
+      alt: 0x12,
+      option: 0x12,
+    };
+    const virtualKey = modifierVirtualKeys[parts[0]?.toLowerCase() ?? ''];
+    if (virtualKey !== undefined) return { modifiers: 0, virtualKey };
+  }
 
   let modifiers = 0;
   let key: string | undefined;
@@ -65,5 +87,5 @@ export const parseHotkeyAccelerator = (
   }
 
   if (!key) throw new Error('Hotkey accelerator has no key');
-  return { mode, modifiers, virtualKey: parseVirtualKey(key) };
+  return { modifiers, virtualKey: parseVirtualKey(key) };
 };

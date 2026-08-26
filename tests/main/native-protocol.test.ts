@@ -4,13 +4,14 @@ import {
   NATIVE_PROTOCOL_MAGIC,
   NativeFrameDecoder,
   NativeMessageType,
+  decodeHotkeyConfigurationResult,
   decodeTargetSnapshot,
   encodeHotkeyConfiguration,
   encodeNativeFrame,
   encodePasteRequest,
 } from '../../src/main/native/protocol';
 
-describe('native helper protocol v1', () => {
+describe('native helper protocol v2', () => {
   it('encodes the packed C++ frame header', () => {
     const frame = encodeNativeFrame(
       NativeMessageType.Ping,
@@ -19,7 +20,7 @@ describe('native helper protocol v1', () => {
 
     expect(frame.byteLength).toBe(NATIVE_FRAME_HEADER_BYTES + 2);
     expect(frame.readUInt32LE(0)).toBe(NATIVE_PROTOCOL_MAGIC);
-    expect(frame.readUInt16LE(4)).toBe(1);
+    expect(frame.readUInt16LE(4)).toBe(2);
     expect(frame.readUInt16LE(6)).toBe(NativeMessageType.Ping);
     expect(frame.readUInt32LE(8)).toBe(2);
   });
@@ -62,14 +63,18 @@ describe('native helper protocol v1', () => {
 
   it('matches the packed hotkey configuration layout', () => {
     const payload = encodeHotkeyConfiguration({
-      mode: 'push-to-talk',
       modifiers: 6,
       virtualKey: 0x20,
     });
 
-    expect(payload.byteLength).toBe(9);
+    expect(payload.byteLength).toBe(8);
     expect(payload.readUInt32LE(0)).toBe(0x20);
     expect(payload.readUInt32LE(4)).toBe(6);
-    expect(payload.readUInt8(8)).toBe(1);
+  });
+
+  it('decodes the Windows registration result', () => {
+    const payload = Buffer.alloc(4);
+    payload.writeUInt32LE(1409, 0);
+    expect(decodeHotkeyConfigurationResult(payload)).toBe(1409);
   });
 });

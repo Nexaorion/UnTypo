@@ -5,7 +5,7 @@
 namespace untypo {
 
 constexpr std::uint32_t kProtocolMagic = 0x50595455;
-constexpr std::uint16_t kProtocolVersion = 1;
+constexpr std::uint16_t kProtocolVersion = 2;
 constexpr std::uint32_t kMaximumPayloadBytes = 1024 * 1024;
 
 enum class MessageType : std::uint16_t {
@@ -20,17 +20,11 @@ enum class MessageType : std::uint16_t {
   TargetCaptured = 102,
   PasteResult = 103,
   Pong = 104,
-  Error = 105,
-};
-
-enum class HotkeyMode : std::uint8_t {
-  PushToTalk = 1,
-  Toggle = 2,
+  HotkeyConfigured = 105,
+  Error = 106,
 };
 
 enum class HotkeyAction : std::uint8_t {
-  Start = 1,
-  Stop = 2,
   Toggle = 3,
 };
 
@@ -53,7 +47,10 @@ struct FrameHeader {
 struct HotkeyConfiguration {
   std::uint32_t virtual_key;
   std::uint32_t modifiers;
-  HotkeyMode mode;
+};
+
+struct HotkeyConfigurationResultPayload {
+  std::uint32_t error_code;
 };
 
 struct HotkeyEventPayload {
@@ -78,7 +75,8 @@ struct PasteResultPayload {
 #pragma pack(pop)
 
 static_assert(sizeof(FrameHeader) == 12);
-static_assert(sizeof(HotkeyConfiguration) == 9);
+static_assert(sizeof(HotkeyConfiguration) == 8);
+static_assert(sizeof(HotkeyConfigurationResultPayload) == 4);
 static_assert(sizeof(TargetSnapshotPayload) == 14);
 static_assert(sizeof(PasteRequestPayload) == 12);
 

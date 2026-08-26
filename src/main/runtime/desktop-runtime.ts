@@ -2,9 +2,11 @@ import {
   Menu,
   Tray,
   app,
+  dialog,
   nativeImage,
   type MenuItemConstructorOptions,
 } from 'electron';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AliyunBailianSpeechProvider } from '../../core/providers/aliyun-bailian-speech-provider.js';
 import { AnthropicTextProvider } from '../../core/providers/anthropic-text-provider.js';
@@ -15,7 +17,6 @@ import {
   type TextGenerationProvider,
   type UserProfileContext,
 } from '../../core/providers/contracts.js';
-import { MockDictationProvider } from '../../core/providers/mock-provider.js';
 import { OpenAICompatibleSpeechProvider } from '../../core/providers/openai-compatible-speech-provider.js';
 import {
   OpenAICompatibleTextProvider,
@@ -27,18 +28,29 @@ import {
   TextProviderRegistry,
 } from '../../core/providers/registry.js';
 import type {
+  ClientDiagnosticExportRequest,
+  ClientDiagnosticExportResult,
+  ClientDiagnosticSnapshot,
+  ClientRendererIssueInput,
+} from '../../shared/diagnostics.js';
+import type {
   ClientHistoryQuery,
   ClientHistoryRecord,
+  ClientMicrophoneDevice,
   ClientProviderInput,
   ClientSettingsUpdate,
   ClientSnapshot,
   ClientUsageStats,
 } from '../../shared/ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
+import type { DiagnosticCollector } from '../diagnostics/collector.js';
 import { ClipboardInjectionService } from '../dictation/clipboard.js';
 import { DictationCoordinator } from '../dictation/coordinator.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
-import { NativeHelperClient } from '../native/client.js';
+import {
+  NativeHelperClient,
+  isNativeHotkeyConflictError,
+} from '../native/client.js';
 import { parseHotkeyAccelerator } from '../native/hotkey.js';
 import { NativeHotkeyAction } from '../native/protocol.js';
 import { RecorderWindowController } from '../recording/recorder-window.js';
@@ -48,6 +60,7 @@ import { ElectronSecretProtector } from '../storage/electron-secret-protector.js
 import { HistoryRepository, HistoryService } from '../storage/history.js';
 
 export interface DesktopRuntimeOptions {
+  diagnostics: DiagnosticCollector;
   showMainWindow: () => void | Promise<void>;
 }
 
@@ -83,6 +96,7 @@ const toProviderConfiguration = (
 
 const createTextProvider = (
   profile: ProviderProfile,
+  fetchImplementation: typeof fetch = fetch,
 ): TextGenerationProvider => {
   if (profile.kind !== 'text') {
     throw new Error('Text provider profile has the wrong kind');
@@ -90,19 +104,20 @@ const createTextProvider = (
   const configuration = toProviderConfiguration(profile);
   if (!configuration) throw new Error('Provider profile is incomplete');
   if (profile.providerId === 'openai-compatible-text') {
-    return new OpenAICompatibleTextProvider(configuration);
+    return new OpenAICompatibleTextProvider(configuration, fetchImplementation);
   }
   if (profile.providerId === 'openai-responses-text') {
-    return new OpenAIResponsesTextProvider(configuration);
+    return new OpenAIResponsesTextProvider(configuration, fetchImplementation);
   }
   if (profile.providerId === 'anthropic-text') {
-    return new AnthropicTextProvider(configuration);
+    return new AnthropicTextProvider(configuration, fetchImplementation);
   }
   throw new Error('Text provider profile has an unsupported provider id');
 };
 
 const createSpeechProvider = (
   profile: ProviderProfile,
+  fetchImplementation: typeof fetch = fetch,
 ): SpeechRecognitionProvider => {
   if (profile.kind !== 'speech') {
     throw new Error('Speech provider profile has the wrong kind');
@@ -110,10 +125,13 @@ const createSpeechProvider = (
   const configuration = toProviderConfiguration(profile);
   if (!configuration) throw new Error('Provider profile is incomplete');
   if (profile.providerId === 'openai-compatible-speech') {
-    return new OpenAICompatibleSpeechProvider(configuration);
+    return new OpenAICompatibleSpeechProvider(
+      configuration,
+      fetchImplementation,
+    );
   }
   if (profile.providerId === 'aliyun-bailian-speech') {
-    return new AliyunBailianSpeechProvider(configuration);
+    return new AliyunBailianSpeechProvider(configuration, fetchImplementation);
   }
   throw new Error('Speech provider profile has an unsupported provider id');
 };
@@ -162,28 +180,28 @@ const resolveNativeHelperPath = (): string =>
 export class DesktopRuntime {
   readonly #capsule = new CapsuleWindowController();
   readonly #configuration: ConfigurationService;
+  readonly #diagnostics: DiagnosticCollector;
   readonly #historyRepository: HistoryRepository;
   readonly #history: HistoryService;
-  readonly #mockProvider = new MockDictationProvider({
-    polishedText: 'UnTypo desktop dictation is ready.',
-    transcript: 'UnTypo desktop dictation is ready.',
-  });
   readonly #native = new NativeHelperClient(resolveNativeHelperPath());
   readonly #options: DesktopRuntimeOptions;
-  readonly #recorder = new RecorderWindowController();
+  readonly #recorder = new RecorderWindowController(undefined, (level) =>
+    this.#capsule.updateLevel(level),
+  );
   readonly #speechProviders = new SpeechProviderRegistry();
   readonly #textProviders = new TextProviderRegistry();
   #coordinator?: DictationCoordinator;
   #hotkeyQueue: Promise<void> = Promise.resolve();
   #locale: 'en-US' | 'zh-CN' = 'en-US';
   #removeHotkeyListener?: () => void;
-  #speechProviderId = 'mock';
+  #speechProviderId?: string;
   #started = false;
-  #textProviderId: string | undefined = 'mock';
+  #textProviderId?: string;
   #tray?: Tray;
 
   constructor(options: DesktopRuntimeOptions) {
     this.#options = options;
+    this.#diagnostics = options.diagnostics;
     const userDataPath = app.getPath('userData');
     this.#configuration = new ConfigurationService(
       path.join(userDataPath, 'config.json'),
@@ -193,25 +211,33 @@ export class DesktopRuntime {
       path.join(userDataPath, 'history.sqlite3'),
     );
     this.#history = new HistoryService(this.#historyRepository);
-    this.#speechProviders.register(this.#mockProvider);
-    this.#textProviders.register(this.#mockProvider);
   }
 
   async start(): Promise<void> {
     if (this.#started) throw new Error('Desktop runtime is already active');
+    this.#diagnostics.log({
+      message: 'Desktop runtime startup requested',
+      scope: 'app.runtime',
+    });
     const config = await this.#configuration.load();
     await this.activateConfiguredProviders(config);
     this.#coordinator = new DictationCoordinator({
-      fallback: this.#capsule,
+      diagnostics: this.#diagnostics,
       getContext: async () => {
         const current = await this.#configuration.load();
+        const speechProviderId = this.#speechProviderId;
+        if (!speechProviderId) {
+          throw new Error('No speech recognition model is configured');
+        }
         const activeSpeechProfile = current.providers.find(
-          ({ id, kind }) => id === this.#speechProviderId && kind === 'speech',
+          ({ id, kind }) => id === speechProviderId && kind === 'speech',
         );
         return {
           history: current.history,
-          modelName:
-            activeSpeechProfile?.values.model ?? this.#speechProviderId,
+          modelName: activeSpeechProfile?.values.model ?? speechProviderId,
+          ...(current.dictation.microphoneDeviceId
+            ? { microphoneDeviceId: current.dictation.microphoneDeviceId }
+            : {}),
           options: {
             defaultTargetLanguage: current.dictation.defaultTargetLanguage,
             dictionary: current.dictionary,
@@ -219,7 +245,7 @@ export class DesktopRuntime {
             preferIntegratedProcess: false,
             profile: await this.#configuration.getProfile(),
           },
-          speechProviderId: this.#speechProviderId,
+          speechProviderId,
           ...(this.#textProviderId
             ? { textProviderId: this.#textProviderId }
             : {}),
@@ -232,6 +258,14 @@ export class DesktopRuntime {
         this.#native,
       ),
       native: this.#native,
+      presenter: {
+        showError: (reason, detail) =>
+          this.#capsule.showError(reason, this.#locale, detail),
+        showProcessing: () => this.#capsule.showProcessing(this.#locale),
+        showRecording: () => this.#capsule.showRecording(this.#locale),
+        showSuccess: (result, delivery) =>
+          this.#capsule.showSuccess(result, delivery, this.#locale),
+      },
       recorder: this.#recorder,
       speechProviders: this.#speechProviders,
       textProviders: this.#textProviders,
@@ -240,19 +274,50 @@ export class DesktopRuntime {
     try {
       await this.#recorder.initialize();
       await this.#native.start();
-      this.#native.configureHotkey(
-        parseHotkeyAccelerator(
+      const nativeHotkey = parseHotkeyAccelerator(
+        config.dictation.hotkeyAccelerator,
+      );
+      try {
+        await this.#native.configureHotkey(nativeHotkey);
+        this.logHotkeyConfiguration(
           config.dictation.hotkeyAccelerator,
-          config.dictation.hotkeyMode,
-        ),
-      );
-      this.#removeHotkeyListener = this.#native.onHotkey((action) =>
-        this.dispatchHotkey(action),
-      );
+          nativeHotkey,
+        );
+      } catch (error) {
+        if (!isNativeHotkeyConflictError(error)) throw error;
+        this.#diagnostics.recordIssue({
+          context: { accelerator: config.dictation.hotkeyAccelerator },
+          error,
+          kind: 'configuration',
+          source: 'hotkey.configuration',
+        });
+      }
+      this.#removeHotkeyListener = this.#native.onHotkey((action) => {
+        this.#diagnostics.log({
+          context: { action: 'toggle' },
+          message: 'Native hotkey event received',
+          scope: 'hotkey.event',
+        });
+        if (process.env.UNTYPO_HOTKEY_PROBE === '1') return;
+        this.dispatchHotkey(action);
+      });
       app.setLoginItemSettings({ openAtLogin: config.general.launchAtLogin });
       this.createTray(config.general.locale);
       this.#started = true;
+      this.#diagnostics.log({
+        context: {
+          speechProviderConfigured: this.#speechProviderId !== undefined,
+          textProviderConfigured: this.#textProviderId !== undefined,
+        },
+        message: 'Desktop runtime started',
+        scope: 'app.runtime',
+      });
     } catch (error) {
+      this.#diagnostics.recordIssue({
+        error,
+        kind: 'internal',
+        source: 'app.runtime.startup',
+      });
       await this.#native.stop();
       this.#recorder.destroy();
       this.#capsule.destroy();
@@ -300,8 +365,10 @@ export class DesktopRuntime {
             : {}),
           defaultTargetLanguage: config.dictation.defaultTargetLanguage,
           hotkeyAccelerator: config.dictation.hotkeyAccelerator,
-          hotkeyMode: config.dictation.hotkeyMode,
           language: config.dictation.language,
+          ...(config.dictation.microphoneDeviceId
+            ? { microphoneDeviceId: config.dictation.microphoneDeviceId }
+            : {}),
         },
         general: config.general,
         history: config.history,
@@ -330,46 +397,122 @@ export class DesktopRuntime {
     ) {
       throw new Error('Active text provider profile does not exist');
     }
+    const requestedHotkey = update.dictation?.hotkeyAccelerator;
     const nextHotkey = parseHotkeyAccelerator(
-      update.dictation?.hotkeyAccelerator ??
-        current.dictation.hotkeyAccelerator,
-      update.dictation?.hotkeyMode ?? current.dictation.hotkeyMode,
+      requestedHotkey ?? current.dictation.hotkeyAccelerator,
     );
+    const hotkeyChanged =
+      requestedHotkey !== undefined &&
+      requestedHotkey !== current.dictation.hotkeyAccelerator;
 
-    const next = await this.#configuration.update((config) => {
-      const {
-        activeSpeechProviderProfileId,
-        activeTextProviderProfileId,
-        ...dictationUpdate
-      } = update.dictation ?? {};
-      const dictation = { ...config.dictation, ...dictationUpdate };
-      if (activeSpeechProviderProfileId === null) {
-        delete dictation.activeSpeechProviderProfileId;
-      } else if (activeSpeechProviderProfileId !== undefined) {
-        dictation.activeSpeechProviderProfileId = activeSpeechProviderProfileId;
+    if (hotkeyChanged) {
+      try {
+        await this.#native.configureHotkey(nextHotkey);
+      } catch (error) {
+        this.#diagnostics.recordIssue({
+          context: { accelerator: requestedHotkey },
+          error,
+          kind: 'configuration',
+          source: 'hotkey.configuration',
+        });
+        if (isNativeHotkeyConflictError(error)) {
+          throw new Error('HOTKEY_CONFLICT', { cause: error });
+        }
+        throw new Error('HOTKEY_UNAVAILABLE', { cause: error });
       }
-      if (activeTextProviderProfileId === null) {
-        delete dictation.activeTextProviderProfileId;
-      } else if (activeTextProviderProfileId !== undefined) {
-        dictation.activeTextProviderProfileId = activeTextProviderProfileId;
+    }
+
+    let next: Awaited<ReturnType<ConfigurationService['update']>>;
+    try {
+      next = await this.#configuration.update((config) => {
+        const {
+          activeSpeechProviderProfileId,
+          activeTextProviderProfileId,
+          microphoneDeviceId,
+          ...dictationUpdate
+        } = update.dictation ?? {};
+        const dictation = { ...config.dictation, ...dictationUpdate };
+        if (activeSpeechProviderProfileId === null) {
+          delete dictation.activeSpeechProviderProfileId;
+        } else if (activeSpeechProviderProfileId !== undefined) {
+          dictation.activeSpeechProviderProfileId =
+            activeSpeechProviderProfileId;
+        }
+        if (activeTextProviderProfileId === null) {
+          delete dictation.activeTextProviderProfileId;
+        } else if (activeTextProviderProfileId !== undefined) {
+          dictation.activeTextProviderProfileId = activeTextProviderProfileId;
+        }
+        if (microphoneDeviceId === null) {
+          delete dictation.microphoneDeviceId;
+        } else if (microphoneDeviceId !== undefined) {
+          dictation.microphoneDeviceId = microphoneDeviceId;
+        }
+        return {
+          ...config,
+          dictation,
+          general: { ...config.general, ...update.general },
+          history: { ...config.history, ...update.history },
+        };
+      });
+    } catch (error) {
+      if (hotkeyChanged) {
+        try {
+          const previousHotkey = parseHotkeyAccelerator(
+            current.dictation.hotkeyAccelerator,
+          );
+          await this.#native.configureHotkey(previousHotkey);
+        } catch (rollbackError) {
+          this.#diagnostics.recordIssue({
+            error: rollbackError,
+            kind: 'internal',
+            source: 'hotkey.rollback',
+          });
+        }
       }
-      return {
-        ...config,
-        dictation,
-        general: { ...config.general, ...update.general },
-        history: { ...config.history, ...update.history },
-      };
-    });
-    this.#native.configureHotkey(nextHotkey);
+      throw error;
+    }
+    if (hotkeyChanged) {
+      this.logHotkeyConfiguration(next.dictation.hotkeyAccelerator, nextHotkey);
+    }
     app.setLoginItemSettings({ openAtLogin: next.general.launchAtLogin });
     this.applyLocale(next.general.locale);
     await this.activateConfiguredProviders(next);
+    this.#diagnostics.log({
+      context: {
+        changedGroups: Object.keys(update),
+        dictationFields: Object.keys(update.dictation ?? {}),
+        generalFields: Object.keys(update.general ?? {}),
+        historyFields: Object.keys(update.history ?? {}),
+      },
+      message: 'Application settings updated',
+      scope: 'client.settings',
+    });
     return this.getClientSnapshot();
   }
 
   async setDictionary(entries: readonly string[]): Promise<ClientSnapshot> {
     await this.#configuration.setDictionary(entries);
     return this.getClientSnapshot();
+  }
+
+  async listMicrophones(): Promise<readonly ClientMicrophoneDevice[]> {
+    try {
+      const devices = await this.#recorder.listDevices();
+      this.#diagnostics.log({
+        context: { deviceCount: devices.length },
+        message: 'Microphone discovery completed',
+        scope: 'recorder.devices',
+      });
+      return devices;
+    } catch (error) {
+      this.#diagnostics.recordIssue({
+        error,
+        kind: 'microphone',
+        source: 'recorder.devices',
+      });
+      throw error;
+    }
   }
 
   async setProfile(profile?: UserProfileContext): Promise<ClientSnapshot> {
@@ -417,31 +560,51 @@ export class DesktopRuntime {
       }));
     }
     await this.activateConfiguredProviders(next);
+    this.#diagnostics.log({
+      context: {
+        kind: profile.kind,
+        profileId: profile.id,
+        providerId: profile.providerId,
+      },
+      message: 'Provider configuration saved',
+      scope: 'client.providers',
+    });
     return this.getClientSnapshot();
   }
 
   async removeProvider(profileId: string): Promise<ClientSnapshot> {
     const next = await this.#configuration.removeProvider(profileId);
     await this.activateConfiguredProviders(next);
+    this.#diagnostics.log({
+      context: { profileId },
+      message: 'Provider configuration removed',
+      scope: 'client.providers',
+    });
     return this.getClientSnapshot();
   }
 
   async testProvider(profileId: string): Promise<{ ok: true }> {
     const profile = await this.#configuration.getProvider(profileId);
     if (!profile) throw new Error('Provider profile does not exist');
-    if (profile.kind === 'text') {
-      const provider = createTextProvider(profile);
-      if (!provider.classifyIntent) {
-        throw new Error('Text provider cannot classify intent');
-      }
-      await provider.classifyIntent('Transcribe this connection test.', {
-        defaultTargetLanguage: 'en-US',
-        dictionary: [],
-        locale: 'en-US',
-      });
-    } else {
-      const provider = createSpeechProvider(profile);
-      try {
+    try {
+      if (profile.kind === 'text') {
+        const provider = createTextProvider(
+          profile,
+          this.providerFetch(profile),
+        );
+        if (!provider.classifyIntent) {
+          throw new Error('Text provider cannot classify intent');
+        }
+        await provider.classifyIntent('Transcribe this connection test.', {
+          defaultTargetLanguage: 'en-US',
+          dictionary: [],
+          locale: 'en-US',
+        });
+      } else {
+        const provider = createSpeechProvider(
+          profile,
+          this.providerFetch(profile),
+        );
         if (provider instanceof AliyunBailianSpeechProvider) {
           await provider.testConnection();
         } else {
@@ -450,16 +613,60 @@ export class DesktopRuntime {
             language: 'en-US',
           });
         }
-      } catch (error) {
-        if (
-          !(error instanceof ProviderContractError) ||
-          error.code !== 'EMPTY_RESULT'
-        ) {
-          throw error;
-        }
       }
+    } catch (error) {
+      if (
+        error instanceof ProviderContractError &&
+        error.code === 'EMPTY_RESULT'
+      ) {
+        return { ok: true };
+      }
+      this.#diagnostics.recordIssue({
+        context: {
+          profileId: profile.id,
+          providerId: profile.providerId,
+          testConnection: true,
+        },
+        error,
+        kind: 'provider',
+        source: 'provider.connection-test',
+      });
+      throw error;
     }
     return { ok: true };
+  }
+
+  acknowledgeDiagnostics(
+    issueIds: readonly string[],
+  ): ClientDiagnosticSnapshot {
+    return this.#diagnostics.acknowledge(issueIds);
+  }
+
+  async exportDiagnostics(
+    request: ClientDiagnosticExportRequest,
+  ): Promise<ClientDiagnosticExportResult> {
+    const timestamp = new Date().toISOString().replace(/[:.]/gu, '-');
+    const result = await dialog.showSaveDialog({
+      defaultPath: `UnTypo-diagnostics-${timestamp}.zip`,
+      filters: [{ extensions: ['zip'], name: 'UnTypo diagnostic package' }],
+      properties: ['createDirectory', 'showOverwriteConfirmation'],
+      title: 'Export UnTypo diagnostic package',
+    });
+    if (result.canceled || !result.filePath) return { canceled: true };
+    await writeFile(result.filePath, this.#diagnostics.buildArchive(request));
+    return { canceled: false, filePath: result.filePath };
+  }
+
+  getDiagnostics(): ClientDiagnosticSnapshot {
+    return this.#diagnostics.snapshot();
+  }
+
+  onDiagnosticsChanged(listener: () => void): () => void {
+    return this.#diagnostics.onChanged(listener);
+  }
+
+  reportRendererIssue(issue: ClientRendererIssueInput): void {
+    this.#diagnostics.recordRendererIssue(issue);
   }
 
   listHistory(query: ClientHistoryQuery): readonly ClientHistoryRecord[] {
@@ -485,6 +692,10 @@ export class DesktopRuntime {
     this.#recorder.destroy();
     await this.#native.stop();
     this.#historyRepository.close();
+    this.#diagnostics.log({
+      message: 'Desktop runtime stopped',
+      scope: 'app.runtime',
+    });
   }
 
   private async activateConfiguredProviders(
@@ -492,9 +703,8 @@ export class DesktopRuntime {
   ): Promise<void> {
     this.#speechProviders.clear();
     this.#textProviders.clear();
-    this.#speechProviders.register(this.#mockProvider);
-    this.#textProviders.register(this.#mockProvider);
-    this.#speechProviderId = 'mock';
+    this.#speechProviderId = undefined;
+    this.#textProviderId = undefined;
 
     const speechProfileId = config.dictation.activeSpeechProviderProfileId;
     if (speechProfileId) {
@@ -502,20 +712,21 @@ export class DesktopRuntime {
       if (!profile) {
         throw new Error('Active speech provider profile does not exist');
       }
-      const provider = createSpeechProvider(profile);
+      const provider = createSpeechProvider(
+        profile,
+        this.providerFetch(profile),
+      );
       this.#speechProviders.replace(provider);
       this.#speechProviderId = provider.id;
     }
 
-    this.#textProviderId =
-      this.#speechProviderId === 'mock' ? 'mock' : undefined;
     const textProfileId = config.dictation.activeTextProviderProfileId;
     if (textProfileId) {
       const profile = await this.#configuration.getProvider(textProfileId);
       if (!profile) {
         throw new Error('Active text provider profile does not exist');
       }
-      const provider = createTextProvider(profile);
+      const provider = createTextProvider(profile, this.providerFetch(profile));
       this.#textProviders.replace(provider);
       this.#textProviderId = provider.id;
     }
@@ -529,8 +740,37 @@ export class DesktopRuntime {
       })
       .catch((error: unknown) => {
         console.error('Dictation operation failed', error);
+        this.#diagnostics.log({
+          context: { error },
+          level: 'warning',
+          message: 'Dictation operation returned an error',
+          scope: 'dictation.dispatch',
+        });
         this.refreshTrayMenu();
       });
+  }
+
+  private logHotkeyConfiguration(
+    accelerator: string,
+    configuration: ReturnType<typeof parseHotkeyAccelerator>,
+  ): void {
+    this.#diagnostics.log({
+      context: {
+        accelerator,
+        modifiers: configuration.modifiers,
+        virtualKey: configuration.virtualKey,
+      },
+      message: 'Native hotkey configured',
+      scope: 'hotkey.configuration',
+    });
+  }
+
+  private providerFetch(profile: ProviderProfile): typeof fetch {
+    return this.#diagnostics.createLoggedFetch({
+      model: profile.values.model,
+      profileId: profile.id,
+      providerId: profile.providerId,
+    });
   }
 
   private createTray(locale: 'en-US' | 'zh-CN'): void {

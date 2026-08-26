@@ -4,9 +4,12 @@ import {
   type IpcMainEvent,
   type Session,
 } from 'electron';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import type { ProviderAudioFormat } from '../../core/providers/contracts.js';
 import {
   RECORDER_CHANNELS,
+  type RecorderDeviceInfo,
   type RecorderStartMetadata,
   type RecorderStopMetadata,
 } from '../../shared/recorder-ipc.js';
@@ -26,6 +29,12 @@ interface PendingStart {
   reject: (reason: Error) => void;
   resolve: () => void;
   sessionId: string;
+  timer: NodeJS.Timeout;
+}
+
+interface PendingDeviceRequest {
+  reject: (reason: Error) => void;
+  resolve: (devices: readonly RecorderDeviceInfo[]) => void;
   timer: NodeJS.Timeout;
 }
 
@@ -72,18 +81,24 @@ const configurePermissions = (recorderSession: Session): void => {
 };
 
 export class RecorderWindowController {
+  readonly #onLevel?: (level: number) => void;
   readonly #sessions: RecordingSessionManager;
+  readonly #pendingDeviceRequests = new Map<string, PendingDeviceRequest>();
+  #activeSessionId?: string;
   #initializing?: Promise<void>;
   #pendingStart?: PendingStart;
   #pendingStop?: PendingStop;
   #window?: BrowserWindow;
 
-  constructor(maximumBytes?: number) {
+  constructor(maximumBytes?: number, onLevel?: (level: number) => void) {
+    this.#onLevel = onLevel;
     this.#sessions = new RecordingSessionManager(maximumBytes);
     ipcMain.on(RECORDER_CHANNELS.started, this.handleStarted);
     ipcMain.on(RECORDER_CHANNELS.chunk, this.handleChunk);
+    ipcMain.on(RECORDER_CHANNELS.level, this.handleLevel);
     ipcMain.on(RECORDER_CHANNELS.stopped, this.handleStopped);
     ipcMain.on(RECORDER_CHANNELS.error, this.handleError);
+    ipcMain.on(RECORDER_CHANNELS.devices, this.handleDevices);
   }
 
   async initialize(): Promise<void> {
@@ -92,9 +107,14 @@ export class RecorderWindowController {
     return this.#initializing;
   }
 
-  async start(target: TargetSnapshot): Promise<string> {
+  async start(
+    target: TargetSnapshot,
+    microphoneDeviceId?: string,
+    outputFormat: ProviderAudioFormat = 'webm',
+  ): Promise<string> {
     await this.initialize();
     const sessionId = this.#sessions.begin(target);
+    this.#activeSessionId = sessionId;
     const started = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.rejectSession(
@@ -104,7 +124,12 @@ export class RecorderWindowController {
       }, 10_000);
       this.#pendingStart = { reject, resolve, sessionId, timer };
     });
-    this.#window?.webContents.send(RECORDER_CHANNELS.commandStart, sessionId);
+    this.#window?.webContents.send(
+      RECORDER_CHANNELS.commandStart,
+      sessionId,
+      microphoneDeviceId,
+      outputFormat,
+    );
     await started;
     return sessionId;
   }
@@ -121,18 +146,47 @@ export class RecorderWindowController {
     return result;
   }
 
+  async listDevices(): Promise<readonly RecorderDeviceInfo[]> {
+    await this.initialize();
+    const requestId = randomUUID();
+    const result = new Promise<readonly RecorderDeviceInfo[]>(
+      (resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.#pendingDeviceRequests.delete(requestId);
+          reject(new Error('Microphone device discovery timed out'));
+        }, 5_000);
+        this.#pendingDeviceRequests.set(requestId, { reject, resolve, timer });
+      },
+    );
+    this.#window?.webContents.send(
+      RECORDER_CHANNELS.commandListDevices,
+      requestId,
+    );
+    return result;
+  }
+
   async smokeTest(): Promise<boolean> {
     await this.initialize();
-    return (await this.#window?.webContents.executeJavaScript(
-      'typeof window.recorder?.onStart === "function"',
+    const bridgeReady = (await this.#window?.webContents.executeJavaScript(
+      'typeof window.recorder?.onStart === "function" && typeof window.recorder?.onListDevices === "function"',
     )) as boolean;
+    if (!bridgeReady) return false;
+    await this.listDevices();
+    return true;
   }
 
   destroy(): void {
     ipcMain.removeListener(RECORDER_CHANNELS.started, this.handleStarted);
     ipcMain.removeListener(RECORDER_CHANNELS.chunk, this.handleChunk);
+    ipcMain.removeListener(RECORDER_CHANNELS.level, this.handleLevel);
     ipcMain.removeListener(RECORDER_CHANNELS.stopped, this.handleStopped);
     ipcMain.removeListener(RECORDER_CHANNELS.error, this.handleError);
+    ipcMain.removeListener(RECORDER_CHANNELS.devices, this.handleDevices);
+    for (const pending of this.#pendingDeviceRequests.values()) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error('Recorder was destroyed'));
+    }
+    this.#pendingDeviceRequests.clear();
     if (this.#pendingStart) {
       clearTimeout(this.#pendingStart.timer);
       this.#pendingStart.reject(new Error('Recorder was destroyed'));
@@ -140,6 +194,7 @@ export class RecorderWindowController {
     }
     this.#pendingStop?.reject(new Error('Recorder was destroyed'));
     this.#pendingStop = undefined;
+    this.#activeSessionId = undefined;
     this.#window?.destroy();
     this.#window = undefined;
   }
@@ -188,6 +243,23 @@ export class RecorderWindowController {
     }
   };
 
+  private readonly handleLevel = (
+    event: IpcMainEvent,
+    sessionId: unknown,
+    level: unknown,
+  ): void => {
+    if (
+      !this.isExpectedSender(event) ||
+      typeof sessionId !== 'string' ||
+      sessionId !== this.#activeSessionId ||
+      typeof level !== 'number' ||
+      !Number.isFinite(level)
+    ) {
+      return;
+    }
+    this.#onLevel?.(Math.min(1, Math.max(0, level)));
+  };
+
   private readonly handleStopped = (
     event: IpcMainEvent,
     sessionId: string,
@@ -196,6 +268,9 @@ export class RecorderWindowController {
     if (!this.isExpectedSender(event)) return;
     try {
       const completed = this.#sessions.complete(sessionId, metadata);
+      if (this.#activeSessionId === sessionId) {
+        this.#activeSessionId = undefined;
+      }
       if (this.#pendingStop?.sessionId === sessionId) {
         this.#pendingStop.resolve(completed);
         this.#pendingStop = undefined;
@@ -217,6 +292,52 @@ export class RecorderWindowController {
     this.rejectSession(sessionId, new Error(message));
   };
 
+  private readonly handleDevices = (
+    event: IpcMainEvent,
+    requestId: unknown,
+    devices: unknown,
+    error: unknown,
+  ): void => {
+    if (!this.isExpectedSender(event) || typeof requestId !== 'string') return;
+    const pending = this.#pendingDeviceRequests.get(requestId);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.#pendingDeviceRequests.delete(requestId);
+    if (typeof error === 'string' && error.trim()) {
+      pending.reject(new Error(error.slice(0, 500)));
+      return;
+    }
+    if (!Array.isArray(devices) || devices.length > 128) {
+      pending.reject(new Error('Recorder returned an invalid device list'));
+      return;
+    }
+    const normalized = new Map<string, RecorderDeviceInfo>();
+    for (const candidate of devices as unknown[]) {
+      if (
+        typeof candidate !== 'object' ||
+        candidate === null ||
+        !('deviceId' in candidate) ||
+        typeof candidate.deviceId !== 'string' ||
+        candidate.deviceId.length === 0 ||
+        candidate.deviceId.length > 512 ||
+        !('label' in candidate) ||
+        typeof candidate.label !== 'string' ||
+        candidate.label.length === 0 ||
+        candidate.label.length > 512
+      ) {
+        pending.reject(new Error('Recorder returned an invalid device list'));
+        return;
+      }
+      if (!normalized.has(candidate.deviceId)) {
+        normalized.set(candidate.deviceId, {
+          deviceId: candidate.deviceId,
+          label: candidate.label,
+        });
+      }
+    }
+    pending.resolve([...normalized.values()]);
+  };
+
   private isExpectedSender(event: IpcMainEvent): boolean {
     return event.sender.id === this.#window?.webContents.id;
   }
@@ -226,6 +347,9 @@ export class RecorderWindowController {
       this.#sessions.fail(sessionId);
     } catch {
       return;
+    }
+    if (this.#activeSessionId === sessionId) {
+      this.#activeSessionId = undefined;
     }
     if (this.#pendingStart?.sessionId === sessionId) {
       clearTimeout(this.#pendingStart.timer);
@@ -245,6 +369,7 @@ export class RecorderWindowController {
       skipTaskbar: true,
       width: 1,
       webPreferences: {
+        backgroundThrottling: false,
         contextIsolation: true,
         nodeIntegration: false,
         preload: path.join(__dirname, '../../preload/recorder.js'),

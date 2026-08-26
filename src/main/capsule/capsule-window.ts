@@ -6,51 +6,93 @@ import {
   type IpcMainEvent,
 } from 'electron';
 import path from 'node:path';
-import type { ProcessResult } from '../../core/providers/contracts.js';
+import type {
+  ProcessResult,
+  SupportedLanguage,
+} from '../../core/providers/contracts.js';
 import {
   CAPSULE_CHANNELS,
-  type CapsuleResult,
+  type CapsuleErrorReason,
+  type CapsuleStatus,
 } from '../../shared/capsule-ipc.js';
 
-const AUTO_CLOSE_MILLISECONDS = 10_000;
+const SUCCESS_AUTO_CLOSE_MILLISECONDS = 10_000;
+const ERROR_AUTO_CLOSE_MILLISECONDS = 8_000;
+
+const capsuleBounds = {
+  compact: { height: 56, width: 276 },
+  error: { height: 68, width: 420 },
+  success: { height: 68, width: 540 },
+} as const;
+
+const isTerminalStatus = (
+  status: CapsuleStatus | undefined,
+): status is Extract<CapsuleStatus, { type: 'error' | 'success' }> =>
+  status?.type === 'error' || status?.type === 'success';
 
 export class CapsuleWindowController {
   #autoCloseTimer?: NodeJS.Timeout;
-  #result?: CapsuleResult;
+  #loading?: Promise<BrowserWindow>;
+  #rendererReady = false;
+  #status?: CapsuleStatus;
   #window?: BrowserWindow;
 
   constructor() {
     ipcMain.on(CAPSULE_CHANNELS.close, this.handleClose);
     ipcMain.on(CAPSULE_CHANNELS.copy, this.handleCopy);
+    ipcMain.on(CAPSULE_CHANNELS.ready, this.handleReady);
     ipcMain.on(CAPSULE_CHANNELS.setInteractive, this.handleSetInteractive);
   }
 
-  async show(result: ProcessResult): Promise<void> {
+  async showRecording(locale: SupportedLanguage): Promise<void> {
     this.close();
-    this.#result = { intent: result.intent, outputText: result.outputText };
-    const window = this.createWindow();
-    this.#window = window;
+    await this.present({ level: 0, locale, type: 'recording' });
+  }
 
-    if (process.env.VITE_DEV_SERVER_URL) {
-      await window.loadURL(`${process.env.VITE_DEV_SERVER_URL}/capsule.html`);
-    } else {
-      await window.loadURL('app://renderer/capsule.html');
-    }
-    if (window.isDestroyed()) return;
-    this.positionWindow(window);
-    window.webContents.send(CAPSULE_CHANNELS.result, this.#result);
-    window.setIgnoreMouseEvents(true, { forward: true });
-    window.showInactive();
-    this.#autoCloseTimer = setTimeout(
-      () => this.close(),
-      AUTO_CLOSE_MILLISECONDS,
-    );
+  async showProcessing(locale: SupportedLanguage): Promise<void> {
+    await this.present({ locale, type: 'processing' });
+  }
+
+  async showSuccess(
+    result: ProcessResult,
+    delivery: 'copy' | 'inserted',
+    locale: SupportedLanguage,
+  ): Promise<void> {
+    await this.present({
+      delivery,
+      intent: result.intent,
+      locale,
+      outputText: result.outputText,
+      type: 'success',
+    });
+  }
+
+  async showError(
+    reason: CapsuleErrorReason,
+    locale: SupportedLanguage,
+    detail?: string,
+  ): Promise<void> {
+    await this.present({
+      ...(detail?.trim() ? { detail: detail.trim().slice(0, 240) } : {}),
+      locale,
+      reason,
+      type: 'error',
+    });
+  }
+
+  updateLevel(level: number): void {
+    if (this.#status?.type !== 'recording' || !Number.isFinite(level)) return;
+    const normalizedLevel = Math.max(0, Math.min(1, level));
+    if (Math.abs(normalizedLevel - this.#status.level) < 0.015) return;
+    this.#status = { ...this.#status, level: normalizedLevel };
+    this.sendCurrentStatus();
   }
 
   close(): void {
     if (this.#autoCloseTimer) clearTimeout(this.#autoCloseTimer);
     this.#autoCloseTimer = undefined;
-    this.#result = undefined;
+    this.#rendererReady = false;
+    this.#status = undefined;
     this.#window?.destroy();
     this.#window = undefined;
   }
@@ -59,6 +101,7 @@ export class CapsuleWindowController {
     this.close();
     ipcMain.removeListener(CAPSULE_CHANNELS.close, this.handleClose);
     ipcMain.removeListener(CAPSULE_CHANNELS.copy, this.handleCopy);
+    ipcMain.removeListener(CAPSULE_CHANNELS.ready, this.handleReady);
     ipcMain.removeListener(
       CAPSULE_CHANNELS.setInteractive,
       this.handleSetInteractive,
@@ -70,16 +113,27 @@ export class CapsuleWindowController {
   };
 
   private readonly handleCopy = (event: IpcMainEvent): void => {
-    if (!this.isExpectedSender(event) || !this.#result) return;
-    clipboard.writeText(this.#result.outputText);
+    if (!this.isExpectedSender(event) || this.#status?.type !== 'success')
+      return;
+    clipboard.writeText(this.#status.outputText);
     this.close();
+  };
+
+  private readonly handleReady = (event: IpcMainEvent): void => {
+    if (!this.isExpectedSender(event)) return;
+    this.#rendererReady = true;
+    this.sendCurrentStatus();
   };
 
   private readonly handleSetInteractive = (
     event: IpcMainEvent,
     interactive: unknown,
   ): void => {
-    if (!this.isExpectedSender(event) || typeof interactive !== 'boolean')
+    if (
+      !this.isExpectedSender(event) ||
+      typeof interactive !== 'boolean' ||
+      !isTerminalStatus(this.#status)
+    )
       return;
     this.#window?.setIgnoreMouseEvents(!interactive, { forward: true });
   };
@@ -88,18 +142,86 @@ export class CapsuleWindowController {
     return event.sender.id === this.#window?.webContents.id;
   }
 
+  private async present(status: CapsuleStatus): Promise<void> {
+    if (this.#autoCloseTimer) clearTimeout(this.#autoCloseTimer);
+    this.#autoCloseTimer = undefined;
+    this.#status = status;
+
+    const window = await this.ensureWindow();
+    const currentStatus = this.#status;
+    if (window.isDestroyed() || !currentStatus) return;
+
+    this.sizeAndPositionWindow(window, currentStatus);
+    window.setIgnoreMouseEvents(true, { forward: true });
+    this.sendCurrentStatus();
+    if (!window.isVisible()) window.showInactive();
+
+    const autoCloseMilliseconds =
+      currentStatus.type === 'success'
+        ? SUCCESS_AUTO_CLOSE_MILLISECONDS
+        : currentStatus.type === 'error'
+          ? ERROR_AUTO_CLOSE_MILLISECONDS
+          : undefined;
+    if (autoCloseMilliseconds) {
+      this.#autoCloseTimer = setTimeout(
+        () => this.close(),
+        autoCloseMilliseconds,
+      );
+    }
+  }
+
+  private sendCurrentStatus(): void {
+    if (
+      !this.#rendererReady ||
+      !this.#status ||
+      !this.#window ||
+      this.#window.isDestroyed()
+    )
+      return;
+    this.#window.webContents.send(CAPSULE_CHANNELS.update, this.#status);
+  }
+
+  private async ensureWindow(): Promise<BrowserWindow> {
+    if (this.#window && !this.#window.isDestroyed()) return this.#window;
+    if (this.#loading) return this.#loading;
+    this.#loading = this.createAndLoadWindow();
+    try {
+      return await this.#loading;
+    } finally {
+      this.#loading = undefined;
+    }
+  }
+
+  private async createAndLoadWindow(): Promise<BrowserWindow> {
+    const window = this.createWindow();
+    this.#window = window;
+    this.#rendererReady = false;
+    try {
+      if (process.env.VITE_DEV_SERVER_URL) {
+        await window.loadURL(`${process.env.VITE_DEV_SERVER_URL}/capsule.html`);
+      } else {
+        await window.loadURL('app://renderer/capsule.html');
+      }
+    } catch (error) {
+      if (!window.isDestroyed()) window.destroy();
+      if (this.#window === window) this.#window = undefined;
+      throw error;
+    }
+    return window;
+  }
+
   private createWindow(): BrowserWindow {
     const window = new BrowserWindow({
       alwaysOnTop: true,
       backgroundColor: '#00000000',
       frame: false,
       hasShadow: false,
-      height: 104,
+      height: capsuleBounds.compact.height,
       resizable: false,
       show: false,
       skipTaskbar: true,
       transparent: true,
-      width: 520,
+      width: capsuleBounds.compact.width,
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
@@ -112,17 +234,30 @@ export class CapsuleWindowController {
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', (event) => event.preventDefault());
     window.once('closed', () => {
-      if (this.#window === window) this.#window = undefined;
+      if (this.#window === window) {
+        this.#rendererReady = false;
+        this.#window = undefined;
+      }
     });
     return window;
   }
 
-  private positionWindow(window: BrowserWindow): void {
+  private sizeAndPositionWindow(
+    window: BrowserWindow,
+    status: CapsuleStatus,
+  ): void {
+    const bounds =
+      status.type === 'success'
+        ? capsuleBounds.success
+        : status.type === 'error'
+          ? capsuleBounds.error
+          : capsuleBounds.compact;
+    window.setSize(bounds.width, bounds.height, false);
+
     const display = screen.getDisplayNearestPoint(
       screen.getCursorScreenPoint(),
     );
     const { x, y, width, height } = display.workArea;
-    const bounds = window.getBounds();
     window.setPosition(
       Math.round(x + (width - bounds.width) / 2),
       y + height - bounds.height - 24,

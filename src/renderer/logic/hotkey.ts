@@ -20,6 +20,21 @@ const namedKeys: readonly string[] = [
   'home',
   'insert',
   'left',
+  'numpad0',
+  'numpad1',
+  'numpad2',
+  'numpad3',
+  'numpad4',
+  'numpad5',
+  'numpad6',
+  'numpad7',
+  'numpad8',
+  'numpad9',
+  'numpadadd',
+  'numpaddecimal',
+  'numpaddivide',
+  'numpadmultiply',
+  'numpadsubtract',
   'pagedown',
   'pageup',
   'right',
@@ -38,6 +53,21 @@ const namedKeyLabels: Readonly<Record<string, string>> = {
   home: 'Home',
   insert: 'Insert',
   left: 'Left',
+  numpad0: 'Numpad0',
+  numpad1: 'Numpad1',
+  numpad2: 'Numpad2',
+  numpad3: 'Numpad3',
+  numpad4: 'Numpad4',
+  numpad5: 'Numpad5',
+  numpad6: 'Numpad6',
+  numpad7: 'Numpad7',
+  numpad8: 'Numpad8',
+  numpad9: 'Numpad9',
+  numpadadd: 'NumpadAdd',
+  numpaddecimal: 'NumpadDecimal',
+  numpaddivide: 'NumpadDivide',
+  numpadmultiply: 'NumpadMultiply',
+  numpadsubtract: 'NumpadSubtract',
   pagedown: 'PageDown',
   pageup: 'PageUp',
   right: 'Right',
@@ -67,6 +97,12 @@ export const isValidHotkeyAccelerator = (accelerator: string): boolean => {
     .map((part) => part.trim())
     .filter(Boolean);
   if (parts.length === 0) return false;
+  if (
+    parts.length === 1 &&
+    modifierAliases[parts[0]?.toLowerCase() ?? ''] === 'Alt'
+  ) {
+    return true;
+  }
 
   let key: string | undefined;
   for (const part of parts) {
@@ -101,7 +137,29 @@ export const formatHotkeyAccelerator = (accelerator: string): string => {
   return [...modifiers, key].filter(Boolean).join('+');
 };
 
-const eventKeyToAcceleratorKey = (key: string): string | undefined => {
+const numpadCodes = new Set([
+  'Numpad0',
+  'Numpad1',
+  'Numpad2',
+  'Numpad3',
+  'Numpad4',
+  'Numpad5',
+  'Numpad6',
+  'Numpad7',
+  'Numpad8',
+  'Numpad9',
+  'NumpadAdd',
+  'NumpadDecimal',
+  'NumpadDivide',
+  'NumpadMultiply',
+  'NumpadSubtract',
+]);
+
+const eventKeyToAcceleratorKey = (
+  key: string,
+  code?: string,
+): string | undefined => {
+  if (code && numpadCodes.has(code)) return code;
   const map: Readonly<Record<string, string>> = {
     ' ': 'Space',
     ArrowDown: 'Down',
@@ -128,6 +186,7 @@ const eventKeyToAcceleratorKey = (key: string): string | undefined => {
 
 export interface HotkeyCaptureEvent {
   altKey: boolean;
+  code?: string;
   ctrlKey: boolean;
   key: string;
   metaKey: boolean;
@@ -138,7 +197,7 @@ export interface HotkeyCaptureEvent {
 export const acceleratorFromEvent = (
   event: HotkeyCaptureEvent,
 ): string | undefined => {
-  const key = eventKeyToAcceleratorKey(event.key);
+  const key = eventKeyToAcceleratorKey(event.key, event.code);
   if (key === undefined) return undefined;
 
   const parts: string[] = [];
@@ -149,3 +208,26 @@ export const acceleratorFromEvent = (
   parts.push(key);
   return parts.join('+');
 };
+
+export const modifierAcceleratorFromEvent = (
+  event: Pick<HotkeyCaptureEvent, 'key'>,
+): string | undefined => modifierAliases[event.key.toLowerCase()];
+
+const keycapLabels: Readonly<Record<string, string>> = {
+  NumpadAdd: 'Num +',
+  NumpadDecimal: 'Num .',
+  NumpadDivide: 'Num /',
+  NumpadMultiply: 'Num *',
+  NumpadSubtract: 'Num -',
+};
+
+/** Returns presentation-only labels; persisted accelerators remain canonical. */
+export const hotkeyKeycapLabels = (accelerator: string): readonly string[] =>
+  formatHotkeyAccelerator(accelerator)
+    .split('+')
+    .filter(Boolean)
+    .map((part) =>
+      /^Numpad\d$/u.test(part)
+        ? `Num ${part.slice(-1)}`
+        : (keycapLabels[part] ?? part),
+    );

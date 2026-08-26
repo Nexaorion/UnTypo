@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { isTrustedRendererUrl } from '../../src/main/security';
 
@@ -34,5 +35,18 @@ describe('isTrustedRendererUrl', () => {
 
   it('rejects malformed values', () => {
     expect(isTrustedRendererUrl('not a url')).toBe(false);
+  });
+});
+
+describe('capsule Content-Security-Policy', () => {
+  it('allows Vite and Emotion to inject the capsule runtime styles', () => {
+    const capsuleHtml = readFileSync(
+      new URL('../../capsule.html', import.meta.url),
+      'utf8',
+    );
+
+    expect(capsuleHtml).toContain("script-src 'self';");
+    expect(capsuleHtml).toContain("style-src 'self' 'unsafe-inline';");
+    expect(capsuleHtml).not.toContain("script-src 'self' 'unsafe-inline';");
   });
 });

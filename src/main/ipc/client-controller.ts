@@ -1,15 +1,27 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 import type { UserProfileContext } from '../../core/providers/contracts.js';
+import type {
+  ClientDiagnosticExportRequest,
+  ClientDiagnosticExportResult,
+  ClientDiagnosticSnapshot,
+  ClientRendererIssueInput,
+} from '../../shared/diagnostics.js';
 import {
   IPC_CHANNELS,
   type ClientHistoryQuery,
   type ClientHistoryRecord,
+  type ClientMicrophoneDevice,
   type ClientProviderInput,
   type ClientSettingsUpdate,
   type ClientSnapshot,
   type ClientUsageStats,
 } from '../../shared/ipc.js';
 import { assertTrustedSender } from '../security.js';
+import {
+  parseDiagnosticExportRequest,
+  parseDiagnosticIssueIds,
+  parseRendererIssue,
+} from './diagnostic-validation.js';
 import {
   parseDictionary,
   parseHistoryQuery,
@@ -20,11 +32,20 @@ import {
 } from './validation.js';
 
 export interface ClientBackendPort {
+  acknowledgeDiagnostics: (
+    issueIds: readonly string[],
+  ) => ClientDiagnosticSnapshot;
   clearHistory: () => number;
+  exportDiagnostics: (
+    request: ClientDiagnosticExportRequest,
+  ) => Promise<ClientDiagnosticExportResult>;
+  getDiagnostics: () => ClientDiagnosticSnapshot;
   getClientSnapshot: () => Promise<ClientSnapshot>;
   getUsageStats: () => ClientUsageStats;
   listHistory: (query: ClientHistoryQuery) => readonly ClientHistoryRecord[];
+  listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
+  reportRendererIssue: (issue: ClientRendererIssueInput) => void;
   setDictionary: (entries: readonly string[]) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
@@ -39,13 +60,21 @@ export class ClientIpcController {
 
   constructor(backend: ClientBackendPort) {
     this.#backend = backend;
+    ipcMain.handle(
+      IPC_CHANNELS.acknowledgeDiagnostics,
+      this.acknowledgeDiagnostics,
+    );
+    ipcMain.handle(IPC_CHANNELS.exportDiagnostics, this.exportDiagnostics);
+    ipcMain.handle(IPC_CHANNELS.getDiagnostics, this.getDiagnostics);
     ipcMain.handle(IPC_CHANNELS.getSnapshot, this.getSnapshot);
     ipcMain.handle(IPC_CHANNELS.getUsageStats, this.getUsageStats);
+    ipcMain.handle(IPC_CHANNELS.listMicrophones, this.listMicrophones);
     ipcMain.handle(IPC_CHANNELS.updateSettings, this.updateSettings);
     ipcMain.handle(IPC_CHANNELS.setDictionary, this.setDictionary);
     ipcMain.handle(IPC_CHANNELS.setProfile, this.setProfile);
     ipcMain.handle(IPC_CHANNELS.upsertProvider, this.upsertProvider);
     ipcMain.handle(IPC_CHANNELS.removeProvider, this.removeProvider);
+    ipcMain.handle(IPC_CHANNELS.reportRendererIssue, this.reportRendererIssue);
     ipcMain.handle(IPC_CHANNELS.testProvider, this.testProvider);
     ipcMain.handle(IPC_CHANNELS.listHistory, this.listHistory);
     ipcMain.handle(IPC_CHANNELS.clearHistory, this.clearHistory);
@@ -53,13 +82,18 @@ export class ClientIpcController {
 
   destroy(): void {
     for (const channel of [
+      IPC_CHANNELS.acknowledgeDiagnostics,
+      IPC_CHANNELS.exportDiagnostics,
+      IPC_CHANNELS.getDiagnostics,
       IPC_CHANNELS.getSnapshot,
       IPC_CHANNELS.getUsageStats,
+      IPC_CHANNELS.listMicrophones,
       IPC_CHANNELS.updateSettings,
       IPC_CHANNELS.setDictionary,
       IPC_CHANNELS.setProfile,
       IPC_CHANNELS.upsertProvider,
       IPC_CHANNELS.removeProvider,
+      IPC_CHANNELS.reportRendererIssue,
       IPC_CHANNELS.testProvider,
       IPC_CHANNELS.listHistory,
       IPC_CHANNELS.clearHistory,
@@ -67,6 +101,14 @@ export class ClientIpcController {
       ipcMain.removeHandler(channel);
     }
   }
+
+  private readonly acknowledgeDiagnostics = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): ClientDiagnosticSnapshot => {
+    trust(event);
+    return this.#backend.acknowledgeDiagnostics(parseDiagnosticIssueIds(value));
+  };
 
   private readonly getSnapshot = (
     event: IpcMainInvokeEvent,
@@ -80,6 +122,13 @@ export class ClientIpcController {
   ): ClientUsageStats => {
     trust(event);
     return this.#backend.getUsageStats();
+  };
+
+  private readonly listMicrophones = (
+    event: IpcMainInvokeEvent,
+  ): Promise<readonly ClientMicrophoneDevice[]> => {
+    trust(event);
+    return this.#backend.listMicrophones();
   };
 
   private readonly updateSettings = (
@@ -141,5 +190,28 @@ export class ClientIpcController {
   private readonly clearHistory = (event: IpcMainInvokeEvent): number => {
     trust(event);
     return this.#backend.clearHistory();
+  };
+
+  private readonly exportDiagnostics = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientDiagnosticExportResult> => {
+    trust(event);
+    return this.#backend.exportDiagnostics(parseDiagnosticExportRequest(value));
+  };
+
+  private readonly getDiagnostics = (
+    event: IpcMainInvokeEvent,
+  ): ClientDiagnosticSnapshot => {
+    trust(event);
+    return this.#backend.getDiagnostics();
+  };
+
+  private readonly reportRendererIssue = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): void => {
+    trust(event);
+    this.#backend.reportRendererIssue(parseRendererIssue(value));
   };
 }

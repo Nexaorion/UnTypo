@@ -1,24 +1,26 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { CapsuleApi, CapsuleResult } from '../shared/capsule-ipc.js';
+import type { CapsuleApi, CapsuleStatus } from '../shared/capsule-ipc.js';
 
 const channels = {
   close: 'capsule:close',
   copy: 'capsule:copy',
-  result: 'capsule:result',
+  ready: 'capsule:ready',
   setInteractive: 'capsule:set-interactive',
+  update: 'capsule:update',
 } as const;
 
 const api: CapsuleApi = {
   close: () => ipcRenderer.send(channels.close),
   copy: () => ipcRenderer.send(channels.copy),
-  onResult: (listener) => {
+  onUpdate: (listener) => {
     const wrapped = (
       _event: Electron.IpcRendererEvent,
-      result: CapsuleResult,
-    ) => listener(result);
-    ipcRenderer.on(channels.result, wrapped);
-    return () => ipcRenderer.removeListener(channels.result, wrapped);
+      status: CapsuleStatus,
+    ) => listener(status);
+    ipcRenderer.on(channels.update, wrapped);
+    return () => ipcRenderer.removeListener(channels.update, wrapped);
   },
+  ready: () => ipcRenderer.send(channels.ready),
   setInteractive: (interactive) =>
     ipcRenderer.send(channels.setInteractive, interactive),
 };

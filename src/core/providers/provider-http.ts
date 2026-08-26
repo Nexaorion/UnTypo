@@ -177,7 +177,9 @@ export const readProviderJson = async (
     const message = responseMessage(payload);
     const requestId =
       responseDetail(payload, 'request_id') ??
-      responseDetail(payload, 'requestId');
+      responseDetail(payload, 'requestId') ??
+      response.headers.get('x-request-id')?.trim() ??
+      response.headers.get('x-dashscope-request-id')?.trim();
     const details = [
       code ? `code ${code}` : undefined,
       message,

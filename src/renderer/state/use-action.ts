@@ -3,6 +3,12 @@ import { useI18n } from '../i18n/context.js';
 import { useToast } from '../ui/toast.js';
 import { describeError } from './client.js';
 
+interface ActionOptions {
+  describeError?: (error: unknown) => string | undefined;
+  onError?: (error: unknown) => void;
+  successMessage?: string;
+}
+
 /** Serialises one mutation at a time and surfaces failures as a toast. */
 export const useAction = () => {
   const { t } = useI18n();
@@ -14,7 +20,7 @@ export const useAction = () => {
     async (
       key: string,
       task: () => Promise<void>,
-      options: { successMessage?: string } = {},
+      options: ActionOptions = {},
     ): Promise<boolean> => {
       if (running.current) return false;
       running.current = true;
@@ -24,8 +30,9 @@ export const useAction = () => {
         if (options.successMessage) notify(options.successMessage);
         return true;
       } catch (error) {
+        options.onError?.(error);
         notify(t('error.unknown'), {
-          description: describeError(error),
+          description: options.describeError?.(error) ?? describeError(error),
           type: 'error',
         });
         return false;

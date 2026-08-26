@@ -19,6 +19,12 @@ const configuration = {
 };
 
 describe('AliyunBailianSpeechProvider', () => {
+  it('requests WAV capture because the deployment rejects WebM input', () => {
+    const provider = new AliyunBailianSpeechProvider(configuration);
+
+    expect(provider.preferredAudioFormat).toBe('wav');
+  });
+
   it('sends Base64 WebM audio and recognition parameters', async () => {
     const request = vi.fn<typeof fetch>(() =>
       Promise.resolve(
@@ -235,6 +241,26 @@ describe('AliyunBailianSpeechProvider', () => {
       provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
     ).rejects.toThrow(
       'Aliyun Bailian request failed with status 400: response The audio payload was rejected',
+    );
+  });
+
+  it('preserves a request ID header when an error response is empty', async () => {
+    const provider = new AliyunBailianSpeechProvider(
+      configuration,
+      vi.fn(() =>
+        Promise.resolve(
+          new Response('', {
+            headers: { 'x-request-id': 'request-from-header' },
+            status: 400,
+          }),
+        ),
+      ),
+    );
+
+    await expect(
+      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
+    ).rejects.toThrow(
+      'Aliyun Bailian request failed with status 400: request_id request-from-header',
     );
   });
 

@@ -1,7 +1,9 @@
 import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron';
 import { userInfo } from 'node:os';
 import path from 'node:path';
+import { DIAGNOSTIC_CHANGED_CHANNEL } from '../shared/diagnostics.js';
 import { IPC_CHANNELS, type PingResponse } from '../shared/ipc.js';
+import { DiagnosticCollector } from './diagnostics/collector.js';
 import { ClientIpcController } from './ipc/client-controller.js';
 import { handleAppScheme, registerAppScheme } from './protocol.js';
 import { runRendererSmokeTest } from './renderer-smoke.js';
@@ -15,8 +17,58 @@ app.setName('UnTypo');
 const isSmokeTest = process.argv.includes('--smoke-test');
 let isQuitting = false;
 let clientIpc: ClientIpcController | undefined;
+let diagnostics: DiagnosticCollector | undefined;
 let mainWindow: BrowserWindow | undefined;
+let removeDiagnosticsListener: (() => void) | undefined;
 let runtime: DesktopRuntime | undefined;
+
+process.on('uncaughtExceptionMonitor', (error) => {
+  diagnostics?.recordIssue({
+    error,
+    kind: 'internal',
+    source: 'process.uncaught-exception',
+  });
+});
+
+process.on('unhandledRejection', (reason) => {
+  diagnostics?.recordIssue({
+    error: reason,
+    kind: 'internal',
+    source: 'process.unhandled-rejection',
+  });
+});
+
+app.on('render-process-gone', (_event, webContents, details) => {
+  if (isQuitting || details.reason === 'clean-exit') return;
+  const url = webContents.getURL();
+  const surface = url.includes('recorder.html')
+    ? 'recorder'
+    : url.includes('capsule.html')
+      ? 'capsule'
+      : 'main';
+  diagnostics?.recordIssue({
+    context: { exitCode: details.exitCode, reason: details.reason, surface },
+    error: new Error(`Renderer process terminated: ${details.reason}`),
+    kind: 'renderer',
+    source: 'renderer.process',
+  });
+});
+
+app.on('child-process-gone', (_event, details) => {
+  if (isQuitting || details.reason === 'clean-exit') return;
+  diagnostics?.recordIssue({
+    context: {
+      exitCode: details.exitCode,
+      name: details.name,
+      reason: details.reason,
+      serviceName: details.serviceName,
+      type: details.type,
+    },
+    error: new Error(`${details.type} process terminated: ${details.reason}`),
+    kind: 'internal',
+    source: 'app.child-process',
+  });
+});
 
 const windowBackground = (): string =>
   nativeTheme.shouldUseDarkColors ? '#111111' : '#ffffff';
@@ -50,6 +102,10 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
   } else {
     await window.loadURL('app://renderer/index.html');
   }
+  diagnostics?.log({
+    message: 'Main application window loaded',
+    scope: 'renderer.window',
+  });
 
   window.on('close', (event) => {
     if (isQuitting || isSmokeTest) return;
@@ -86,7 +142,16 @@ void app
   .whenReady()
   .then(async () => {
     handleAppScheme();
-    runtime = new DesktopRuntime({ showMainWindow });
+    diagnostics = new DiagnosticCollector({
+      appName: app.getName(),
+      appVersion: app.getVersion(),
+      rootDirectory: path.join(app.getPath('userData'), 'diagnostics'),
+    });
+    removeDiagnosticsListener = diagnostics.onChanged(() => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      mainWindow.webContents.send(DIAGNOSTIC_CHANGED_CHANNEL);
+    });
+    runtime = new DesktopRuntime({ diagnostics, showMainWindow });
     await runtime.start();
     // Handlers must exist before the renderer's first snapshot request.
     clientIpc = new ClientIpcController(runtime);
@@ -121,6 +186,11 @@ void app
   })
   .catch((error: unknown) => {
     clientIpc?.destroy();
+    diagnostics?.recordIssue({
+      error,
+      kind: 'internal',
+      source: 'app.startup',
+    });
     console.error(error);
     app.exit(1);
   });
@@ -131,6 +201,8 @@ app.on('before-quit', (event) => {
   isQuitting = true;
   clientIpc?.destroy();
   clientIpc = undefined;
+  removeDiagnosticsListener?.();
+  removeDiagnosticsListener = undefined;
   const stopping = runtime
     ? runtime.stop().catch(console.error)
     : Promise.resolve();

@@ -9,6 +9,23 @@ const smokeTestSource = `
     if (!snapshot || !Array.isArray(snapshot.dictionary)) return 'snapshot';
     const usage = await window.untypo?.getUsageStats();
     if (!usage || typeof usage.usageCount !== 'number') return 'usage';
+    const diagnostics = await window.untypo?.getDiagnostics();
+    if (!diagnostics || diagnostics.privacy.secretsCollected !== false)
+      return 'diagnostics';
+
+    const startupDiagnostics = document.querySelector(
+      '[data-testid="diagnostics-dialog"]',
+    );
+    if (startupDiagnostics) {
+      const later = startupDiagnostics.querySelector(
+        '[data-testid="diagnostics-later"]',
+      );
+      if (!later) return 'startup-diagnostics-close';
+      later.click();
+      await wait(300);
+      if (document.querySelector('[data-testid="diagnostics-dialog"]'))
+        return 'startup-diagnostics-stale';
+    }
 
     const bodyBackground = getComputedStyle(document.body).backgroundColor;
     const expectedBackground = matchMedia('(prefers-color-scheme: dark)').matches
@@ -42,6 +59,18 @@ const smokeTestSource = `
     if (!settingsPanel?.querySelector('input')) return 'settings-controls';
     if (!settingsPanel.querySelector('[role="combobox"]'))
       return 'settings-combobox';
+    if (!settingsPanel.querySelector('[data-testid="microphone-select"]'))
+      return 'microphone-select';
+    if (!settingsPanel.querySelector('[data-testid="microphone-refresh"]'))
+      return 'microphone-refresh';
+    if (!settingsPanel.querySelector('[data-testid="diagnostics-open"]'))
+      return 'diagnostics-open';
+    const hotkeyCapture = settingsPanel.querySelector(
+      '[data-testid="hotkey-capture"]',
+    );
+    if (!hotkeyCapture) return 'hotkey-capture';
+    if (hotkeyCapture.querySelectorAll('kbd').length < 1)
+      return 'hotkey-keycaps';
 
     const settingsClose = settingsRoot.querySelector('[data-testid="settings-close"]');
     if (!settingsClose) return 'settings-close';
@@ -68,6 +97,18 @@ const smokeTestSource = `
     if (!addText) return 'provider-trigger';
     addText.click();
     await wait(300);
+
+    const activeDiagnostics = document.querySelector(
+      '[data-testid="diagnostics-dialog"]',
+    );
+    if (activeDiagnostics) {
+      const later = activeDiagnostics.querySelector(
+        '[data-testid="diagnostics-later"]',
+      );
+      if (!later) return 'active-diagnostics-close';
+      later.click();
+      await wait(300);
+    }
 
     let dialogs = [...document.querySelectorAll('[role="dialog"]')];
     if (dialogs.length !== 2) return 'nested-dialog-count:' + dialogs.length;

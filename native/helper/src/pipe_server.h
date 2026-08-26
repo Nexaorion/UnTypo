@@ -14,7 +14,9 @@
 namespace untypo {
 
 struct PipeCallbacks {
-  std::function<void(const HotkeyConfiguration&)> configure_hotkey;
+  std::function<HotkeyConfigurationResultPayload(
+      const HotkeyConfiguration&)>
+      configure_hotkey;
   std::function<TargetSnapshotPayload()> capture_target;
   std::function<PasteResultPayload(const PasteRequestPayload&)> paste;
   std::function<void()> shutdown;
@@ -36,6 +38,7 @@ class PipeServer {
  private:
   void Run();
   bool CreatePipe();
+  bool ConnectClient();
   bool Authenticate();
   bool Dispatch(MessageType type, const std::vector<std::uint8_t>& payload);
   bool ReadFrame(MessageType& type, std::vector<std::uint8_t>& payload);

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppShell, type AppPage } from './app-shell.js';
 import { I18nProvider, useI18n } from './i18n/context.js';
 import { DictionarySection } from './sections/dictionary.js';
+import { DiagnosticsDialog } from './sections/diagnostics-dialog.js';
 import { HistorySection } from './sections/history.js';
 import { HomeSection } from './sections/home.js';
 import {
@@ -13,9 +14,22 @@ import { ToastProvider } from './ui/toast.js';
 
 const Shell = ({ store }: { store: ClientStore }) => {
   const [page, setPage] = useState<AppPage>('home');
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('settings');
   const userName = store.runtime?.userName ?? 'User';
+  const pendingDiagnosticKey = useMemo(
+    () =>
+      (store.diagnostics?.issues ?? [])
+        .filter(({ acknowledgedAt }) => acknowledgedAt === undefined)
+        .map(({ id }) => id)
+        .join(','),
+    [store.diagnostics?.issues],
+  );
+
+  useEffect(() => {
+    if (pendingDiagnosticKey) setDiagnosticsOpen(true);
+  }, [pendingDiagnosticKey]);
 
   const content =
     page === 'history' ? (
@@ -27,7 +41,7 @@ const Shell = ({ store }: { store: ClientStore }) => {
         history={store.history}
         hotkey={
           store.snapshot?.settings.dictation.hotkeyAccelerator ??
-          'Control+Shift+Space'
+          'Control+Alt+Space'
         }
         onOpenHistory={() => setPage('history')}
         usage={store.usage}
@@ -49,11 +63,21 @@ const Shell = ({ store }: { store: ClientStore }) => {
         {content}
       </AppShell>
       <SettingsDialog
+        onOpenDiagnostics={() => {
+          setSettingsOpen(false);
+          setDiagnosticsOpen(true);
+          void store.reloadDiagnostics();
+        }}
         onOpenChange={setSettingsOpen}
         onTabChange={setSettingsTab}
         open={settingsOpen}
         store={store}
         tab={settingsTab}
+      />
+      <DiagnosticsDialog
+        onOpenChange={setDiagnosticsOpen}
+        open={diagnosticsOpen}
+        store={store}
       />
     </>
   );

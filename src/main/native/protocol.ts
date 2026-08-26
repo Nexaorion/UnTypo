@@ -1,5 +1,5 @@
 export const NATIVE_PROTOCOL_MAGIC = 0x50595455;
-export const NATIVE_PROTOCOL_VERSION = 1;
+export const NATIVE_PROTOCOL_VERSION = 2;
 export const NATIVE_MAXIMUM_PAYLOAD_BYTES = 1024 * 1024;
 export const NATIVE_FRAME_HEADER_BYTES = 12;
 
@@ -15,12 +15,11 @@ export enum NativeMessageType {
   TargetCaptured = 102,
   PasteResult = 103,
   Pong = 104,
-  Error = 105,
+  HotkeyConfigured = 105,
+  Error = 106,
 }
 
 export enum NativeHotkeyAction {
-  Start = 1,
-  Stop = 2,
   Toggle = 3,
 }
 
@@ -38,7 +37,6 @@ export interface NativeFrame {
 }
 
 export interface NativeHotkeyConfiguration {
-  mode: 'push-to-talk' | 'toggle';
   modifiers: number;
   virtualKey: number;
 }
@@ -78,11 +76,17 @@ export const encodeHotkeyConfiguration = (
   ) {
     throw new Error('Native hotkey virtual key is invalid');
   }
-  const payload = Buffer.alloc(9);
+  const payload = Buffer.alloc(8);
   payload.writeUInt32LE(configuration.virtualKey, 0);
   payload.writeUInt32LE(configuration.modifiers, 4);
-  payload.writeUInt8(configuration.mode === 'toggle' ? 2 : 1, 8);
   return payload;
+};
+
+export const decodeHotkeyConfigurationResult = (payload: Buffer): number => {
+  if (payload.byteLength !== 4) {
+    throw new Error('Native hotkey response has an invalid size');
+  }
+  return payload.readUInt32LE(0);
 };
 
 export const decodeTargetSnapshot = (payload: Buffer): NativeTargetSnapshot => {

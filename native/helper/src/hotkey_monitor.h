@@ -3,7 +3,6 @@
 #include <Windows.h>
 
 #include <functional>
-#include <mutex>
 
 #include "protocol.h"
 
@@ -19,21 +18,33 @@ class HotkeyMonitor {
   HotkeyMonitor(const HotkeyMonitor&) = delete;
   HotkeyMonitor& operator=(const HotkeyMonitor&) = delete;
 
-  bool Install(Callback callback);
-  void Configure(const HotkeyConfiguration& configuration);
+  bool Install(Callback callback, HINSTANCE instance);
+  HotkeyConfigurationResultPayload Configure(
+      const HotkeyConfiguration& configuration);
   void Uninstall();
 
  private:
-  static LRESULT CALLBACK HookProcedure(int code, WPARAM message, LPARAM data);
-  LRESULT HandleKeyboardEvent(WPARAM message, const KBDLLHOOKSTRUCT& keyboard);
-  bool ModifiersMatch(std::uint32_t modifiers) const;
+  struct ConfigureRequest {
+    HotkeyConfiguration configuration;
+    HotkeyConfigurationResultPayload result;
+  };
 
-  static HotkeyMonitor* instance_;
+  static constexpr int kFirstHotkeyId = 1;
+  static constexpr int kSecondHotkeyId = 2;
+  static constexpr UINT kConfigureMessage = WM_APP + 1;
+
+  static LRESULT CALLBACK WindowProcedure(HWND window, UINT message,
+                                          WPARAM wparam, LPARAM lparam);
+  HotkeyConfigurationResultPayload ConfigureOnOwnerThread(
+      const HotkeyConfiguration& configuration);
+  LRESULT HandleWindowMessage(HWND window, UINT message, WPARAM wparam,
+                              LPARAM lparam);
+
   Callback callback_;
   HotkeyConfiguration configuration_;
-  HHOOK hook_ = nullptr;
-  bool key_pressed_ = false;
-  mutable std::mutex mutex_;
+  DWORD owner_thread_id_ = 0;
+  HWND window_ = nullptr;
+  int registered_hotkey_id_ = 0;
 };
 
 }

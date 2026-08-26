@@ -19,6 +19,16 @@ const throwIfAborted = (signal?: AbortSignal): void => {
   }
 };
 
+export class RecoverablePostProcessingError extends Error {
+  readonly fallbackResult: ProcessResult;
+
+  constructor(fallbackResult: ProcessResult, cause: unknown) {
+    super('Text post-processing failed after transcription', { cause });
+    this.name = 'RecoverablePostProcessingError';
+    this.fallbackResult = fallbackResult;
+  }
+}
+
 export class DictationPipeline {
   /** @deprecated Use speechProvider. */
   readonly provider: SpeechRecognitionProvider;
@@ -74,22 +84,40 @@ export class DictationPipeline {
       };
     }
 
-    const classification = await this.classify(rawTranscript, options);
-    const outputText = await this.route(
-      classification.intent,
-      rawTranscript,
-      options,
-      classification.explicitTargetLanguage,
-    );
-    const result: ProcessResult = {
-      intent: this.resolveAvailableIntent(classification.intent),
-      outputText,
+    const fallbackResult: ProcessResult = {
+      intent: 'transcription',
+      outputText: rawTranscript,
       rawTranscript,
       usage: transcript.usage,
     };
 
-    assertProcessResult(result);
-    return result;
+    try {
+      const classification = await this.classify(rawTranscript, options);
+      const outputText = await this.route(
+        classification.intent,
+        rawTranscript,
+        options,
+        classification.explicitTargetLanguage,
+      );
+      const result: ProcessResult = {
+        intent: this.resolveAvailableIntent(classification.intent),
+        outputText,
+        rawTranscript,
+        usage: transcript.usage,
+      };
+
+      assertProcessResult(result);
+      return result;
+    } catch (error) {
+      throwIfAborted(options.signal);
+      if (
+        error instanceof ProviderContractError &&
+        (error.code === 'ABORTED' || error.code === 'EMPTY_RESULT')
+      ) {
+        throw error;
+      }
+      throw new RecoverablePostProcessingError(fallbackResult, error);
+    }
   }
 
   private assertAudio(audio: AudioPayload): void {

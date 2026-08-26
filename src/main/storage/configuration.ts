@@ -12,7 +12,6 @@ import type {
 } from '../../shared/ipc.js';
 import type { EncryptedValue, SecretProtector } from './secret-protector.js';
 
-export type HotkeyMode = 'push-to-talk' | 'toggle';
 export interface HistoryPolicy {
   enabled: boolean;
   retentionDays: number;
@@ -37,8 +36,8 @@ export interface StoredClientConfig {
     activeTextProviderProfileId?: string;
     defaultTargetLanguage: SupportedLanguage;
     hotkeyAccelerator: string;
-    hotkeyMode: HotkeyMode;
     language: SupportedLanguage;
+    microphoneDeviceId?: string;
   };
   dictionary: readonly string[];
   encryptedProfile?: EncryptedValue;
@@ -81,6 +80,14 @@ const providerKinds: Readonly<Record<ModelProviderId, ModelProviderKind>> = {
   'openai-responses-text': 'text',
 };
 
+export const DEFAULT_HOTKEY_ACCELERATOR = 'Ctrl+Alt+Space';
+const LEGACY_DEFAULT_HOTKEY_ACCELERATOR = 'Ctrl+Shift+Space';
+
+const migrateDefaultHotkey = (accelerator: string): string =>
+  accelerator === LEGACY_DEFAULT_HOTKEY_ACCELERATOR
+    ? DEFAULT_HOTKEY_ACCELERATOR
+    : accelerator;
+
 const defaultConfig = (): StoredClientConfig => ({
   version: 2,
   general: {
@@ -89,8 +96,7 @@ const defaultConfig = (): StoredClientConfig => ({
   },
   dictation: {
     defaultTargetLanguage: 'en-US',
-    hotkeyAccelerator: 'Ctrl+Shift+Space',
-    hotkeyMode: 'push-to-talk',
+    hotkeyAccelerator: DEFAULT_HOTKEY_ACCELERATOR,
     language: 'zh-CN',
   },
   dictionary: [],
@@ -274,7 +280,8 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
   const dictation = value.dictation;
   if (
     !isNonEmptyString(dictation.hotkeyAccelerator, 128) ||
-    (dictation.hotkeyMode !== 'push-to-talk' &&
+    (dictation.hotkeyMode !== undefined &&
+      dictation.hotkeyMode !== 'push-to-talk' &&
       dictation.hotkeyMode !== 'toggle') ||
     (dictation.activeSpeechProviderProfileId !== undefined &&
       (!isNonEmptyString(dictation.activeSpeechProviderProfileId, 64) ||
@@ -282,6 +289,8 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
     (dictation.activeTextProviderProfileId !== undefined &&
       (!isNonEmptyString(dictation.activeTextProviderProfileId, 64) ||
         !profileIdPattern.test(dictation.activeTextProviderProfileId))) ||
+    (dictation.microphoneDeviceId !== undefined &&
+      !isNonEmptyString(dictation.microphoneDeviceId, 512)) ||
     !Array.isArray(value.providers)
   ) {
     throw new Error('Invalid configuration data');
@@ -326,9 +335,11 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
         dictation.defaultTargetLanguage,
         'default target language',
       ),
-      hotkeyAccelerator: dictation.hotkeyAccelerator,
-      hotkeyMode: dictation.hotkeyMode,
+      hotkeyAccelerator: migrateDefaultHotkey(dictation.hotkeyAccelerator),
       language: assertLanguage(dictation.language, 'dictation language'),
+      ...(typeof dictation.microphoneDeviceId === 'string'
+        ? { microphoneDeviceId: dictation.microphoneDeviceId }
+        : {}),
     },
     providers,
   };
@@ -519,8 +530,7 @@ const migrateV1Config = (
         dictation.defaultTargetLanguage,
         'default target language',
       ),
-      hotkeyAccelerator: dictation.hotkeyAccelerator,
-      hotkeyMode: dictation.hotkeyMode,
+      hotkeyAccelerator: migrateDefaultHotkey(dictation.hotkeyAccelerator),
       language: assertLanguage(dictation.language, 'dictation language'),
     },
     providers,
@@ -531,7 +541,15 @@ const parseConfig = (source: string): ParsedConfig => {
   const value: unknown = JSON.parse(source);
   if (!isRecord(value)) throw new Error('Invalid configuration data');
   if (value.version === 2) {
-    return { config: parseV2Config(value), migrated: false };
+    const config = parseV2Config(value);
+    return {
+      config,
+      migrated:
+        isRecord(value.dictation) &&
+        (value.dictation.hotkeyAccelerator ===
+          LEGACY_DEFAULT_HOTKEY_ACCELERATOR ||
+          value.dictation.hotkeyMode !== undefined),
+    };
   }
   if (value.version === 1) {
     return { config: migrateV1Config(value), migrated: true };

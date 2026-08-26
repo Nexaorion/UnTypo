@@ -96,10 +96,7 @@ void PipeServer::Run() {
     return;
   }
 
-  const BOOL connected = ConnectNamedPipe(pipe_, nullptr)
-                             ? TRUE
-                             : GetLastError() == ERROR_PIPE_CONNECTED;
-  if (connected && Authenticate()) {
+  if (ConnectClient() && Authenticate()) {
     while (running_) {
       MessageType type{};
       std::vector<std::uint8_t> payload;
@@ -135,10 +132,33 @@ bool PipeServer::CreatePipe() {
   attributes.bInheritHandle = FALSE;
 
   pipe_ = CreateNamedPipeW(
-      pipe_name_.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE,
+      pipe_name_.c_str(), PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE |
+                              FILE_FLAG_OVERLAPPED,
       PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
       1, 64 * 1024, 64 * 1024, 0, &attributes);
   return pipe_ != INVALID_HANDLE_VALUE;
+}
+
+bool PipeServer::ConnectClient() {
+  OVERLAPPED operation{};
+  operation.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+  if (operation.hEvent == nullptr) return false;
+
+  bool connected = ConnectNamedPipe(pipe_, &operation) != FALSE;
+  if (!connected) {
+    const DWORD error = GetLastError();
+    if (error == ERROR_PIPE_CONNECTED) {
+      connected = true;
+    } else if (error == ERROR_IO_PENDING &&
+               WaitForSingleObject(operation.hEvent, INFINITE) ==
+                   WAIT_OBJECT_0) {
+      DWORD transferred = 0;
+      connected = GetOverlappedResult(pipe_, &operation, &transferred, FALSE) !=
+                  FALSE;
+    }
+  }
+  CloseHandle(operation.hEvent);
+  return connected;
 }
 
 bool PipeServer::Authenticate() {
@@ -164,18 +184,15 @@ bool PipeServer::Dispatch(MessageType type,
   if (type == MessageType::ConfigureHotkey) {
     HotkeyConfiguration configuration{};
     if (!PayloadAs(payload, configuration)) return false;
-    if (configuration.mode != HotkeyMode::PushToTalk &&
-        configuration.mode != HotkeyMode::Toggle) {
-      return false;
-    }
     constexpr std::uint32_t allowed_modifiers =
         MOD_ALT | MOD_CONTROL | MOD_SHIFT | MOD_WIN;
     if (configuration.virtual_key == 0 || configuration.virtual_key > 0xff ||
         (configuration.modifiers & ~allowed_modifiers) != 0) {
       return false;
     }
-    callbacks_.configure_hotkey(configuration);
-    return true;
+    const HotkeyConfigurationResultPayload result =
+        callbacks_.configure_hotkey(configuration);
+    return WriteFrame(MessageType::HotkeyConfigured, &result, sizeof(result));
   }
   if (type == MessageType::CaptureTarget && payload.empty()) {
     const TargetSnapshotPayload target = callbacks_.capture_target();
@@ -214,8 +231,20 @@ bool PipeServer::ReadExact(void* data, std::uint32_t bytes) {
   auto* cursor = static_cast<std::uint8_t*>(data);
   std::uint32_t remaining = bytes;
   while (remaining > 0 && running_) {
+    OVERLAPPED operation{};
+    operation.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (operation.hEvent == nullptr) return false;
+
     DWORD received = 0;
-    if (!ReadFile(pipe_, cursor, remaining, &received, nullptr) || received == 0) {
+    bool completed =
+        ReadFile(pipe_, cursor, remaining, &received, &operation) != FALSE;
+    if (!completed && GetLastError() == ERROR_IO_PENDING &&
+        WaitForSingleObject(operation.hEvent, INFINITE) == WAIT_OBJECT_0) {
+      completed = GetOverlappedResult(pipe_, &operation, &received, FALSE) !=
+                  FALSE;
+    }
+    CloseHandle(operation.hEvent);
+    if (!completed || received == 0) {
       return false;
     }
     cursor += received;
@@ -240,8 +269,20 @@ bool PipeServer::WriteExact(const void* data, std::uint32_t bytes) {
   const auto* cursor = static_cast<const std::uint8_t*>(data);
   std::uint32_t remaining = bytes;
   while (remaining > 0 && running_) {
+    OVERLAPPED operation{};
+    operation.hEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    if (operation.hEvent == nullptr) return false;
+
     DWORD written = 0;
-    if (!WriteFile(pipe_, cursor, remaining, &written, nullptr) || written == 0) {
+    bool completed =
+        WriteFile(pipe_, cursor, remaining, &written, &operation) != FALSE;
+    if (!completed && GetLastError() == ERROR_IO_PENDING &&
+        WaitForSingleObject(operation.hEvent, INFINITE) == WAIT_OBJECT_0) {
+      completed = GetOverlappedResult(pipe_, &operation, &written, FALSE) !=
+                  FALSE;
+    }
+    CloseHandle(operation.hEvent);
+    if (!completed || written == 0) {
       return false;
     }
     cursor += written;

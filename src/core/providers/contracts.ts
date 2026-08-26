@@ -3,6 +3,7 @@ export const PROVIDER_CONTRACT_VERSION = '2.0' as const;
 export type ProviderContractVersion = typeof PROVIDER_CONTRACT_VERSION;
 export type DictationIntent = 'transcription' | 'translation' | 'instruction';
 export type ProviderKind = 'builtin' | 'community' | 'official-cloud' | 'local';
+export type ProviderAudioFormat = 'wav' | 'webm';
 export type SupportedLanguage = 'zh-CN' | 'en-US';
 
 export interface AudioPayload {
@@ -106,6 +107,7 @@ export interface ProviderIdentity {
 }
 
 export interface SpeechRecognitionProvider extends ProviderIdentity {
+  readonly preferredAudioFormat?: ProviderAudioFormat;
   transcribe: (
     audio: AudioPayload,
     options: TranscribeOptions,

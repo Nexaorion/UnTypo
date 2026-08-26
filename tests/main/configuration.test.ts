@@ -28,11 +28,70 @@ describe('ConfigurationService', () => {
       general: { locale: 'zh-CN' },
       dictation: {
         defaultTargetLanguage: 'en-US',
-        hotkeyMode: 'push-to-talk',
+        hotkeyAccelerator: 'Ctrl+Alt+Space',
         language: 'zh-CN',
       },
       history: { enabled: true, retentionDays: 30 },
     });
+  });
+
+  it('migrates the legacy 1Password-conflicting default hotkey', async () => {
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 2,
+        general: { launchAtLogin: false, locale: 'zh-CN' },
+        dictation: {
+          defaultTargetLanguage: 'en-US',
+          hotkeyAccelerator: 'Ctrl+Shift+Space',
+          hotkeyMode: 'push-to-talk',
+          language: 'zh-CN',
+        },
+        dictionary: [],
+        history: { enabled: true, retentionDays: 30 },
+        providers: [],
+      }),
+      'utf8',
+    );
+
+    await expect(service.load()).resolves.toMatchObject({
+      dictation: { hotkeyAccelerator: 'Ctrl+Alt+Space' },
+    });
+    await expect(readFile(configPath, 'utf8')).resolves.toContain(
+      '"hotkeyAccelerator": "Ctrl+Alt+Space"',
+    );
+    await expect(readFile(configPath, 'utf8')).resolves.not.toContain(
+      '"hotkeyMode"',
+    );
+  });
+
+  it('preserves a user-selected hotkey while migrating defaults', async () => {
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 2,
+        general: { launchAtLogin: false, locale: 'zh-CN' },
+        dictation: {
+          defaultTargetLanguage: 'en-US',
+          hotkeyAccelerator: 'Ctrl+Alt+K',
+          hotkeyMode: 'toggle',
+          language: 'zh-CN',
+        },
+        dictionary: [],
+        history: { enabled: true, retentionDays: 30 },
+        providers: [],
+      }),
+      'utf8',
+    );
+
+    await expect(service.load()).resolves.toMatchObject({
+      dictation: {
+        hotkeyAccelerator: 'Ctrl+Alt+K',
+      },
+    });
+    await expect(readFile(configPath, 'utf8')).resolves.not.toContain(
+      '"hotkeyMode"',
+    );
   });
 
   it('normalizes the global dictionary', async () => {
@@ -46,6 +105,21 @@ describe('ConfigurationService', () => {
     expect(config.dictionary).toEqual(['UnTypo', 'Nexaorion']);
     await expect(service.load()).resolves.toMatchObject({
       dictionary: ['UnTypo', 'Nexaorion'],
+    });
+  });
+
+  it('persists an explicit microphone without changing automatic defaults', async () => {
+    expect((await service.load()).dictation).not.toHaveProperty(
+      'microphoneDeviceId',
+    );
+
+    await service.update((config) => ({
+      ...config,
+      dictation: { ...config.dictation, microphoneDeviceId: 'microphone-1' },
+    }));
+
+    await expect(service.load()).resolves.toMatchObject({
+      dictation: { microphoneDeviceId: 'microphone-1' },
     });
   });
 
