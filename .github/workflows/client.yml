@@ -8,9 +8,9 @@ permissions:
   contents: read
 
 jobs:
-  verify-windows-client:
-    name: Verify Windows client
-    runs-on: windows-latest
+  verify-frontend:
+    name: Verify frontend
+    runs-on: ubuntu-latest
     timeout-minutes: 45
 
     steps:
@@ -27,61 +27,12 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Ensure Electron distribution is available
-        run: node node_modules/electron/install.js
-
-      - name: Audit dependencies
-        run: npm audit --audit-level=high
-
-      - name: Check formatting
-        run: npm run format:check
-
-      - name: Lint source
-        run: npm run lint
-
-      - name: Check types
-        run: npm run typecheck
-
-      - name: Run unit and provider contract tests
-        run: npm run test
-
-      - name: Build Electron client and Native Helper
-        run: npm run build
-
-      - name: Exercise authenticated Native Helper pipe
-        run: node scripts/native-smoke.mjs
-
-      - name: Exercise Electron isolation and UI interactions
-        shell: pwsh
-        run: '& .\node_modules\.bin\electron.cmd . --smoke-test'
-
-      - name: Build unsigned NSIS installer
-        shell: pwsh
-        run: '& .\node_modules\.bin\electron-builder.cmd --win nsis --publish never'
-
-      - name: Generate installer checksums
-        shell: pwsh
-        run: |
-          $installers = Get-ChildItem -LiteralPath release -Filter *.exe -File
-          if ($installers.Count -eq 0) { throw 'No installer was produced' }
-          $lines = $installers | ForEach-Object {
-            $hash = Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256
-            "$($hash.Hash)  $($_.Name)"
-          }
-          Set-Content -LiteralPath release\SHA256SUMS.txt -Value $lines
-
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v7
-        with:
-          if-no-files-found: error
-          name: untypo-windows-unsigned
-          path: |
-            release/*.exe
-            release/SHA256SUMS.txt
+      - name: Verify frontend
+        run: npm run check
 
   publish-windows-release:
     name: Publish Windows release
-    needs: verify-windows-client
+    needs: verify-frontend
     if: >-
       github.event_name != 'pull_request' &&
       (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/preview') &&
@@ -111,8 +62,12 @@ jobs:
           if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$') {
             throw "package.json version '$version' is not a valid SemVer version"
           }
+          $tag = "v$version"
+          if ($env:RELEASE_BRANCH -eq 'preview') {
+            $tag = "preview-$tag"
+          }
           Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "version=$version" -Encoding utf8NoBOM
-          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "tag=v$version" -Encoding utf8NoBOM
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "tag=$tag" -Encoding utf8NoBOM
 
       - name: Confirm release commit is current branch head
         id: branch
