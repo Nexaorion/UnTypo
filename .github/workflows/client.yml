@@ -199,7 +199,7 @@ jobs:
           $release = & gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID" | ConvertFrom-Json
           if ($LASTEXITCODE -ne 0) { throw "Unable to load release ID $env:RELEASE_ID" }
           $expectedPrerelease = $env:IS_PRERELEASE -eq 'true'
-          if ($release.isDraft -or ($release.isPrerelease -ne $expectedPrerelease)) {
+          if ($release.draft -or ($release.prerelease -ne $expectedPrerelease)) {
             throw "Release ID $env:RELEASE_ID does not match the expected release channel"
           }
 
