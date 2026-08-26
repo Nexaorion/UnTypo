@@ -27,6 +27,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Ensure Electron distribution is available
+        run: node node_modules/electron/install.js
+
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
@@ -135,6 +138,10 @@ jobs:
       - name: Install locked dependencies
         if: steps.branch.outputs.is_current == 'true'
         run: npm ci
+
+      - name: Ensure Electron distribution is available
+        if: steps.branch.outputs.is_current == 'true'
+        run: node node_modules/electron/install.js
 
       - name: Build Electron client and Native Helper
         if: steps.branch.outputs.is_current == 'true'
