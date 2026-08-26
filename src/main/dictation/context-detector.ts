@@ -1,6 +1,7 @@
 import type { WindowContext } from '../../core/providers/contracts.js';
 
-export type ApplicationContext = 'ai-tool' | 'chat-app' | 'browser' | 'office' | 'ide' | 'general';
+export type ApplicationContext =
+  'ai-tool' | 'chat-app' | 'browser' | 'office' | 'ide' | 'general';
 
 export class ContextDetector {
   detectApplicationContext(windowContext?: WindowContext): ApplicationContext {

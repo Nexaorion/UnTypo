@@ -72,8 +72,12 @@ const Capsule = () => {
       aria-live={viewModel.ariaLive}
       className="capsule"
       data-status={status.type}
-      onPointerEnter={() => (terminal || confirmMode) && window.capsule.setInteractive(true)}
-      onPointerLeave={() => (terminal || confirmMode) && window.capsule.setInteractive(false)}
+      onPointerEnter={() =>
+        (terminal || confirmMode) && window.capsule.setInteractive(true)
+      }
+      onPointerLeave={() =>
+        (terminal || confirmMode) && window.capsule.setInteractive(false)
+      }
       role="status"
     >
       {status.type === 'recording' ? (
@@ -98,7 +102,11 @@ const Capsule = () => {
           <button onClick={() => window.capsule.confirm()} type="button">
             {viewModel.confirmAcceptLabel}
           </button>
-          <button onClick={() => window.capsule.reject()} type="button" className="capsule-secondary">
+          <button
+            onClick={() => window.capsule.reject()}
+            type="button"
+            className="capsule-secondary"
+          >
             {viewModel.confirmRejectLabel}
           </button>
         </div>

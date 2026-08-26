@@ -27,8 +27,13 @@ const capsuleBounds = {
 
 const isTerminalStatus = (
   status: CapsuleStatus | undefined,
-): status is Extract<CapsuleStatus, { type: 'error' | 'success' | 'confirm' }> =>
-  status?.type === 'error' || status?.type === 'success' || status?.type === 'confirm';
+): status is Extract<
+  CapsuleStatus,
+  { type: 'error' | 'success' | 'confirm' }
+> =>
+  status?.type === 'error' ||
+  status?.type === 'success' ||
+  status?.type === 'confirm';
 
 export class CapsuleWindowController {
   #autoCloseTimer?: NodeJS.Timeout;
@@ -62,7 +67,7 @@ export class CapsuleWindowController {
   ): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       this.#confirmResolve = resolve;
-      this.present({
+      void this.present({
         intent: result.intent,
         locale,
         outputText: result.outputText,
