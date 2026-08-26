@@ -20,8 +20,8 @@ describe('OpenAIResponsesTextProvider', () => {
                 content: [
                   {
                     text: JSON.stringify({
-                      explicitTargetLanguage: 'en-US',
                       intent: 'translation',
+                      outputText: 'Hello',
                     }),
                     type: 'output_text',
                   },
@@ -37,14 +37,14 @@ describe('OpenAIResponsesTextProvider', () => {
     const provider = new OpenAIResponsesTextProvider(configuration, request);
 
     await expect(
-      provider.classifyIntent('翻译成英文', {
+      provider.processTranscript('翻译成英文：你好', {
         defaultTargetLanguage: 'zh-CN',
         dictionary: [],
         locale: 'zh-CN',
       }),
     ).resolves.toEqual({
-      explicitTargetLanguage: 'en-US',
       intent: 'translation',
+      outputText: 'Hello',
     });
 
     const [url, init] = request.mock.calls[0] ?? [];
@@ -55,7 +55,7 @@ describe('OpenAIResponsesTextProvider', () => {
     });
     if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
     expect(JSON.parse(init.body)).toMatchObject({
-      input: '翻译成英文',
+      input: '翻译成英文：你好',
       model: 'response-model',
       store: false,
     });
@@ -66,16 +66,29 @@ describe('OpenAIResponsesTextProvider', () => {
       configuration,
       vi.fn(() =>
         Promise.resolve(
-          new Response(JSON.stringify({ output_text: 'polished text' }), {
-            status: 200,
-          }),
+          new Response(
+            JSON.stringify({
+              output_text: JSON.stringify({
+                intent: 'transcription',
+                outputText: 'polished text',
+              }),
+            }),
+            { status: 200 },
+          ),
         ),
       ),
     );
 
     await expect(
-      provider.polish('text', { dictionary: [], locale: 'en-US' }),
-    ).resolves.toBe('polished text');
+      provider.processTranscript('text', {
+        defaultTargetLanguage: 'en-US',
+        dictionary: [],
+        locale: 'en-US',
+      }),
+    ).resolves.toEqual({
+      intent: 'transcription',
+      outputText: 'polished text',
+    });
   });
 
   it('surfaces a provider error message', async () => {
@@ -91,7 +104,11 @@ describe('OpenAIResponsesTextProvider', () => {
     );
 
     await expect(
-      provider.polish('text', { dictionary: [], locale: 'en-US' }),
+      provider.processTranscript('text', {
+        defaultTargetLanguage: 'en-US',
+        dictionary: [],
+        locale: 'en-US',
+      }),
     ).rejects.toThrow('Bad key');
   });
 });

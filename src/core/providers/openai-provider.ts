@@ -3,15 +3,16 @@ import {
   ProviderContractError,
   type AudioPayload,
   type DictationProvider,
-  type GenerationContext,
-  type IntentClassificationResult,
-  type IntentContext,
-  type PolishContext,
   type ProviderCapabilities,
+  type TextProcessContext,
+  type TextProcessResult,
   type TranscriptResult,
   type TranscribeOptions,
-  type TranslationContext,
 } from './contracts.js';
+import {
+  parseTranscriptProcessing,
+  transcriptProcessingInstructions,
+} from './text-provider-utils.js';
 
 export interface OpenAIProviderConfiguration {
   allowInsecurePrivateEndpoint?: boolean;
@@ -198,32 +199,27 @@ export class OpenAIProvider implements DictationProvider {
     };
   }
 
-  async classifyIntent(
+  async processTranscript(
     text: string,
-    context: IntentContext,
-  ): Promise<IntentClassificationResult> {
+    context: TextProcessContext,
+  ): Promise<TextProcessResult> {
     const output = await this.textResponse(
       text,
-      `Classify the user's spoken text as transcription, translation, or instruction. Detect an explicitly spoken translation target if it is Simplified Chinese or English. The configured fallback target is ${context.defaultTargetLanguage}.`,
+      transcriptProcessingInstructions(context),
       context.signal,
       {
         format: {
-          name: 'untypo_intent',
+          name: 'untypo_transcript_result',
           schema: {
             additionalProperties: false,
             properties: {
-              explicitTargetLanguage: {
-                anyOf: [
-                  { enum: ['zh-CN', 'en-US'], type: 'string' },
-                  { type: 'null' },
-                ],
-              },
               intent: {
                 enum: ['transcription', 'translation', 'instruction'],
                 type: 'string',
               },
+              outputText: { minLength: 1, type: 'string' },
             },
-            required: ['intent', 'explicitTargetLanguage'],
+            required: ['intent', 'outputText'],
             type: 'object',
           },
           strict: true,
@@ -231,59 +227,7 @@ export class OpenAIProvider implements DictationProvider {
         },
       },
     );
-    const value: unknown = JSON.parse(output);
-    if (
-      typeof value !== 'object' ||
-      value === null ||
-      !('intent' in value) ||
-      (value.intent !== 'transcription' &&
-        value.intent !== 'translation' &&
-        value.intent !== 'instruction')
-    ) {
-      throw new ProviderContractError(
-        'INVALID_PROVIDER',
-        'OpenAI returned an invalid intent classification',
-      );
-    }
-    const explicitTargetLanguage =
-      'explicitTargetLanguage' in value &&
-      (value.explicitTargetLanguage === 'zh-CN' ||
-        value.explicitTargetLanguage === 'en-US')
-        ? value.explicitTargetLanguage
-        : undefined;
-    return {
-      intent: value.intent,
-      ...(explicitTargetLanguage ? { explicitTargetLanguage } : {}),
-    };
-  }
-
-  translate(text: string, context: TranslationContext): Promise<string> {
-    return this.textResponse(
-      text,
-      `Translate the input into ${context.targetLanguage}. Return only the translation while preserving meaning, formatting, and proper nouns.`,
-      context.signal,
-    );
-  }
-
-  generateFromInstruction(
-    instructionText: string,
-    context: GenerationContext,
-  ): Promise<string> {
-    const dictionary = context.dictionary.join(', ');
-    return this.textResponse(
-      instructionText,
-      `Follow the spoken instruction and generate the requested content in ${context.locale}. Return only the finished content.${dictionary ? ` Preserve these terms exactly: ${dictionary}.` : ''}`,
-      context.signal,
-    );
-  }
-
-  polish(text: string, context: PolishContext): Promise<string> {
-    const dictionary = context.dictionary.join(', ');
-    return this.textResponse(
-      text,
-      `Polish this transcript in ${context.locale}. Remove filler words and repetition, correct errors, and preserve the speaker's meaning and formatting.${context.tone ? ` Use a ${context.tone} tone.` : ''}${dictionary ? ` Preserve these terms exactly: ${dictionary}.` : ''} Return only the polished text.`,
-      context.signal,
-    );
+    return parseTranscriptProcessing(output);
   }
 
   private async textResponse(

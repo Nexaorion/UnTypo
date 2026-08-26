@@ -37,7 +37,6 @@ export interface StoredClientConfig {
     defaultTargetLanguage: SupportedLanguage;
     fastMode?: boolean;
     hotkeyAccelerator: string;
-    intentClassificationModel?: string;
     language: SupportedLanguage;
     microphoneDeviceId?: string;
   };
@@ -285,9 +284,8 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
     (dictation.hotkeyMode !== undefined &&
       dictation.hotkeyMode !== 'push-to-talk' &&
       dictation.hotkeyMode !== 'toggle') ||
-    (dictation.fastMode !== undefined && typeof dictation.fastMode !== 'boolean') ||
-    (dictation.intentClassificationModel !== undefined &&
-      !isNonEmptyString(dictation.intentClassificationModel, 200)) ||
+    (dictation.fastMode !== undefined &&
+      typeof dictation.fastMode !== 'boolean') ||
     (dictation.activeSpeechProviderProfileId !== undefined &&
       (!isNonEmptyString(dictation.activeSpeechProviderProfileId, 64) ||
         !profileIdPattern.test(dictation.activeSpeechProviderProfileId))) ||
@@ -344,9 +342,6 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
         ? { fastMode: dictation.fastMode }
         : {}),
       hotkeyAccelerator: migrateDefaultHotkey(dictation.hotkeyAccelerator),
-      ...(typeof dictation.intentClassificationModel === 'string'
-        ? { intentClassificationModel: dictation.intentClassificationModel }
-        : {}),
       language: assertLanguage(dictation.language, 'dictation language'),
       ...(typeof dictation.microphoneDeviceId === 'string'
         ? { microphoneDeviceId: dictation.microphoneDeviceId }

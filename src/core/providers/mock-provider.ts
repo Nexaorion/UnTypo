@@ -3,12 +3,12 @@ import {
   type AudioPayload,
   type DictationIntent,
   type DictationProvider,
-  type IntentClassificationResult,
   type ProcessOptions,
   type ProcessResult,
   type ProviderCapabilities,
+  type TextProcessContext,
+  type TextProcessResult,
   type TranscriptResult,
-  type TranslationContext,
 } from './contracts.js';
 
 export interface MockProviderScenario {
@@ -58,31 +58,27 @@ export class MockDictationProvider implements DictationProvider {
     });
   }
 
-  async classifyIntent(): Promise<IntentClassificationResult> {
-    return Promise.resolve({
-      intent: this.#scenario.intent ?? 'transcription',
-      ...(this.#scenario.explicitTargetLanguage
-        ? { explicitTargetLanguage: this.#scenario.explicitTargetLanguage }
-        : {}),
-    });
-  }
+  async processTranscript(
+    text: string,
+    context: TextProcessContext,
+  ): Promise<TextProcessResult> {
+    const intent =
+      context.forcedIntent ??
+      (this.capabilities.intentDetection
+        ? (this.#scenario.intent ?? 'transcription')
+        : 'transcription');
+    const targetLanguage =
+      context.explicitTargetLanguage ??
+      this.#scenario.explicitTargetLanguage ??
+      context.defaultTargetLanguage;
+    const outputText =
+      intent === 'translation'
+        ? (this.#scenario.translatedText?.[targetLanguage] ?? text)
+        : intent === 'instruction'
+          ? (this.#scenario.generatedText ?? text)
+          : (this.#scenario.polishedText ?? text);
 
-  async polish(): Promise<string> {
-    return Promise.resolve(
-      this.#scenario.polishedText ??
-        this.#scenario.transcript ??
-        'mock transcript',
-    );
-  }
-
-  async translate(text: string, context: TranslationContext): Promise<string> {
-    return Promise.resolve(
-      this.#scenario.translatedText?.[context.targetLanguage] ?? text,
-    );
-  }
-
-  async generateFromInstruction(instructionText: string): Promise<string> {
-    return Promise.resolve(this.#scenario.generatedText ?? instructionText);
+    return Promise.resolve({ intent, outputText });
   }
 
   async process(
@@ -90,24 +86,24 @@ export class MockDictationProvider implements DictationProvider {
     options: ProcessOptions,
   ): Promise<ProcessResult> {
     const transcript = await this.transcribe(audio);
-    const intent = this.#scenario.intent ?? 'transcription';
-    let outputText: string;
-
-    if (intent === 'translation') {
-      outputText = await this.translate(transcript.text, {
-        signal: options.signal,
-        targetLanguage:
-          options.explicitTargetLanguage ?? options.defaultTargetLanguage,
-      });
-    } else if (intent === 'instruction') {
-      outputText = await this.generateFromInstruction(transcript.text);
-    } else {
-      outputText = await this.polish();
-    }
+    const processed = await this.processTranscript(transcript.text, {
+      defaultTargetLanguage: options.defaultTargetLanguage,
+      dictionary: options.dictionary,
+      ...(options.explicitTargetLanguage
+        ? { explicitTargetLanguage: options.explicitTargetLanguage }
+        : {}),
+      ...(options.forcedIntent ? { forcedIntent: options.forcedIntent } : {}),
+      locale: options.language,
+      signal: options.signal,
+      ...(options.tone ? { tone: options.tone } : {}),
+      ...(options.windowContext
+        ? { windowContext: options.windowContext }
+        : {}),
+    });
 
     return {
-      intent,
-      outputText,
+      intent: processed.intent,
+      outputText: processed.outputText,
       rawTranscript: transcript.text,
       usage: transcript.usage,
     };

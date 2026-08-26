@@ -76,7 +76,6 @@ export interface ClientSettingsSnapshot {
     defaultTargetLanguage: SupportedLanguage;
     fastMode?: boolean;
     hotkeyAccelerator: string;
-    intentClassificationModel?: string;
     language: SupportedLanguage;
     microphoneDeviceId?: string;
   };
@@ -97,7 +96,6 @@ export interface ClientSettingsUpdate {
     defaultTargetLanguage?: SupportedLanguage;
     fastMode?: boolean;
     hotkeyAccelerator?: string;
-    intentClassificationModel?: string | null;
     language?: SupportedLanguage;
     microphoneDeviceId?: string | null;
   };

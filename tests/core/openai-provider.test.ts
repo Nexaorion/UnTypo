@@ -55,7 +55,7 @@ describe('OpenAIProvider', () => {
     expect((form.get('file') as File).name).toBe('recording.webm');
   });
 
-  it('uses Responses structured output for intent and spoken target detection', async () => {
+  it('uses one Responses structured output for intent and final text', async () => {
     const request = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
@@ -67,8 +67,8 @@ describe('OpenAIProvider', () => {
                 content: [
                   {
                     text: JSON.stringify({
-                      explicitTargetLanguage: 'en-US',
                       intent: 'translation',
+                      outputText: 'Hello',
                     }),
                     type: 'output_text',
                   },
@@ -83,14 +83,14 @@ describe('OpenAIProvider', () => {
     const provider = new OpenAIProvider(configuration, request);
 
     await expect(
-      provider.classifyIntent('Translate this into English', {
+      provider.processTranscript('Translate this into English: 你好', {
         defaultTargetLanguage: 'zh-CN',
         dictionary: [],
         locale: 'en-US',
       }),
     ).resolves.toEqual({
-      explicitTargetLanguage: 'en-US',
       intent: 'translation',
+      outputText: 'Hello',
     });
     const [, init] = request.mock.calls[0] ?? [];
     if (typeof init?.body !== 'string') throw new Error('Expected JSON body');

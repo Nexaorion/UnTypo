@@ -41,9 +41,9 @@ const loadFixtures = async (): Promise<ContractFixture[]> => {
   return JSON.parse(source) as ContractFixture[];
 };
 
-describe('provider contract v1', () => {
+describe('provider contract v3', () => {
   it('publishes a stable version identifier', () => {
-    expect(PROVIDER_CONTRACT_VERSION).toBe('2.0');
+    expect(PROVIDER_CONTRACT_VERSION).toBe('3.0');
   });
 
   it('accepts the bundled mock provider', () => {

@@ -74,7 +74,6 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         'defaultTargetLanguage',
         'fastMode',
         'hotkeyAccelerator',
-        'intentClassificationModel',
         'language',
         'microphoneDeviceId',
         'microphoneDeviceLabel',
@@ -123,18 +122,6 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         throw new Error('Invalid hotkey accelerator');
       }
       dictation.hotkeyAccelerator = value.dictation.hotkeyAccelerator;
-    }
-    if (value.dictation.intentClassificationModel !== undefined) {
-      if (
-        value.dictation.intentClassificationModel !== null &&
-        (typeof value.dictation.intentClassificationModel !== 'string' ||
-          value.dictation.intentClassificationModel.length === 0 ||
-          value.dictation.intentClassificationModel.length > 200)
-      ) {
-        throw new Error('Invalid intent classification model');
-      }
-      dictation.intentClassificationModel =
-        value.dictation.intentClassificationModel;
     }
     if (value.dictation.language !== undefined) {
       if (!isLanguage(value.dictation.language))

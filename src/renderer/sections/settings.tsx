@@ -284,25 +284,6 @@ export const SettingsSection = ({
               )
             }
           />
-          {!settings.dictation.fastMode && (
-            <Field
-              helperText={t('settings.intentClassificationModelHint')}
-              label={t('settings.intentClassificationModel')}
-              onChange={(event) => {
-                const value = event.target.value;
-                void run('intentClassificationModel', () =>
-                  store.updateSettings({
-                    dictation: {
-                      intentClassificationModel: value.length > 0 ? value : null,
-                    },
-                  }),
-                );
-              }}
-              placeholder={t('settings.intentClassificationModelPlaceholder')}
-              slotProps={{ htmlInput: { maxLength: 200 } }}
-              value={settings.dictation.intentClassificationModel ?? ''}
-            />
-          )}
           {languageSelect(
             t('settings.dictationLanguage'),
             settings.dictation.language,

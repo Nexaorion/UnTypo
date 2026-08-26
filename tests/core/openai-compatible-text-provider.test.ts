@@ -19,8 +19,8 @@ describe('OpenAICompatibleTextProvider', () => {
               {
                 message: {
                   content: JSON.stringify({
-                    explicitTargetLanguage: 'en-US',
                     intent: 'translation',
+                    outputText: 'Hello',
                   }),
                 },
               },
@@ -33,14 +33,14 @@ describe('OpenAICompatibleTextProvider', () => {
     const provider = new OpenAICompatibleTextProvider(configuration, request);
 
     await expect(
-      provider.classifyIntent('翻译成英文', {
+      provider.processTranscript('翻译成英文：你好', {
         defaultTargetLanguage: 'zh-CN',
         dictionary: [],
         locale: 'zh-CN',
       }),
     ).resolves.toEqual({
-      explicitTargetLanguage: 'en-US',
       intent: 'translation',
+      outputText: 'Hello',
     });
 
     const [url, init] = request.mock.calls[0] ?? [];
@@ -52,7 +52,10 @@ describe('OpenAICompatibleTextProvider', () => {
     if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
     const body = JSON.parse(init.body) as Record<string, unknown>;
     expect(body).toMatchObject({
-      messages: [{ role: 'system' }, { content: '翻译成英文', role: 'user' }],
+      messages: [
+        { role: 'system' },
+        { content: '翻译成英文：你好', role: 'user' },
+      ],
       model: 'chat-model',
     });
     expect(body).not.toHaveProperty('max_tokens');
@@ -72,7 +75,11 @@ describe('OpenAICompatibleTextProvider', () => {
     );
 
     await expect(
-      provider.polish('text', { dictionary: [], locale: 'en-US' }),
+      provider.processTranscript('text', {
+        defaultTargetLanguage: 'en-US',
+        dictionary: [],
+        locale: 'en-US',
+      }),
     ).rejects.toThrow('Bad key');
   });
 });

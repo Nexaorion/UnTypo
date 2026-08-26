@@ -74,7 +74,6 @@ export interface HistoryPort {
 export interface DictationContext {
   fastMode?: boolean;
   history: HistoryPolicy;
-  intentClassificationModel?: string;
   modelName?: string;
   microphoneDeviceId?: string;
   options: ProcessOptions;
@@ -412,14 +411,18 @@ export class DictationCoordinator {
             await this.#dependencies.presenter.showConfirm(result);
           if (!useProcessed) {
             try {
-              const polishedText =
-                textProvider?.capabilities.textPolish && textProvider.polish
-                  ? await textProvider.polish(result.rawTranscript, {
+              const polishedText = textProvider
+                ? (
+                    await textProvider.processTranscript(result.rawTranscript, {
+                      defaultTargetLanguage:
+                        context.options.defaultTargetLanguage,
                       dictionary: context.options.dictionary,
+                      forcedIntent: 'transcription',
                       locale: context.options.language,
                       signal: processingSignal,
                     })
-                  : result.rawTranscript;
+                  ).outputText
+                : result.rawTranscript;
 
               finalResult = {
                 intent: 'transcription',

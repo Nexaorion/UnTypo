@@ -152,24 +152,9 @@ type TextFailureSetup = (
 
 const textFailureCases: ReadonlyArray<readonly [string, TextFailureSetup]> = [
   [
-    'classification',
+    'one-pass processing',
     (provider, failure) => {
-      vi.spyOn(provider, 'classifyIntent').mockRejectedValueOnce(failure);
-    },
-  ],
-  [
-    'polishing',
-    (provider, failure) => {
-      vi.spyOn(provider, 'polish').mockRejectedValueOnce(failure);
-    },
-  ],
-  [
-    'routed generation',
-    (provider, failure) => {
-      vi.spyOn(provider, 'classifyIntent').mockResolvedValueOnce({
-        intent: 'translation',
-      });
-      vi.spyOn(provider, 'translate').mockRejectedValueOnce(failure);
+      vi.spyOn(provider, 'processTranscript').mockRejectedValueOnce(failure);
     },
   ],
 ];

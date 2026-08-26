@@ -4,9 +4,7 @@ import {
   assertTextProviderContract,
   ProviderContractError,
   type AudioPayload,
-  type DictationIntent,
   type DictationProvider,
-  type IntentClassificationResult,
   type ProcessOptions,
   type ProcessResult,
   type SpeechRecognitionProvider,
@@ -91,46 +89,42 @@ export class DictationPipeline {
       usage: transcript.usage,
     };
 
-    if (options.fastMode && options.forcedIntent) {
-      try {
-        const outputText = await this.route(
-          options.forcedIntent,
-          rawTranscript,
-          options,
-          undefined,
-        );
-        const result: ProcessResult = {
-          intent: this.resolveAvailableIntent(options.forcedIntent),
-          outputText,
-          rawTranscript,
-          usage: transcript.usage,
-        };
-
-        assertProcessResult(result);
-        return result;
-      } catch (error) {
-        throwIfAborted(options.signal);
-        if (
-          error instanceof ProviderContractError &&
-          (error.code === 'ABORTED' || error.code === 'EMPTY_RESULT')
-        ) {
-          throw error;
-        }
-        throw new RecoverablePostProcessingError(fallbackResult, error);
-      }
-    }
-
     try {
-      const classification = await this.classify(rawTranscript, options);
-      const outputText = await this.route(
-        classification.intent,
+      const forcedIntent =
+        options.fastMode && options.forcedIntent
+          ? options.forcedIntent
+          : this.textProvider.capabilities.intentDetection
+            ? undefined
+            : 'transcription';
+      const processed = await this.textProvider.processTranscript(
         rawTranscript,
-        options,
-        classification.explicitTargetLanguage,
+        {
+          defaultTargetLanguage: options.defaultTargetLanguage,
+          dictionary: options.dictionary,
+          ...(options.explicitTargetLanguage
+            ? { explicitTargetLanguage: options.explicitTargetLanguage }
+            : {}),
+          ...(forcedIntent ? { forcedIntent } : {}),
+          locale: options.language,
+          ...(this.textProvider.kind === 'official-cloud' && options.profile
+            ? { profile: options.profile }
+            : {}),
+          signal: options.signal,
+          ...(options.tone ? { tone: options.tone } : {}),
+          ...(options.windowContext
+            ? { windowContext: options.windowContext }
+            : {}),
+        },
       );
+      if (forcedIntent && processed.intent !== forcedIntent) {
+        throw new ProviderContractError(
+          'INVALID_PROVIDER',
+          `Text provider ignored the forced ${forcedIntent} intent`,
+        );
+      }
       const result: ProcessResult = {
-        intent: this.resolveAvailableIntent(classification.intent),
-        outputText,
+        intent: processed.intent,
+        outputText: processed.outputText,
         rawTranscript,
         usage: transcript.usage,
       };
@@ -164,101 +158,13 @@ export class DictationPipeline {
     }
   }
 
-  private async classify(
-    transcript: string,
-    options: ProcessOptions,
-  ): Promise<IntentClassificationResult> {
-    const provider = this.textProvider;
-    if (!provider?.capabilities.intentDetection || !provider.classifyIntent) {
-      return { intent: 'transcription' };
-    }
-
-    const classification = await provider.classifyIntent(transcript, {
-      defaultTargetLanguage: options.defaultTargetLanguage,
-      dictionary: options.dictionary,
-      locale: options.language,
-      signal: options.signal,
-      windowContext: options.windowContext,
-    });
-    return typeof classification === 'string'
-      ? { intent: classification }
-      : classification;
-  }
-
   private integratedProvider(): DictationProvider | undefined {
-    if (!this.textProvider || this.speechProvider !== this.textProvider) {
+    if (
+      !this.textProvider ||
+      !Object.is(this.speechProvider, this.textProvider)
+    ) {
       return undefined;
     }
-    return this.speechProvider;
-  }
-
-  private resolveAvailableIntent(intent: DictationIntent): DictationIntent {
-    const provider = this.textProvider;
-    if (
-      !provider ||
-      (intent === 'translation' && !provider.capabilities.translation) ||
-      (intent === 'instruction' && !provider.capabilities.instructionGeneration)
-    ) {
-      return 'transcription';
-    }
-
-    return intent;
-  }
-
-  private async route(
-    requestedIntent: DictationIntent,
-    transcript: string,
-    options: ProcessOptions,
-    classifiedTargetLanguage?: ProcessOptions['explicitTargetLanguage'],
-  ): Promise<string> {
-    const provider = this.textProvider;
-    if (!provider) return transcript;
-    const intent = this.resolveAvailableIntent(requestedIntent);
-    throwIfAborted(options.signal);
-
-    if (intent === 'translation') {
-      if (!provider.translate) {
-        throw new ProviderContractError(
-          'UNSUPPORTED_CAPABILITY',
-          `Provider ${provider.id} cannot translate`,
-        );
-      }
-
-      return provider.translate(transcript, {
-        signal: options.signal,
-        targetLanguage:
-          options.explicitTargetLanguage ??
-          classifiedTargetLanguage ??
-          options.defaultTargetLanguage,
-      });
-    }
-
-    if (intent === 'instruction') {
-      if (!provider.generateFromInstruction) {
-        throw new ProviderContractError(
-          'UNSUPPORTED_CAPABILITY',
-          `Provider ${provider.id} cannot generate from instructions`,
-        );
-      }
-
-      return provider.generateFromInstruction(transcript, {
-        dictionary: options.dictionary,
-        locale: options.language,
-        profile:
-          provider.kind === 'official-cloud' ? options.profile : undefined,
-        signal: options.signal,
-      });
-    }
-
-    if (provider.capabilities.textPolish && provider.polish) {
-      return provider.polish(transcript, {
-        dictionary: options.dictionary,
-        locale: options.language,
-        signal: options.signal,
-        tone: options.tone,
-      });
-    }
-
-    return transcript;
+    return this.speechProvider as DictationProvider;
   }
 }

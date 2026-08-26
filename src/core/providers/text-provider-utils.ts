@@ -1,9 +1,9 @@
 import {
   ProviderContractError,
-  type IntentClassificationResult,
-  type IntentContext,
   type ProviderCapabilities,
   type SupportedLanguage,
+  type TextProcessContext,
+  type TextProcessResult,
 } from './contracts.js';
 
 export const textProviderCapabilities: Readonly<ProviderCapabilities> = {
@@ -16,25 +16,52 @@ export const textProviderCapabilities: Readonly<ProviderCapabilities> = {
   streamingPartial: false,
 };
 
-export const intentInstructions = (context: IntentContext): string => {
-  const baseInstruction = `Classify the user's spoken text as transcription, translation, or instruction.`;
+const languageName = (language: SupportedLanguage): string =>
+  language === 'zh-CN' ? 'Simplified Chinese (zh-CN)' : 'English (en-US)';
 
-  const contextHint = context.windowContext?.isTextEntry
-    ? ` CRITICAL: The user is dictating text INTO AN APPLICATION (like ChatGPT, Claude, messaging apps, etc.). They want YOU TO TRANSCRIBE their exact words, NOT to execute them as commands. Example: If they say "help me write a letter", they want that TEXT TRANSCRIBED into the application - they are NOT asking you (the transcription system) to write a letter for them. The application itself will handle their request. Your job is ONLY transcription. ALWAYS classify as "transcription" unless they explicitly say something like "transcription system, please generate..." (which never happens). Default: "transcription".`
-    : ' Classify as instruction only when explicitly requesting content generation (e.g., "help me write an email", "generate a script"). When in doubt, choose transcription.';
+export const transcriptProcessingInstructions = (
+  context: TextProcessContext,
+): string => {
+  const terms = context.dictionary.join(', ');
+  const targetLanguage =
+    context.explicitTargetLanguage ?? context.defaultTargetLanguage;
+  const intentInstruction = context.forcedIntent
+    ? `The intent is forced to "${context.forcedIntent}". Do not choose another intent.`
+    : `Choose exactly one intent:
+- "transcription": clean up dictated text while preserving the speaker's meaning and original language.
+- "translation": use only when the speaker explicitly asks the dictation system to translate the dictated content.
+- "instruction": use only when the speaker explicitly asks the dictation system itself to create or transform content.`;
+  const targetContext = context.windowContext?.isTextEntry
+    ? `The target is an editable field in another application. Spoken requests such as "help me write an email" are normally text being dictated into that application, so treat them as transcription unless the speaker explicitly addresses UnTypo, the dictation system, or the transcription tool and asks it to perform the request.`
+    : `When the target is not an editable field, still choose instruction only for an explicit request that the dictation system itself should perform.`;
+  const profile = context.profile
+    ? ` User profile context, to use only when directly relevant: ${JSON.stringify(context.profile)}.`
+    : '';
 
-  return `${baseInstruction}${contextHint} Detect an explicitly spoken translation target if it is Simplified Chinese or English. The configured fallback target is ${context.defaultTargetLanguage}. Return only JSON with keys intent and explicitTargetLanguage. intent must be transcription, translation, or instruction. explicitTargetLanguage must be zh-CN, en-US, or null.`;
+  return `You are UnTypo's single-pass transcript processor. Decide the intent and produce the final text in this one response.
+
+${intentInstruction}
+
+${targetContext}
+
+Apply the selected intent:
+- For transcription, remove filler words and accidental repetition, correct obvious recognition errors, and preserve meaning and formatting.${context.tone ? ` Use a ${context.tone} tone.` : ''}
+- For translation, omit the spoken translation command and translate the requested content. An explicitly spoken target language wins; otherwise use ${languageName(targetLanguage)}.
+- For instruction, omit the spoken command wrapper and return only the completed content. Use the speaker's language (${languageName(context.locale)}) unless they explicitly request another language.
+${terms ? `Preserve these terms exactly when applicable: ${terms}.` : ''}${profile}
+
+Return only one JSON object with exactly these keys: {"intent":"transcription|translation|instruction","outputText":"final text"}. Do not add Markdown or commentary.`;
 };
 
-export const parseIntentClassification = (
+export const parseTranscriptProcessing = (
   source: string,
-): IntentClassificationResult => {
+): TextProcessResult => {
   const firstBrace = source.indexOf('{');
   const lastBrace = source.lastIndexOf('}');
   if (firstBrace < 0 || lastBrace < firstBrace) {
     throw new ProviderContractError(
       'INVALID_PROVIDER',
-      'Text provider returned an invalid intent classification',
+      'Text provider returned an invalid transcript result',
     );
   }
 
@@ -44,55 +71,29 @@ export const parseIntentClassification = (
   } catch {
     throw new ProviderContractError(
       'INVALID_PROVIDER',
-      'Text provider returned an invalid intent classification',
+      'Text provider returned an invalid transcript result',
     );
   }
+
   if (
     typeof value !== 'object' ||
     value === null ||
     !('intent' in value) ||
     (value.intent !== 'transcription' &&
       value.intent !== 'translation' &&
-      value.intent !== 'instruction')
+      value.intent !== 'instruction') ||
+    !('outputText' in value) ||
+    typeof value.outputText !== 'string' ||
+    !value.outputText.trim()
   ) {
     throw new ProviderContractError(
       'INVALID_PROVIDER',
-      'Text provider returned an invalid intent classification',
+      'Text provider returned an invalid transcript result',
     );
   }
 
-  const explicitTargetLanguage =
-    'explicitTargetLanguage' in value &&
-    (value.explicitTargetLanguage === 'zh-CN' ||
-      value.explicitTargetLanguage === 'en-US')
-      ? value.explicitTargetLanguage
-      : undefined;
   return {
     intent: value.intent,
-    ...(explicitTargetLanguage ? { explicitTargetLanguage } : {}),
+    outputText: value.outputText.trim(),
   };
-};
-
-export const translationInstructions = (
-  targetLanguage: SupportedLanguage,
-): string =>
-  `Translate the input into ${targetLanguage}. Return only the translation while preserving meaning, formatting, and proper nouns.`;
-
-export const generationInstructions = (
-  locale: SupportedLanguage,
-  dictionary: readonly string[],
-): string => {
-  const terms = dictionary.join(', ');
-  const languageName =
-    locale === 'zh-CN' ? 'Simplified Chinese (简体中文)' : 'English';
-  return `Follow the spoken instruction and generate the requested content. IMPORTANT: The user spoke in ${languageName}, so you MUST generate the content in ${languageName} as well, unless they explicitly requested a different language (e.g., "write this in English" or "用英文写"). Match the user's spoken language. Return only the finished content.${terms ? ` Preserve these terms exactly: ${terms}.` : ''}`;
-};
-
-export const polishInstructions = (
-  locale: SupportedLanguage,
-  dictionary: readonly string[],
-  tone?: string,
-): string => {
-  const terms = dictionary.join(', ');
-  return `Polish this transcript in ${locale}. Remove filler words and repetition, correct errors, and preserve the speaker's meaning and formatting.${tone ? ` Use a ${tone} tone.` : ''}${terms ? ` Preserve these terms exactly: ${terms}.` : ''} Return only the polished text.`;
 };

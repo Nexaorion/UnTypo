@@ -237,9 +237,6 @@ export class DesktopRuntime {
           ...(current.dictation.fastMode !== undefined
             ? { fastMode: current.dictation.fastMode }
             : {}),
-          ...(current.dictation.intentClassificationModel
-            ? { intentClassificationModel: current.dictation.intentClassificationModel }
-            : {}),
           modelName: activeSpeechProfile?.values.model ?? speechProviderId,
           ...(current.dictation.microphoneDeviceId
             ? { microphoneDeviceId: current.dictation.microphoneDeviceId }
@@ -249,9 +246,6 @@ export class DesktopRuntime {
             dictionary: current.dictionary,
             ...(current.dictation.fastMode !== undefined
               ? { fastMode: current.dictation.fastMode }
-              : {}),
-            ...(current.dictation.intentClassificationModel
-              ? { intentClassificationModel: current.dictation.intentClassificationModel }
               : {}),
             language: current.dictation.language,
             preferIntegratedProcess: false,
@@ -383,12 +377,6 @@ export class DesktopRuntime {
             ? { fastMode: config.dictation.fastMode }
             : {}),
           hotkeyAccelerator: config.dictation.hotkeyAccelerator,
-          ...(config.dictation.intentClassificationModel
-            ? {
-                intentClassificationModel:
-                  config.dictation.intentClassificationModel,
-              }
-            : {}),
           language: config.dictation.language,
           ...(config.dictation.microphoneDeviceId
             ? { microphoneDeviceId: config.dictation.microphoneDeviceId }
@@ -452,7 +440,6 @@ export class DesktopRuntime {
         const {
           activeSpeechProviderProfileId,
           activeTextProviderProfileId,
-          intentClassificationModel,
           microphoneDeviceId,
           ...dictationUpdate
         } = update.dictation ?? {};
@@ -467,11 +454,6 @@ export class DesktopRuntime {
           delete dictation.activeTextProviderProfileId;
         } else if (activeTextProviderProfileId !== undefined) {
           dictation.activeTextProviderProfileId = activeTextProviderProfileId;
-        }
-        if (intentClassificationModel === null) {
-          delete dictation.intentClassificationModel;
-        } else if (intentClassificationModel !== undefined) {
-          dictation.intentClassificationModel = intentClassificationModel;
         }
         if (microphoneDeviceId === null) {
           delete dictation.microphoneDeviceId;
@@ -622,12 +604,10 @@ export class DesktopRuntime {
           profile,
           this.providerFetch(profile),
         );
-        if (!provider.classifyIntent) {
-          throw new Error('Text provider cannot classify intent');
-        }
-        await provider.classifyIntent('Transcribe this connection test.', {
+        await provider.processTranscript('Transcribe this connection test.', {
           defaultTargetLanguage: 'en-US',
           dictionary: [],
+          forcedIntent: 'transcription',
           locale: 'en-US',
         });
       } else {
