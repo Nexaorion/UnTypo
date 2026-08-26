@@ -54,6 +54,7 @@ export interface InjectionPort {
 }
 
 export interface DictationPresenter {
+  showConfirm: (result: ProcessResult) => Promise<boolean> | boolean;
   showError: (
     reason: CapsuleErrorReason,
     detail?: string,
@@ -338,6 +339,12 @@ export class DictationCoordinator {
                     AbortSignal.timeout(60_000),
                   ])
                 : AbortSignal.timeout(60_000),
+              windowContext: target
+                ? {
+                    processId: target.processId,
+                    windowHandle: target.windowHandle,
+                  }
+                : undefined,
             },
           );
         result = this.#dependencies.diagnostics
@@ -393,10 +400,55 @@ export class DictationCoordinator {
         }
       }
 
+      // 如果结果不是普通转写，显示确认界面让用户选择
+      let finalResult = result;
+      if (result.intent !== 'transcription' && result.rawTranscript) {
+        try {
+          const useProcessed =
+            await this.#dependencies.presenter.showConfirm(result);
+          if (!useProcessed) {
+            try {
+              const polishedText =
+                textProvider?.capabilities.textPolish && textProvider.polish
+                  ? await textProvider.polish(result.rawTranscript, {
+                      dictionary: context.options.dictionary,
+                      locale: context.options.language,
+                      signal: context.options.signal,
+                    })
+                  : result.rawTranscript;
+
+              finalResult = {
+                intent: 'transcription',
+                outputText: polishedText,
+                rawTranscript: result.rawTranscript,
+                usage: result.usage,
+              };
+            } catch (error) {
+              console.error(
+                'Polish failed when user rejected processed text',
+                error,
+              );
+              finalResult = {
+                intent: 'transcription',
+                outputText: result.rawTranscript,
+                rawTranscript: result.rawTranscript,
+                usage: result.usage,
+              };
+            }
+          }
+        } catch (error) {
+          // 如果确认失败，使用原始结果
+          console.error('Dictation confirmation failed', error);
+        }
+      }
+
       let injected = false;
       try {
         injected = (
-          await this.#dependencies.injection.inject(result.outputText, target)
+          await this.#dependencies.injection.inject(
+            finalResult.outputText,
+            target,
+          )
         ).injected;
       } catch (error) {
         console.error('Dictation injection failed', error);
@@ -412,12 +464,12 @@ export class DictationCoordinator {
         this.#dependencies.history.record(
           {
             audioDurationMs: recording.audio.durationMs,
-            intent: result.intent,
+            intent: finalResult.intent,
             language: context.uiLanguage,
             ...(context.modelName ? { modelName: context.modelName } : {}),
-            outputText: result.outputText,
+            outputText: finalResult.outputText,
             providerId: speechProvider.id,
-            rawTranscript: result.rawTranscript,
+            rawTranscript: finalResult.rawTranscript,
           },
           context.history,
         );
@@ -433,7 +485,7 @@ export class DictationCoordinator {
 
       await this.present(() =>
         this.#dependencies.presenter.showSuccess(
-          result,
+          finalResult,
           injected ? 'inserted' : 'copy',
         ),
       );
