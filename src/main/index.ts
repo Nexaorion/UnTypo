@@ -151,7 +151,14 @@ void app
       if (!mainWindow || mainWindow.isDestroyed()) return;
       mainWindow.webContents.send(DIAGNOSTIC_CHANGED_CHANNEL);
     });
-    runtime = new DesktopRuntime({ diagnostics, showMainWindow });
+    runtime = new DesktopRuntime({
+      diagnostics,
+      onUpdateChanged: (snapshot) => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        mainWindow.webContents.send(IPC_CHANNELS.updateChanged, snapshot);
+      },
+      showMainWindow,
+    });
     await runtime.start();
     // Handlers must exist before the renderer's first snapshot request.
     clientIpc = new ClientIpcController(runtime);
@@ -199,6 +206,7 @@ app.on('before-quit', (event) => {
   if (isQuitting) return;
   event.preventDefault();
   isQuitting = true;
+  const installUpdate = runtime?.isUpdateReady() === true;
   clientIpc?.destroy();
   clientIpc = undefined;
   removeDiagnosticsListener?.();
@@ -206,5 +214,15 @@ app.on('before-quit', (event) => {
   const stopping = runtime
     ? runtime.stop().catch(console.error)
     : Promise.resolve();
-  void stopping.catch(console.error).finally(() => app.exit(0));
+  void stopping.catch(console.error).finally(() => {
+    if (installUpdate) {
+      try {
+        runtime?.quitAndInstallUpdate();
+        return;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    app.exit(0);
+  });
 });

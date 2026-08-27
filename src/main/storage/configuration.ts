@@ -17,6 +17,11 @@ export interface HistoryPolicy {
   retentionDays: number;
 }
 
+export interface UpdatePolicy {
+  autoCheck: boolean;
+  autoDownload: boolean;
+}
+
 export interface StoredProviderProfile {
   id: string;
   kind: ModelProviderKind;
@@ -44,6 +49,7 @@ export interface StoredClientConfig {
   encryptedProfile?: EncryptedValue;
   history: HistoryPolicy;
   providers: readonly StoredProviderProfile[];
+  updates: UpdatePolicy;
 }
 
 export interface ProviderProfile {
@@ -106,6 +112,10 @@ const defaultConfig = (): StoredClientConfig => ({
     retentionDays: 30,
   },
   providers: [],
+  updates: {
+    autoCheck: true,
+    autoDownload: true,
+  },
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -167,6 +177,24 @@ const parseHistory = (value: unknown): HistoryPolicy => {
   return {
     enabled: value.enabled,
     retentionDays: value.retentionDays,
+  };
+};
+
+const parseUpdates = (value: unknown): UpdatePolicy => {
+  if (value === undefined) {
+    return { autoCheck: true, autoDownload: true };
+  }
+  if (
+    !isRecord(value) ||
+    typeof value.autoCheck !== 'boolean' ||
+    typeof value.autoDownload !== 'boolean'
+  ) {
+    throw new Error('Invalid update settings');
+  }
+  assertOnlyKeys(value, ['autoCheck', 'autoDownload'], 'Update settings');
+  return {
+    autoCheck: value.autoCheck,
+    autoDownload: value.autoDownload,
   };
 };
 
@@ -255,7 +283,7 @@ const parseCommonData = (
   value: Record<string, unknown>,
 ): Pick<
   StoredClientConfig,
-  'dictionary' | 'encryptedProfile' | 'general' | 'history'
+  'dictionary' | 'encryptedProfile' | 'general' | 'history' | 'updates'
 > => {
   const encryptedProfile = parseEncryptedProfile(value);
   return {
@@ -263,6 +291,7 @@ const parseCommonData = (
     ...(encryptedProfile ? { encryptedProfile } : {}),
     general: parseGeneral(value.general),
     history: parseHistory(value.history),
+    updates: parseUpdates(value.updates),
   };
 };
 
@@ -551,10 +580,11 @@ const parseConfig = (source: string): ParsedConfig => {
     return {
       config,
       migrated:
-        isRecord(value.dictation) &&
-        (value.dictation.hotkeyAccelerator ===
-          LEGACY_DEFAULT_HOTKEY_ACCELERATOR ||
-          value.dictation.hotkeyMode !== undefined),
+        value.updates === undefined ||
+        (isRecord(value.dictation) &&
+          (value.dictation.hotkeyAccelerator ===
+            LEGACY_DEFAULT_HOTKEY_ACCELERATOR ||
+            value.dictation.hotkeyMode !== undefined)),
     };
   }
   if (value.version === 1) {

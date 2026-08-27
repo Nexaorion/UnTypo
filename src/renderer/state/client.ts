@@ -30,14 +30,17 @@ const requireApi = (): UntypoApi => {
 
 export interface ClientStore {
   acknowledgeDiagnostics: (issueIds: readonly string[]) => Promise<void>;
+  checkForUpdates: () => Promise<void>;
   clearHistory: () => Promise<void>;
   copyText: (text: string) => Promise<void>;
   diagnostics: ClientDiagnosticSnapshot | null;
+  downloadUpdate: () => Promise<void>;
   exportDiagnostics: (
     request: ClientDiagnosticExportRequest,
   ) => Promise<ClientDiagnosticExportResult>;
   history: readonly ClientHistoryRecord[];
   historyExhausted: boolean;
+  installUpdate: () => Promise<void>;
   loadMoreHistory: () => Promise<void>;
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   reloadDiagnostics: () => Promise<void>;
@@ -112,6 +115,17 @@ export const useClientStore = (): ClientStore => {
     });
   }, [reloadDiagnostics]);
 
+  useEffect(() => {
+    const api = window.untypo;
+    if (!api) return;
+    return api.onUpdateChanged((update) => {
+      if (!mounted.current) return;
+      setSnapshot((current) =>
+        current ? { ...current, update: structuredClone(update) } : current,
+      );
+    });
+  }, []);
+
   const applySnapshot = useCallback((next: ClientSnapshot) => {
     if (mounted.current) setSnapshot(next);
   }, []);
@@ -177,6 +191,24 @@ export const useClientStore = (): ClientStore => {
     [applySnapshot],
   );
 
+  const checkForUpdates = useCallback(async () => {
+    const update = await requireApi().checkForUpdates();
+    if (!mounted.current) return;
+    setSnapshot((current) =>
+      current ? { ...current, update: structuredClone(update) } : current,
+    );
+  }, []);
+
+  const downloadUpdate = useCallback(async () => {
+    const update = await requireApi().downloadUpdate();
+    if (!mounted.current) return;
+    setSnapshot((current) =>
+      current ? { ...current, update: structuredClone(update) } : current,
+    );
+  }, []);
+
+  const installUpdate = useCallback(() => requireApi().installUpdate(), []);
+
   const upsertProvider = useCallback(
     async (profile: ClientProviderInput) => {
       applySnapshot(await requireApi().upsertProvider(profile));
@@ -211,12 +243,15 @@ export const useClientStore = (): ClientStore => {
 
   return {
     acknowledgeDiagnostics,
+    checkForUpdates,
     clearHistory,
     copyText,
     diagnostics,
+    downloadUpdate,
     exportDiagnostics,
     history,
     historyExhausted,
+    installUpdate,
     loadMoreHistory,
     listMicrophones,
     reloadDiagnostics,

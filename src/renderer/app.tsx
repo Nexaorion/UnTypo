@@ -9,6 +9,7 @@ import {
   SettingsDialog,
   type SettingsTab,
 } from './sections/settings-dialog.js';
+import { UpdateDialog } from './sections/update-dialog.js';
 import { useClientStore, type ClientStore } from './state/client.js';
 import { ToastProvider } from './ui/toast.js';
 
@@ -17,6 +18,7 @@ const Shell = ({ store }: { store: ClientStore }) => {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('settings');
+  const [updateOpen, setUpdateOpen] = useState(false);
   const userName = store.runtime?.userName ?? 'User';
   const pendingDiagnosticKey = useMemo(
     () =>
@@ -30,6 +32,13 @@ const Shell = ({ store }: { store: ClientStore }) => {
   useEffect(() => {
     if (pendingDiagnosticKey) setDiagnosticsOpen(true);
   }, [pendingDiagnosticKey]);
+
+  useEffect(() => {
+    const status = store.snapshot?.update.status;
+    if (status === 'downloading' || status === 'downloaded') {
+      setUpdateOpen(true);
+    }
+  }, [store.snapshot?.update.status]);
 
   const content =
     page === 'history' ? (
@@ -52,12 +61,14 @@ const Shell = ({ store }: { store: ClientStore }) => {
   return (
     <>
       <AppShell
+        onOpenUpdate={() => setUpdateOpen(true)}
         onOpenSettings={(tab) => {
           setSettingsTab(tab);
           setSettingsOpen(true);
         }}
         onSelect={setPage}
         page={page}
+        update={store.snapshot?.update}
         version={store.runtime?.version}
       >
         {content}
@@ -77,6 +88,11 @@ const Shell = ({ store }: { store: ClientStore }) => {
       <DiagnosticsDialog
         onOpenChange={setDiagnosticsOpen}
         open={diagnosticsOpen}
+        store={store}
+      />
+      <UpdateDialog
+        onOpenChange={setUpdateOpen}
+        open={updateOpen}
         store={store}
       />
     </>

@@ -40,6 +40,7 @@ import type {
   ClientProviderInput,
   ClientSettingsUpdate,
   ClientSnapshot,
+  ClientUpdateSnapshot,
   ClientUsageStats,
 } from '../../shared/ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
@@ -58,9 +59,11 @@ import { ConfigurationService } from '../storage/configuration.js';
 import type { ProviderProfile } from '../storage/configuration.js';
 import { ElectronSecretProtector } from '../storage/electron-secret-protector.js';
 import { HistoryRepository, HistoryService } from '../storage/history.js';
+import { ApplicationUpdateService } from '../update/application-update-service.js';
 
 export interface DesktopRuntimeOptions {
   diagnostics: DiagnosticCollector;
+  onUpdateChanged: (snapshot: ClientUpdateSnapshot) => void;
   showMainWindow: () => void | Promise<void>;
 }
 
@@ -190,6 +193,7 @@ export class DesktopRuntime {
   );
   readonly #speechProviders = new SpeechProviderRegistry();
   readonly #textProviders = new TextProviderRegistry();
+  readonly #updates: ApplicationUpdateService;
   #coordinator?: DictationCoordinator;
   #hotkeyQueue: Promise<void> = Promise.resolve();
   #locale: 'en-US' | 'zh-CN' = 'en-US';
@@ -211,6 +215,10 @@ export class DesktopRuntime {
       path.join(userDataPath, 'history.sqlite3'),
     );
     this.#history = new HistoryService(this.#historyRepository);
+    this.#updates = new ApplicationUpdateService({
+      diagnostics: this.#diagnostics,
+      onChanged: options.onUpdateChanged,
+    });
   }
 
   async start(): Promise<void> {
@@ -311,6 +319,7 @@ export class DesktopRuntime {
       });
       app.setLoginItemSettings({ openAtLogin: config.general.launchAtLogin });
       this.createTray(config.general.locale);
+      this.#updates.start(config.updates);
       this.#started = true;
       this.#diagnostics.log({
         context: {
@@ -384,7 +393,9 @@ export class DesktopRuntime {
         },
         general: config.general,
         history: config.history,
+        updates: config.updates,
       },
+      update: this.#updates.snapshot(),
     };
   }
 
@@ -465,6 +476,7 @@ export class DesktopRuntime {
           dictation,
           general: { ...config.general, ...update.general },
           history: { ...config.history, ...update.history },
+          updates: { ...config.updates, ...update.updates },
         };
       });
     } catch (error) {
@@ -489,6 +501,7 @@ export class DesktopRuntime {
     }
     app.setLoginItemSettings({ openAtLogin: next.general.launchAtLogin });
     this.applyLocale(next.general.locale);
+    this.#updates.configure(next.updates);
     await this.activateConfiguredProviders(next);
     this.#diagnostics.log({
       context: {
@@ -496,6 +509,7 @@ export class DesktopRuntime {
         dictationFields: Object.keys(update.dictation ?? {}),
         generalFields: Object.keys(update.general ?? {}),
         historyFields: Object.keys(update.history ?? {}),
+        updateFields: Object.keys(update.updates ?? {}),
       },
       message: 'Application settings updated',
       scope: 'client.settings',
@@ -691,6 +705,27 @@ export class DesktopRuntime {
     return this.#historyRepository.clear();
   }
 
+  checkForUpdates(): Promise<ClientUpdateSnapshot> {
+    return this.#updates.checkForUpdates();
+  }
+
+  downloadUpdate(): Promise<ClientUpdateSnapshot> {
+    return this.#updates.downloadUpdate();
+  }
+
+  isUpdateReady(): boolean {
+    return this.#updates.isReadyToInstall();
+  }
+
+  quitAndInstallUpdate(): void {
+    this.#updates.quitAndInstall();
+  }
+
+  installUpdate(): void {
+    if (!this.#updates.isReadyToInstall()) return;
+    app.quit();
+  }
+
   async stop(): Promise<void> {
     if (!this.#started) return;
     this.#started = false;
@@ -698,6 +733,7 @@ export class DesktopRuntime {
     this.#removeHotkeyListener = undefined;
     this.#tray?.destroy();
     this.#tray = undefined;
+    this.#updates.stop();
     this.#capsule.destroy();
     this.#recorder.destroy();
     await this.#native.stop();

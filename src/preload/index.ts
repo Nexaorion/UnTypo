@@ -11,6 +11,7 @@ import type {
   ClientProviderInput,
   ClientSettingsUpdate,
   ClientSnapshot,
+  ClientUpdateSnapshot,
   ClientUsageStats,
   PingResponse,
   UntypoApi,
@@ -18,14 +19,18 @@ import type {
 
 const PING_CHANNEL = 'app:ping';
 const DIAGNOSTIC_CHANGED_CHANNEL = 'client:diagnostics-changed';
+const UPDATE_CHANGED_CHANNEL = 'client:update-changed';
 const channels = {
   acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
+  checkForUpdates: 'client:check-for-updates',
   clearHistory: 'client:clear-history',
   copyText: 'client:copy-text',
+  downloadUpdate: 'client:download-update',
   exportDiagnostics: 'client:export-diagnostics',
   getDiagnostics: 'client:get-diagnostics',
   getSnapshot: 'client:get-snapshot',
   getUsageStats: 'client:get-usage-stats',
+  installUpdate: 'client:install-update',
   listHistory: 'client:list-history',
   listMicrophones: 'client:list-microphones',
   removeProvider: 'client:remove-provider',
@@ -45,8 +50,16 @@ const api: UntypoApi = {
     ) as Promise<ClientDiagnosticSnapshot>,
   clearHistory: () =>
     ipcRenderer.invoke(channels.clearHistory) as Promise<number>,
+  checkForUpdates: () =>
+    ipcRenderer.invoke(
+      channels.checkForUpdates,
+    ) as Promise<ClientUpdateSnapshot>,
   copyText: (text: string) =>
     ipcRenderer.invoke(channels.copyText, text) as Promise<void>,
+  downloadUpdate: () =>
+    ipcRenderer.invoke(
+      channels.downloadUpdate,
+    ) as Promise<ClientUpdateSnapshot>,
   exportDiagnostics: (request: ClientDiagnosticExportRequest) =>
     ipcRenderer.invoke(
       channels.exportDiagnostics,
@@ -60,6 +73,8 @@ const api: UntypoApi = {
     ipcRenderer.invoke(channels.getSnapshot) as Promise<ClientSnapshot>,
   getUsageStats: () =>
     ipcRenderer.invoke(channels.getUsageStats) as Promise<ClientUsageStats>,
+  installUpdate: () =>
+    ipcRenderer.invoke(channels.installUpdate) as Promise<void>,
   listHistory: (query?: ClientHistoryQuery) =>
     ipcRenderer.invoke(channels.listHistory, query) as ReturnType<
       UntypoApi['listHistory']
@@ -73,6 +88,15 @@ const api: UntypoApi = {
     ipcRenderer.on(DIAGNOSTIC_CHANGED_CHANNEL, handleChanged);
     return () =>
       ipcRenderer.removeListener(DIAGNOSTIC_CHANGED_CHANNEL, handleChanged);
+  },
+  onUpdateChanged: (listener: (update: ClientUpdateSnapshot) => void) => {
+    const handleChanged = (
+      _event: Electron.IpcRendererEvent,
+      update: ClientUpdateSnapshot,
+    ) => listener(update);
+    ipcRenderer.on(UPDATE_CHANGED_CHANNEL, handleChanged);
+    return () =>
+      ipcRenderer.removeListener(UPDATE_CHANGED_CHANNEL, handleChanged);
   },
   ping: () => ipcRenderer.invoke(PING_CHANNEL) as Promise<PingResponse>,
   removeProvider: (profileId: string) =>

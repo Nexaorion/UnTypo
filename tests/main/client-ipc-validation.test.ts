@@ -45,6 +45,7 @@ describe('client IPC validation', () => {
         },
         general: { locale: 'en-US' },
         history: { enabled: false, retentionDays: 0 },
+        updates: { autoCheck: false, autoDownload: true },
       }),
     ).toMatchObject({
       dictation: {
@@ -54,6 +55,7 @@ describe('client IPC validation', () => {
       },
       general: { locale: 'en-US' },
       history: { enabled: false, retentionDays: 0 },
+      updates: { autoCheck: false, autoDownload: true },
     });
     expect(parseHistoryQuery({ limit: 50, offset: 10 })).toEqual({
       limit: 50,
@@ -84,6 +86,9 @@ describe('client IPC validation', () => {
     expect(() => parseClipboardText('x'.repeat(1_000_001))).toThrow(
       'Invalid clipboard text',
     );
+    expect(() =>
+      parseSettingsUpdate({ updates: { autoCheck: 'yes' } }),
+    ).toThrow('Invalid automatic update check setting');
   });
 
   it('accepts text for the trusted clipboard bridge', () => {

@@ -116,10 +116,6 @@ export interface TextGenerationProvider extends ProviderIdentity {
   ) => Promise<TextProcessResult>;
 }
 
-/**
- * Compatibility contract for providers that still implement both roles.
- * New runtime code should register speech and text providers independently.
- */
 export interface DictationProvider
   extends SpeechRecognitionProvider, TextGenerationProvider {
   process?: (

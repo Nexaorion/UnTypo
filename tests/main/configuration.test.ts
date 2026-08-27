@@ -32,7 +32,34 @@ describe('ConfigurationService', () => {
         language: 'zh-CN',
       },
       history: { enabled: true, retentionDays: 30 },
+      updates: { autoCheck: true, autoDownload: true },
     });
+  });
+
+  it('adds update defaults to an existing v2 configuration', async () => {
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 2,
+        general: { launchAtLogin: false, locale: 'zh-CN' },
+        dictation: {
+          defaultTargetLanguage: 'en-US',
+          hotkeyAccelerator: 'Ctrl+Alt+Space',
+          language: 'zh-CN',
+        },
+        dictionary: [],
+        history: { enabled: true, retentionDays: 30 },
+        providers: [],
+      }),
+      'utf8',
+    );
+
+    await expect(service.load()).resolves.toMatchObject({
+      updates: { autoCheck: true, autoDownload: true },
+    });
+    await expect(readFile(configPath, 'utf8')).resolves.toContain(
+      '"autoDownload": true',
+    );
   });
 
   it('migrates the legacy 1Password-conflicting default hotkey', async () => {

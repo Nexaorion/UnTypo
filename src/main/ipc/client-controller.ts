@@ -14,6 +14,7 @@ import {
   type ClientProviderInput,
   type ClientSettingsUpdate,
   type ClientSnapshot,
+  type ClientUpdateSnapshot,
   type ClientUsageStats,
 } from '../../shared/ipc.js';
 import { assertTrustedSender } from '../security.js';
@@ -37,12 +38,15 @@ export interface ClientBackendPort {
     issueIds: readonly string[],
   ) => ClientDiagnosticSnapshot;
   clearHistory: () => number;
+  checkForUpdates: () => Promise<ClientUpdateSnapshot>;
+  downloadUpdate: () => Promise<ClientUpdateSnapshot>;
   exportDiagnostics: (
     request: ClientDiagnosticExportRequest,
   ) => Promise<ClientDiagnosticExportResult>;
   getDiagnostics: () => ClientDiagnosticSnapshot;
   getClientSnapshot: () => Promise<ClientSnapshot>;
   getUsageStats: () => ClientUsageStats;
+  installUpdate: () => void;
   listHistory: (query: ClientHistoryQuery) => readonly ClientHistoryRecord[];
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
@@ -79,7 +83,10 @@ export class ClientIpcController {
     ipcMain.handle(IPC_CHANNELS.testProvider, this.testProvider);
     ipcMain.handle(IPC_CHANNELS.listHistory, this.listHistory);
     ipcMain.handle(IPC_CHANNELS.clearHistory, this.clearHistory);
+    ipcMain.handle(IPC_CHANNELS.checkForUpdates, this.checkForUpdates);
     ipcMain.handle(IPC_CHANNELS.copyText, this.copyText);
+    ipcMain.handle(IPC_CHANNELS.downloadUpdate, this.downloadUpdate);
+    ipcMain.handle(IPC_CHANNELS.installUpdate, this.installUpdate);
   }
 
   destroy(): void {
@@ -99,7 +106,10 @@ export class ClientIpcController {
       IPC_CHANNELS.testProvider,
       IPC_CHANNELS.listHistory,
       IPC_CHANNELS.clearHistory,
+      IPC_CHANNELS.checkForUpdates,
       IPC_CHANNELS.copyText,
+      IPC_CHANNELS.downloadUpdate,
+      IPC_CHANNELS.installUpdate,
     ]) {
       ipcMain.removeHandler(channel);
     }
@@ -193,6 +203,25 @@ export class ClientIpcController {
   private readonly clearHistory = (event: IpcMainInvokeEvent): number => {
     trust(event);
     return this.#backend.clearHistory();
+  };
+
+  private readonly checkForUpdates = (
+    event: IpcMainInvokeEvent,
+  ): Promise<ClientUpdateSnapshot> => {
+    trust(event);
+    return this.#backend.checkForUpdates();
+  };
+
+  private readonly downloadUpdate = (
+    event: IpcMainInvokeEvent,
+  ): Promise<ClientUpdateSnapshot> => {
+    trust(event);
+    return this.#backend.downloadUpdate();
+  };
+
+  private readonly installUpdate = (event: IpcMainInvokeEvent): void => {
+    trust(event);
+    this.#backend.installUpdate();
   };
 
   private readonly copyText = (

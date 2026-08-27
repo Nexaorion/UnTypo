@@ -40,7 +40,11 @@ const optionalString = (
 
 export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
   if (!isRecord(value)) throw new Error('Invalid settings update');
-  assertOnlyKeys(value, ['dictation', 'general', 'history'], 'Settings update');
+  assertOnlyKeys(
+    value,
+    ['dictation', 'general', 'history', 'updates'],
+    'Settings update',
+  );
   const result: ClientSettingsUpdate = {};
 
   if (value.general !== undefined) {
@@ -168,6 +172,29 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
       history.retentionDays = retentionDays;
     }
     result.history = history;
+  }
+
+  if (value.updates !== undefined) {
+    if (!isRecord(value.updates)) throw new Error('Invalid update settings');
+    assertOnlyKeys(
+      value.updates,
+      ['autoCheck', 'autoDownload'],
+      'Update settings',
+    );
+    const updates: NonNullable<ClientSettingsUpdate['updates']> = {};
+    if (value.updates.autoCheck !== undefined) {
+      if (typeof value.updates.autoCheck !== 'boolean') {
+        throw new Error('Invalid automatic update check setting');
+      }
+      updates.autoCheck = value.updates.autoCheck;
+    }
+    if (value.updates.autoDownload !== undefined) {
+      if (typeof value.updates.autoDownload !== 'boolean') {
+        throw new Error('Invalid automatic update download setting');
+      }
+      updates.autoDownload = value.updates.autoDownload;
+    }
+    result.updates = updates;
   }
 
   return result;

@@ -12,8 +12,10 @@ import type {
 
 export const IPC_CHANNELS = {
   acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
+  checkForUpdates: 'client:check-for-updates',
   clearHistory: 'client:clear-history',
   copyText: 'client:copy-text',
+  downloadUpdate: 'client:download-update',
   exportDiagnostics: 'client:export-diagnostics',
   getDiagnostics: 'client:get-diagnostics',
   getSnapshot: 'client:get-snapshot',
@@ -26,6 +28,8 @@ export const IPC_CHANNELS = {
   setDictionary: 'client:set-dictionary',
   setProfile: 'client:set-profile',
   testProvider: 'client:test-provider',
+  installUpdate: 'client:install-update',
+  updateChanged: 'client:update-changed',
   updateSettings: 'client:update-settings',
   upsertProvider: 'client:upsert-provider',
 } as const;
@@ -87,6 +91,10 @@ export interface ClientSettingsSnapshot {
     enabled: boolean;
     retentionDays: number;
   };
+  updates: {
+    autoCheck: boolean;
+    autoDownload: boolean;
+  };
 }
 
 export interface ClientSettingsUpdate {
@@ -107,6 +115,30 @@ export interface ClientSettingsUpdate {
     enabled?: boolean;
     retentionDays?: number;
   };
+  updates?: {
+    autoCheck?: boolean;
+    autoDownload?: boolean;
+  };
+}
+
+export type ClientUpdateStatus =
+  | 'available'
+  | 'checking'
+  | 'disabled'
+  | 'downloaded'
+  | 'downloading'
+  | 'error'
+  | 'idle'
+  | 'up-to-date';
+
+export interface ClientUpdateSnapshot {
+  availableVersion?: string;
+  currentVersion: string;
+  errorMessage?: string;
+  lastCheckedAt?: number;
+  progressPercent?: number;
+  status: ClientUpdateStatus;
+  supported: boolean;
 }
 
 export interface ClientSnapshot {
@@ -114,6 +146,7 @@ export interface ClientSnapshot {
   profile?: UserProfileContext;
   providers: readonly ClientProviderSummary[];
   settings: ClientSettingsSnapshot;
+  update: ClientUpdateSnapshot;
 }
 
 export interface ClientHistoryRecord {
@@ -158,7 +191,9 @@ export interface UntypoApi {
     issueIds: readonly string[],
   ) => Promise<ClientDiagnosticSnapshot>;
   clearHistory: () => Promise<number>;
+  checkForUpdates: () => Promise<ClientUpdateSnapshot>;
   copyText: (text: string) => Promise<void>;
+  downloadUpdate: () => Promise<ClientUpdateSnapshot>;
   exportDiagnostics: (
     request: ClientDiagnosticExportRequest,
   ) => Promise<ClientDiagnosticExportResult>;
@@ -170,12 +205,16 @@ export interface UntypoApi {
   ) => Promise<readonly ClientHistoryRecord[]>;
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   onDiagnosticsChanged: (listener: () => void) => () => void;
+  onUpdateChanged: (
+    listener: (update: ClientUpdateSnapshot) => void,
+  ) => () => void;
   ping: () => Promise<PingResponse>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => Promise<void>;
   setDictionary: (entries: readonly string[]) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
+  installUpdate: () => Promise<void>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<ClientSnapshot>;
   upsertProvider: (profile: ClientProviderInput) => Promise<ClientSnapshot>;
 }
