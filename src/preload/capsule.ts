@@ -5,6 +5,9 @@ const channels = {
   close: 'capsule:close',
   confirm: 'capsule:confirm',
   copy: 'capsule:copy',
+  dictionaryAccept: 'capsule:dictionary-accept',
+  dictionaryFocus: 'capsule:dictionary-focus',
+  dictionaryReject: 'capsule:dictionary-reject',
   ready: 'capsule:ready',
   reject: 'capsule:reject',
   setInteractive: 'capsule:set-interactive',
@@ -15,6 +18,10 @@ const api: CapsuleApi = {
   close: () => ipcRenderer.send(channels.close),
   confirm: () => ipcRenderer.send(channels.confirm),
   copy: () => ipcRenderer.send(channels.copy),
+  dictionaryAccept: (term: string) =>
+    ipcRenderer.send(channels.dictionaryAccept, term),
+  dictionaryFocus: () => ipcRenderer.send(channels.dictionaryFocus),
+  dictionaryReject: () => ipcRenderer.send(channels.dictionaryReject),
   onUpdate: (listener) => {
     const wrapped = (
       _event: Electron.IpcRendererEvent,

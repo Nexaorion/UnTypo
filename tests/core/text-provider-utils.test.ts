@@ -42,6 +42,16 @@ describe('transcriptProcessingInstructions', () => {
       }),
     ).toContain('intent is forced to "transcription"');
   });
+
+  it('requests dictionary candidates only when automatic learning is enabled', () => {
+    const instructions = transcriptProcessingInstructions({
+      ...context,
+      dictionaryLearningEnabled: true,
+    });
+
+    expect(instructions).toContain('up to 3 high-confidence proper terms');
+    expect(instructions).toContain('dictionaryCandidates');
+  });
 });
 
 describe('parseTranscriptProcessing', () => {
@@ -57,5 +67,43 @@ describe('parseTranscriptProcessing', () => {
     expect(() => parseTranscriptProcessing('{"intent":"translation"}')).toThrow(
       'invalid transcript result',
     );
+  });
+
+  it('keeps valid high-confidence candidates and ignores malformed entries', () => {
+    expect(
+      parseTranscriptProcessing(
+        JSON.stringify({
+          dictionaryCandidates: [
+            {
+              category: 'product',
+              confidence: 0.96,
+              term: '  UnTypo  ',
+            },
+            { category: 'person', confidence: 0.5, term: 'Alice' },
+            { category: 'other', confidence: 0.99, term: 'noise' },
+          ],
+          intent: 'transcription',
+          outputText: 'Use UnTypo',
+        }),
+      ),
+    ).toEqual({
+      dictionaryCandidates: [
+        { category: 'product', confidence: 0.96, term: 'UnTypo' },
+      ],
+      intent: 'transcription',
+      outputText: 'Use UnTypo',
+    });
+  });
+
+  it('does not fail transcript processing when candidates are malformed', () => {
+    expect(
+      parseTranscriptProcessing(
+        '{"intent":"transcription","outputText":"Hello","dictionaryCandidates":"ignore me"}',
+      ),
+    ).toEqual({
+      dictionaryCandidates: [],
+      intent: 'transcription',
+      outputText: 'Hello',
+    });
   });
 });

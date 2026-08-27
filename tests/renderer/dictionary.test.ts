@@ -7,8 +7,13 @@ import {
 
 describe('addDictionaryEntry', () => {
   it('appends a trimmed term', () => {
-    expect(addDictionaryEntry(['UnTypo'], '  Electron  ')).toEqual({
-      entries: ['UnTypo', 'Electron'],
+    expect(
+      addDictionaryEntry(
+        [{ source: 'manual', term: 'UnTypo' }],
+        '  Electron  ',
+      ),
+    ).toEqual({
+      entry: { source: 'manual', term: 'Electron' },
       ok: true,
     });
   });
@@ -21,7 +26,9 @@ describe('addDictionaryEntry', () => {
   });
 
   it('rejects case-insensitive duplicates', () => {
-    expect(addDictionaryEntry(['UnTypo'], 'untypo')).toEqual({
+    expect(
+      addDictionaryEntry([{ source: 'manual', term: 'UnTypo' }], 'untypo'),
+    ).toEqual({
       ok: false,
       reason: 'duplicate',
     });
@@ -38,7 +45,10 @@ describe('addDictionaryEntry', () => {
   it('rejects additions past the stored entry limit', () => {
     const entries = Array.from(
       { length: DICTIONARY_LIMITS.entries },
-      (_value, index) => `term-${index}`,
+      (_value, index) => ({
+        source: 'manual' as const,
+        term: `term-${index}`,
+      }),
     );
     expect(addDictionaryEntry(entries, 'one-more')).toEqual({
       ok: false,
@@ -49,6 +59,18 @@ describe('addDictionaryEntry', () => {
 
 describe('removeDictionaryEntry', () => {
   it('removes only the exact term', () => {
-    expect(removeDictionaryEntry(['a', 'b', 'A'], 'a')).toEqual(['b', 'A']);
+    expect(
+      removeDictionaryEntry(
+        [
+          { source: 'manual', term: 'a' },
+          { source: 'learned', term: 'b' },
+          { source: 'manual', term: 'A' },
+        ],
+        'a',
+      ),
+    ).toEqual([
+      { source: 'learned', term: 'b' },
+      { source: 'manual', term: 'A' },
+    ]);
   });
 });

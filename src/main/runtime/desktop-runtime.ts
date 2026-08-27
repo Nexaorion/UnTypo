@@ -43,10 +43,13 @@ import type {
   ClientUpdateSnapshot,
   ClientUsageStats,
 } from '../../shared/ipc.js';
+import type { DictionaryCandidate } from '../../shared/dictionary.js';
+import type { DictionarySuggestionError } from '../../shared/capsule-ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
 import type { DiagnosticCollector } from '../diagnostics/collector.js';
 import { ClipboardInjectionService } from '../dictation/clipboard.js';
 import { DictationCoordinator } from '../dictation/coordinator.js';
+import { DictionaryLearningService } from '../dictionary/learning.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
 import {
   NativeHelperClient,
@@ -55,7 +58,10 @@ import {
 import { parseHotkeyAccelerator } from '../native/hotkey.js';
 import { NativeHotkeyAction } from '../native/protocol.js';
 import { RecorderWindowController } from '../recording/recorder-window.js';
-import { ConfigurationService } from '../storage/configuration.js';
+import {
+  ConfigurationService,
+  DictionaryEntryError,
+} from '../storage/configuration.js';
 import type { ProviderProfile } from '../storage/configuration.js';
 import { ElectronSecretProtector } from '../storage/electron-secret-protector.js';
 import { HistoryRepository, HistoryService } from '../storage/history.js';
@@ -63,6 +69,7 @@ import { ApplicationUpdateService } from '../update/application-update-service.j
 
 export interface DesktopRuntimeOptions {
   diagnostics: DiagnosticCollector;
+  onSnapshotChanged: (snapshot: ClientSnapshot) => void;
   onUpdateChanged: (snapshot: ClientUpdateSnapshot) => void;
   showMainWindow: () => void | Promise<void>;
 }
@@ -183,6 +190,7 @@ const resolveNativeHelperPath = (): string =>
 export class DesktopRuntime {
   readonly #capsule = new CapsuleWindowController();
   readonly #configuration: ConfigurationService;
+  readonly #dictionaryLearning: DictionaryLearningService;
   readonly #diagnostics: DiagnosticCollector;
   readonly #historyRepository: HistoryRepository;
   readonly #history: HistoryService;
@@ -211,6 +219,9 @@ export class DesktopRuntime {
       path.join(userDataPath, 'config.json'),
       new ElectronSecretProtector(),
     );
+    this.#dictionaryLearning = new DictionaryLearningService(
+      this.#configuration,
+    );
     this.#historyRepository = new HistoryRepository(
       path.join(userDataPath, 'history.sqlite3'),
     );
@@ -231,6 +242,13 @@ export class DesktopRuntime {
     await this.activateConfiguredProviders(config);
     this.#coordinator = new DictationCoordinator({
       diagnostics: this.#diagnostics,
+      dictionaryLearning: {
+        handleCandidates: (candidates, successPresentationGeneration) =>
+          this.handleDictionaryCandidates(
+            candidates,
+            successPresentationGeneration,
+          ),
+      },
       getContext: async () => {
         const current = await this.#configuration.load();
         const speechProviderId = this.#speechProviderId;
@@ -251,7 +269,10 @@ export class DesktopRuntime {
             : {}),
           options: {
             defaultTargetLanguage: current.dictation.defaultTargetLanguage,
-            dictionary: current.dictionary,
+            dictionary: current.dictionary.map(({ term }) => term),
+            dictionaryLearningEnabled:
+              current.dictionaryLearning.enabled &&
+              this.#textProviderId !== undefined,
             ...(current.dictation.fastMode !== undefined
               ? { fastMode: current.dictation.fastMode }
               : {}),
@@ -345,11 +366,12 @@ export class DesktopRuntime {
   }
 
   async smokeTest(): Promise<boolean> {
-    const [recorderReady] = await Promise.all([
+    const [recorderReady, , dictionaryCapsuleReady] = await Promise.all([
       this.#recorder.smokeTest(),
       this.#native.ping(),
+      this.#capsule.smokeTestDictionarySuggestion(),
     ]);
-    return recorderReady;
+    return recorderReady && dictionaryCapsuleReady;
   }
 
   async getClientSnapshot(): Promise<ClientSnapshot> {
@@ -359,6 +381,7 @@ export class DesktopRuntime {
     ]);
     return {
       dictionary: config.dictionary,
+      dictionaryLearning: { enabled: config.dictionaryLearning.enabled },
       ...(profile ? { profile } : {}),
       providers: config.providers.map((provider) => ({
         configuredSecretKeys: Object.keys(provider.secrets),
@@ -517,8 +540,29 @@ export class DesktopRuntime {
     return this.getClientSnapshot();
   }
 
-  async setDictionary(entries: readonly string[]): Promise<ClientSnapshot> {
-    await this.#configuration.setDictionary(entries);
+  async addDictionaryEntry(term: string): Promise<ClientSnapshot> {
+    await this.#configuration.addDictionaryEntry(term, 'manual');
+    try {
+      await this.#dictionaryLearning.forgetTerm(term);
+    } catch (error) {
+      this.#diagnostics.recordIssue({
+        error,
+        kind: 'internal',
+        source: 'dictionary.learning-cleanup',
+      });
+    }
+    return this.getClientSnapshot();
+  }
+
+  async removeDictionaryEntry(term: string): Promise<ClientSnapshot> {
+    await this.#configuration.removeDictionaryEntry(term);
+    return this.getClientSnapshot();
+  }
+
+  async setDictionaryLearningEnabled(
+    enabled: boolean,
+  ): Promise<ClientSnapshot> {
+    await this.#configuration.setDictionaryLearningEnabled(enabled);
     return this.getClientSnapshot();
   }
 
@@ -776,6 +820,61 @@ export class DesktopRuntime {
       this.#textProviders.replace(provider);
       this.#textProviderId = provider.id;
     }
+  }
+
+  private handleDictionaryCandidates(
+    candidates: readonly DictionaryCandidate[],
+    successPresentationGeneration: number,
+  ): void {
+    void (async () => {
+      const candidate = await this.#dictionaryLearning.observe(candidates);
+      if (!candidate) return;
+      const decision = await this.#capsule.showDictionarySuggestion(
+        candidate.term,
+        this.#locale,
+        successPresentationGeneration,
+        async (acceptedTerm) => {
+          try {
+            await this.#dictionaryLearning.accept(candidate.term, acceptedTerm);
+            this.#options.onSnapshotChanged(await this.getClientSnapshot());
+            this.#diagnostics.log({
+              context: { source: 'learned' },
+              message: 'Dictionary suggestion accepted',
+              scope: 'dictionary.learning',
+            });
+            return undefined;
+          } catch (error) {
+            if (error instanceof DictionaryEntryError) {
+              const errors: Record<
+                DictionaryEntryError['code'],
+                DictionarySuggestionError
+              > = {
+                DICTIONARY_DUPLICATE: 'duplicate',
+                DICTIONARY_EMPTY: 'empty',
+                DICTIONARY_FULL: 'full',
+                DICTIONARY_TOO_LONG: 'too-long',
+              };
+              return errors[error.code];
+            }
+            throw error;
+          }
+        },
+      );
+      if (decision === 'rejected') {
+        await this.#dictionaryLearning.reject(candidate.term);
+        this.#diagnostics.log({
+          context: { cooldownDays: 30 },
+          message: 'Dictionary suggestion rejected',
+          scope: 'dictionary.learning',
+        });
+      }
+    })().catch((error: unknown) => {
+      this.#diagnostics.recordIssue({
+        error,
+        kind: 'internal',
+        source: 'dictionary.learning',
+      });
+    });
   }
 
   private dispatchHotkey(action: NativeHotkeyAction): void {

@@ -29,6 +29,7 @@ const requireApi = (): UntypoApi => {
 };
 
 export interface ClientStore {
+  addDictionaryEntry: (term: string) => Promise<void>;
   acknowledgeDiagnostics: (issueIds: readonly string[]) => Promise<void>;
   checkForUpdates: () => Promise<void>;
   clearHistory: () => Promise<void>;
@@ -46,9 +47,10 @@ export interface ClientStore {
   reloadDiagnostics: () => Promise<void>;
   reloadHistory: () => Promise<void>;
   removeProvider: (profileId: string) => Promise<void>;
+  removeDictionaryEntry: (term: string) => Promise<void>;
   runtime: PingResponse | null;
   usage: ClientUsageStats | null;
-  setDictionary: (entries: readonly string[]) => Promise<void>;
+  setDictionaryLearningEnabled: (enabled: boolean) => Promise<void>;
   setProfile: (profile?: UserProfileContext) => Promise<void>;
   snapshot: ClientSnapshot | null;
   testProvider: (profileId: string) => Promise<void>;
@@ -114,6 +116,14 @@ export const useClientStore = (): ClientStore => {
       void reloadDiagnostics();
     });
   }, [reloadDiagnostics]);
+
+  useEffect(() => {
+    const api = window.untypo;
+    if (!api) return;
+    return api.onSnapshotChanged((next) => {
+      if (mounted.current) setSnapshot(next);
+    });
+  }, []);
 
   useEffect(() => {
     const api = window.untypo;
@@ -223,9 +233,23 @@ export const useClientStore = (): ClientStore => {
     [applySnapshot],
   );
 
-  const setDictionary = useCallback(
-    async (entries: readonly string[]) => {
-      applySnapshot(await requireApi().setDictionary(entries));
+  const addDictionaryEntry = useCallback(
+    async (term: string) => {
+      applySnapshot(await requireApi().addDictionaryEntry(term));
+    },
+    [applySnapshot],
+  );
+
+  const removeDictionaryEntry = useCallback(
+    async (term: string) => {
+      applySnapshot(await requireApi().removeDictionaryEntry(term));
+    },
+    [applySnapshot],
+  );
+
+  const setDictionaryLearningEnabled = useCallback(
+    async (enabled: boolean) => {
+      applySnapshot(await requireApi().setDictionaryLearningEnabled(enabled));
     },
     [applySnapshot],
   );
@@ -242,6 +266,7 @@ export const useClientStore = (): ClientStore => {
   }, []);
 
   return {
+    addDictionaryEntry,
     acknowledgeDiagnostics,
     checkForUpdates,
     clearHistory,
@@ -257,9 +282,10 @@ export const useClientStore = (): ClientStore => {
     reloadDiagnostics,
     reloadHistory,
     removeProvider,
+    removeDictionaryEntry,
     runtime,
     usage,
-    setDictionary,
+    setDictionaryLearningEnabled,
     setProfile,
     snapshot,
     testProvider,

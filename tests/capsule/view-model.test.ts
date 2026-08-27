@@ -103,4 +103,29 @@ describe('capsuleViewModel', () => {
       title: '你好像没说话？',
     });
   });
+
+  it('localizes dictionary suggestions and validation errors', () => {
+    expect(
+      capsuleViewModel({
+        locale: 'zh-CN',
+        term: 'UnTypo',
+        type: 'dictionary-suggestion',
+      }),
+    ).toMatchObject({
+      detail: '“UnTypo” 可能是你常用的专有词',
+      dictionaryAcceptLabel: '添加',
+      dictionaryModifyLabel: '修改',
+      dictionaryRejectLabel: '拒绝',
+      title: '添加到词典？',
+    });
+
+    expect(
+      capsuleViewModel({
+        error: 'duplicate',
+        locale: 'en-US',
+        term: 'UnTypo',
+        type: 'dictionary-suggestion',
+      }),
+    ).toMatchObject({ detail: 'This term is already in your dictionary.' });
+  });
 });

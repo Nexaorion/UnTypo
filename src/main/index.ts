@@ -153,6 +153,10 @@ void app
     });
     runtime = new DesktopRuntime({
       diagnostics,
+      onSnapshotChanged: (snapshot) => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        mainWindow.webContents.send(IPC_CHANNELS.snapshotChanged, snapshot);
+      },
       onUpdateChanged: (snapshot) => {
         if (!mainWindow || mainWindow.isDestroyed()) return;
         mainWindow.webContents.send(IPC_CHANNELS.updateChanged, snapshot);
@@ -173,7 +177,7 @@ void app
         runRendererSmokeTest(mainWindow.webContents),
       ]);
       if (!recorderReady)
-        throw new Error('Recorder preload bridge is unavailable');
+        throw new Error('Runtime smoke surfaces are unavailable');
       if (rendererReady !== 'ok')
         throw new Error(`Renderer interactions failed at ${rendererReady}`);
       console.log(

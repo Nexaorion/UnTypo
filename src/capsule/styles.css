@@ -85,10 +85,15 @@ button {
 }
 
 .capsule[data-status='success'],
-.capsule[data-status='error'] {
+.capsule[data-status='error'],
+.capsule[data-status='dictionary-suggestion'] {
   gap: 10px;
   border-radius: 18px;
   padding: 7px 10px 7px 12px;
+}
+
+.capsule[data-status='dictionary-suggestion'] {
+  border-radius: 20px;
 }
 
 .recording-visual {
@@ -188,6 +193,15 @@ button {
   color: var(--capsule-error);
 }
 
+.terminal-dictionary {
+  color: var(--capsule-primary);
+}
+
+.terminal-dictionary svg {
+  color: var(--capsule-primary) !important;
+  fill: currentColor !important;
+}
+
 .terminal-error svg {
   color: var(--capsule-error) !important;
   fill: var(--capsule-error) !important;
@@ -220,12 +234,14 @@ button {
 }
 
 .capsule[data-status='success'] .capsule-copy span,
-.capsule[data-status='error'] .capsule-copy span {
+.capsule[data-status='error'] .capsule-copy span,
+.capsule[data-status='dictionary-suggestion'] .capsule-copy span {
   font-size: 12px;
 }
 
 .capsule[data-status='success'] .capsule-copy p,
-.capsule[data-status='error'] .capsule-copy p {
+.capsule[data-status='error'] .capsule-copy p,
+.capsule[data-status='dictionary-suggestion'] .capsule-copy p {
   margin-top: 2px;
   color: var(--capsule-text);
   font-size: 13px;
@@ -253,6 +269,11 @@ button {
 
 .capsule-actions button:hover {
   opacity: 0.88;
+}
+
+.capsule-actions button:disabled {
+  cursor: wait;
+  opacity: 0.52;
 }
 
 .capsule-actions button.capsule-secondary {
@@ -283,6 +304,51 @@ button {
 .capsule-actions button:focus-visible {
   outline: 2px solid var(--capsule-primary);
   outline-offset: 2px;
+}
+
+.dictionary-suggestion-edit {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.dictionary-suggestion-field {
+  position: relative;
+  width: 156px;
+  flex: 0 1 156px;
+}
+
+.dictionary-suggestion-field input {
+  width: 100%;
+  height: 32px;
+  border: 1px solid var(--capsule-control-border);
+  border-radius: 999px;
+  outline: none;
+  padding: 0 12px;
+  background: var(--capsule-surface-raised);
+  color: var(--capsule-text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.dictionary-suggestion-field input:focus {
+  border-color: var(--capsule-primary);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--capsule-primary) 16%, transparent);
+}
+
+.dictionary-suggestion-error {
+  position: absolute;
+  top: 35px;
+  left: 8px;
+  overflow: hidden;
+  max-width: 210px;
+  color: var(--capsule-error);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @keyframes recording-pulse {

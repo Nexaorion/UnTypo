@@ -10,6 +10,15 @@ import type {
   ModelProviderId,
   ModelProviderKind,
 } from '../../shared/ipc.js';
+import {
+  dictionaryTermKey,
+  DICTIONARY_CANDIDATE_CATEGORIES,
+  DICTIONARY_LIMITS,
+  normalizeDictionaryTerm,
+  type DictionaryCandidate,
+  type DictionaryEntry,
+  type DictionaryEntrySource,
+} from '../../shared/dictionary.js';
 import type { EncryptedValue, SecretProtector } from './secret-protector.js';
 
 export interface HistoryPolicy {
@@ -31,7 +40,7 @@ export interface StoredProviderProfile {
 }
 
 export interface StoredClientConfig {
-  version: 2;
+  version: 3;
   general: {
     launchAtLogin: boolean;
     locale: SupportedLanguage;
@@ -45,11 +54,48 @@ export interface StoredClientConfig {
     language: SupportedLanguage;
     microphoneDeviceId?: string;
   };
-  dictionary: readonly string[];
+  dictionary: readonly DictionaryEntry[];
+  dictionaryLearning: {
+    enabled: boolean;
+    encryptedState?: EncryptedValue;
+  };
   encryptedProfile?: EncryptedValue;
   history: HistoryPolicy;
   providers: readonly StoredProviderProfile[];
   updates: UpdatePolicy;
+}
+
+export interface StoredDictionaryCandidate {
+  candidate: DictionaryCandidate;
+  firstSeenAt: number;
+  lastSeenAt: number;
+  occurrences: number;
+}
+
+export interface StoredDictionaryRejection {
+  fingerprint: string;
+  until: number;
+}
+
+export interface DictionaryLearningPrivateState {
+  candidates: readonly StoredDictionaryCandidate[];
+  rejections: readonly StoredDictionaryRejection[];
+}
+
+export type DictionaryEntryErrorCode =
+  | 'DICTIONARY_DUPLICATE'
+  | 'DICTIONARY_EMPTY'
+  | 'DICTIONARY_FULL'
+  | 'DICTIONARY_TOO_LONG';
+
+export class DictionaryEntryError extends Error {
+  readonly code: DictionaryEntryErrorCode;
+
+  constructor(code: DictionaryEntryErrorCode) {
+    super(code);
+    this.name = 'DictionaryEntryError';
+    this.code = code;
+  }
 }
 
 export interface ProviderProfile {
@@ -96,7 +142,7 @@ const migrateDefaultHotkey = (accelerator: string): string =>
     : accelerator;
 
 const defaultConfig = (): StoredClientConfig => ({
-  version: 2,
+  version: 3,
   general: {
     launchAtLogin: false,
     locale: 'zh-CN',
@@ -107,6 +153,7 @@ const defaultConfig = (): StoredClientConfig => ({
     language: 'zh-CN',
   },
   dictionary: [],
+  dictionaryLearning: { enabled: true },
   history: {
     enabled: true,
     retentionDays: 30,
@@ -198,14 +245,152 @@ const parseUpdates = (value: unknown): UpdatePolicy => {
   };
 };
 
-const parseDictionary = (value: unknown): readonly string[] => {
+const parseLegacyDictionary = (value: unknown): readonly DictionaryEntry[] => {
   if (
     !Array.isArray(value) ||
-    !value.every((entry) => typeof entry === 'string')
+    value.length > DICTIONARY_LIMITS.entries ||
+    !value.every(
+      (entry) =>
+        typeof entry === 'string' &&
+        entry.length <= DICTIONARY_LIMITS.termLength,
+    )
   ) {
     throw new Error('Invalid dictionary');
   }
-  return [...value] as string[];
+  const seen = new Set<string>();
+  const entries: DictionaryEntry[] = [];
+  for (const source of value as string[]) {
+    const term = normalizeDictionaryTerm(source);
+    if (term.length > DICTIONARY_LIMITS.termLength) {
+      throw new Error('Invalid dictionary');
+    }
+    const key = dictionaryTermKey(term);
+    if (!term || seen.has(key)) continue;
+    seen.add(key);
+    entries.push({ source: 'manual', term });
+  }
+  return entries;
+};
+
+const parseDictionary = (value: unknown): readonly DictionaryEntry[] => {
+  if (!Array.isArray(value) || value.length > DICTIONARY_LIMITS.entries) {
+    throw new Error('Invalid dictionary');
+  }
+  const seen = new Set<string>();
+  const entries: DictionaryEntry[] = [];
+  for (const entry of value) {
+    if (
+      !isRecord(entry) ||
+      typeof entry.term !== 'string' ||
+      entry.term.length > DICTIONARY_LIMITS.termLength ||
+      (entry.source !== 'manual' && entry.source !== 'learned')
+    ) {
+      throw new Error('Invalid dictionary');
+    }
+    const term = normalizeDictionaryTerm(entry.term);
+    if (term.length > DICTIONARY_LIMITS.termLength) {
+      throw new Error('Invalid dictionary');
+    }
+    const key = dictionaryTermKey(term);
+    if (!term || seen.has(key)) throw new Error('Invalid dictionary');
+    seen.add(key);
+    entries.push({ source: entry.source, term });
+  }
+  return entries;
+};
+
+const parseDictionaryLearning = (
+  value: unknown,
+): StoredClientConfig['dictionaryLearning'] => {
+  if (!isRecord(value) || typeof value.enabled !== 'boolean') {
+    throw new Error('Invalid dictionary learning settings');
+  }
+  assertOnlyKeys(value, ['enabled', 'encryptedState'], 'Dictionary learning');
+  if (
+    value.encryptedState !== undefined &&
+    !isEncryptedValue(value.encryptedState)
+  ) {
+    throw new Error('Invalid dictionary learning state');
+  }
+  return {
+    enabled: value.enabled,
+    ...(isEncryptedValue(value.encryptedState)
+      ? { encryptedState: structuredClone(value.encryptedState) }
+      : {}),
+  };
+};
+
+const emptyDictionaryLearningState = (): DictionaryLearningPrivateState => ({
+  candidates: [],
+  rejections: [],
+});
+
+const parseDictionaryLearningState = (
+  value: unknown,
+): DictionaryLearningPrivateState => {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.candidates) ||
+    !Array.isArray(value.rejections) ||
+    value.candidates.length > DICTIONARY_LIMITS.candidates ||
+    value.rejections.length > DICTIONARY_LIMITS.candidates
+  ) {
+    throw new Error('Invalid encrypted dictionary learning state');
+  }
+  const candidates: StoredDictionaryCandidate[] = value.candidates.map(
+    (entry) => {
+      if (
+        !isRecord(entry) ||
+        !isRecord(entry.candidate) ||
+        typeof entry.candidate.term !== 'string' ||
+        entry.candidate.term.length > DICTIONARY_LIMITS.termLength ||
+        !DICTIONARY_CANDIDATE_CATEGORIES.includes(
+          entry.candidate.category as never,
+        ) ||
+        typeof entry.candidate.confidence !== 'number' ||
+        !Number.isFinite(entry.candidate.confidence) ||
+        entry.candidate.confidence < 0 ||
+        entry.candidate.confidence > 1 ||
+        typeof entry.firstSeenAt !== 'number' ||
+        !Number.isFinite(entry.firstSeenAt) ||
+        typeof entry.lastSeenAt !== 'number' ||
+        !Number.isFinite(entry.lastSeenAt) ||
+        typeof entry.occurrences !== 'number' ||
+        !Number.isInteger(entry.occurrences) ||
+        entry.occurrences < 1
+      ) {
+        throw new Error('Invalid encrypted dictionary candidate');
+      }
+      const term = normalizeDictionaryTerm(entry.candidate.term);
+      if (!term || term.length > DICTIONARY_LIMITS.termLength) {
+        throw new Error('Invalid encrypted dictionary candidate');
+      }
+      return {
+        candidate: {
+          category: entry.candidate.category as DictionaryCandidate['category'],
+          confidence: entry.candidate.confidence,
+          term,
+        },
+        firstSeenAt: entry.firstSeenAt,
+        lastSeenAt: entry.lastSeenAt,
+        occurrences: entry.occurrences,
+      };
+    },
+  );
+  const rejections: StoredDictionaryRejection[] = value.rejections.map(
+    (entry) => {
+      if (
+        !isRecord(entry) ||
+        !isNonEmptyString(entry.fingerprint, 128) ||
+        typeof entry.until !== 'number' ||
+        !Number.isFinite(entry.until)
+      ) {
+        throw new Error('Invalid encrypted dictionary rejection');
+      }
+      return { fingerprint: entry.fingerprint, until: entry.until };
+    },
+  );
+  return { candidates, rejections };
 };
 
 const parseEncryptedProfile = (
@@ -283,11 +468,10 @@ const parseCommonData = (
   value: Record<string, unknown>,
 ): Pick<
   StoredClientConfig,
-  'dictionary' | 'encryptedProfile' | 'general' | 'history' | 'updates'
+  'encryptedProfile' | 'general' | 'history' | 'updates'
 > => {
   const encryptedProfile = parseEncryptedProfile(value);
   return {
-    dictionary: parseDictionary(value.dictionary),
     ...(encryptedProfile ? { encryptedProfile } : {}),
     general: parseGeneral(value.general),
     history: parseHistory(value.history),
@@ -349,8 +533,10 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
     throw new Error('Active text provider profile is invalid');
   }
   return {
-    version: 2,
+    version: 3,
     ...parseCommonData(value),
+    dictionary: parseLegacyDictionary(value.dictionary),
+    dictionaryLearning: { enabled: true },
     dictation: {
       ...(typeof dictation.activeSpeechProviderProfileId === 'string'
         ? {
@@ -377,6 +563,24 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
         : {}),
     },
     providers,
+  };
+};
+
+const parseV3Config = (value: Record<string, unknown>): StoredClientConfig => {
+  const rawDictionary: readonly unknown[] = Array.isArray(value.dictionary)
+    ? value.dictionary
+    : [];
+  const base = parseV2Config({
+    ...value,
+    dictionary: rawDictionary.map((entry) =>
+      isRecord(entry) ? entry.term : entry,
+    ),
+  });
+  return {
+    ...base,
+    version: 3,
+    dictionary: parseDictionary(value.dictionary),
+    dictionaryLearning: parseDictionaryLearning(value.dictionaryLearning),
   };
 };
 
@@ -552,8 +756,10 @@ const migrateV1Config = (
         )
       : migratedIds[0];
   return {
-    version: 2,
+    version: 3,
     ...parseCommonData(value),
+    dictionary: parseLegacyDictionary(value.dictionary),
+    dictionaryLearning: { enabled: true },
     dictation: {
       ...(activeIds
         ? {
@@ -575,8 +781,8 @@ const migrateV1Config = (
 const parseConfig = (source: string): ParsedConfig => {
   const value: unknown = JSON.parse(source);
   if (!isRecord(value)) throw new Error('Invalid configuration data');
-  if (value.version === 2) {
-    const config = parseV2Config(value);
+  if (value.version === 3) {
+    const config = parseV3Config(value);
     return {
       config,
       migrated:
@@ -586,6 +792,9 @@ const parseConfig = (source: string): ParsedConfig => {
             LEGACY_DEFAULT_HOTKEY_ACCELERATOR ||
             value.dictation.hotkeyMode !== undefined)),
     };
+  }
+  if (value.version === 2) {
+    return { config: parseV2Config(value), migrated: true };
   }
   if (value.version === 1) {
     return { config: migrateV1Config(value), migrated: true };
@@ -625,11 +834,95 @@ export class ConfigurationService {
     });
   }
 
-  async setDictionary(entries: readonly string[]): Promise<StoredClientConfig> {
-    const normalized = [
-      ...new Set(entries.map((entry) => entry.trim())),
-    ].filter(Boolean);
-    return this.update((config) => ({ ...config, dictionary: normalized }));
+  async addDictionaryEntry(
+    term: string,
+    source: DictionaryEntrySource = 'manual',
+  ): Promise<StoredClientConfig> {
+    const normalized = normalizeDictionaryTerm(term);
+    if (!normalized) throw new DictionaryEntryError('DICTIONARY_EMPTY');
+    if (normalized.length > DICTIONARY_LIMITS.termLength) {
+      throw new DictionaryEntryError('DICTIONARY_TOO_LONG');
+    }
+    return this.update((config) => {
+      if (
+        config.dictionary.some(
+          (entry) =>
+            dictionaryTermKey(entry.term) === dictionaryTermKey(normalized),
+        )
+      ) {
+        throw new DictionaryEntryError('DICTIONARY_DUPLICATE');
+      }
+      if (config.dictionary.length >= DICTIONARY_LIMITS.entries) {
+        throw new DictionaryEntryError('DICTIONARY_FULL');
+      }
+      return {
+        ...config,
+        dictionary: [...config.dictionary, { source, term: normalized }],
+      };
+    });
+  }
+
+  async removeDictionaryEntry(term: string): Promise<StoredClientConfig> {
+    const key = dictionaryTermKey(term);
+    return this.update((config) => ({
+      ...config,
+      dictionary: config.dictionary.filter(
+        (entry) => dictionaryTermKey(entry.term) !== key,
+      ),
+    }));
+  }
+
+  async setDictionaryLearningEnabled(
+    enabled: boolean,
+  ): Promise<StoredClientConfig> {
+    return this.update((config) => ({
+      ...config,
+      dictionaryLearning: { enabled },
+    }));
+  }
+
+  async getDictionaryLearningState(): Promise<DictionaryLearningPrivateState> {
+    const config = await this.load();
+    if (!config.dictionaryLearning.encryptedState) {
+      return emptyDictionaryLearningState();
+    }
+    return parseDictionaryLearningState(
+      JSON.parse(
+        this.#protector.reveal(config.dictionaryLearning.encryptedState),
+      ) as unknown,
+    );
+  }
+
+  async updateDictionaryLearningState(
+    mutate: (
+      state: DictionaryLearningPrivateState,
+      config: StoredClientConfig,
+    ) => DictionaryLearningPrivateState,
+  ): Promise<DictionaryLearningPrivateState> {
+    return this.runExclusive(async () => {
+      const current = (await this.readFromDisk()).config;
+      const stored = current.dictionaryLearning.encryptedState;
+      const state = stored
+        ? parseDictionaryLearningState(
+            JSON.parse(this.#protector.reveal(stored)) as unknown,
+          )
+        : emptyDictionaryLearningState();
+      if (!current.dictionaryLearning.enabled) {
+        return emptyDictionaryLearningState();
+      }
+      const nextState = parseDictionaryLearningState(
+        structuredClone(mutate(structuredClone(state), current)),
+      );
+      const next: StoredClientConfig = {
+        ...current,
+        dictionaryLearning: {
+          enabled: true,
+          encryptedState: this.#protector.protect(JSON.stringify(nextState)),
+        },
+      };
+      await this.writeAtomically(next);
+      return structuredClone(nextState);
+    });
   }
 
   async setProfile(profile?: UserProfileContext): Promise<StoredClientConfig> {

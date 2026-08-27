@@ -86,6 +86,28 @@ describe('DictationPipeline', () => {
     ).resolves.toMatchObject({ intent: 'translation', outputText: 'Hello' });
   });
 
+  it('returns dictionary candidates from the same text-model call when enabled', async () => {
+    const dictionaryCandidate = {
+      category: 'product' as const,
+      confidence: 0.95,
+      term: 'UnTypo',
+    };
+    const provider = new MockDictationProvider({
+      dictionaryCandidates: [dictionaryCandidate],
+      transcript: 'Use UnTypo',
+    });
+
+    await expect(
+      new DictationPipeline(provider, provider).process(audio, {
+        ...options,
+        dictionaryLearningEnabled: true,
+      }),
+    ).resolves.toMatchObject({
+      dictionaryCandidates: [dictionaryCandidate],
+      outputText: 'Use UnTypo',
+    });
+  });
+
   it('forces providers without intent detection to transcription', async () => {
     const provider = new MockDictationProvider(
       {

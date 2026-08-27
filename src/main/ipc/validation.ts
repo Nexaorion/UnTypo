@@ -200,18 +200,18 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
   return result;
 };
 
-export const parseDictionary = (value: unknown): readonly string[] => {
-  if (!Array.isArray(value) || value.length > 1_000) {
-    throw new Error('Invalid dictionary');
+export const parseDictionaryTerm = (value: unknown): string => {
+  if (typeof value !== 'string' || value.length > 128) {
+    throw new Error('Invalid dictionary term');
   }
-  const entries: string[] = [];
-  for (const entry of value) {
-    if (typeof entry !== 'string' || entry.length > 128) {
-      throw new Error('Invalid dictionary');
-    }
-    entries.push(entry);
+  return value;
+};
+
+export const parseDictionaryLearningEnabled = (value: unknown): boolean => {
+  if (typeof value !== 'boolean') {
+    throw new Error('Invalid dictionary learning setting');
   }
-  return entries;
+  return value;
 };
 
 export const parseProfile = (

@@ -101,6 +101,11 @@ export class DictationPipeline {
         {
           defaultTargetLanguage: options.defaultTargetLanguage,
           dictionary: options.dictionary,
+          ...(options.dictionaryLearningEnabled !== undefined
+            ? {
+                dictionaryLearningEnabled: options.dictionaryLearningEnabled,
+              }
+            : {}),
           ...(options.explicitTargetLanguage
             ? { explicitTargetLanguage: options.explicitTargetLanguage }
             : {}),
@@ -123,6 +128,9 @@ export class DictationPipeline {
         );
       }
       const result: ProcessResult = {
+        ...(processed.dictionaryCandidates
+          ? { dictionaryCandidates: processed.dictionaryCandidates }
+          : {}),
         intent: processed.intent,
         outputText: processed.outputText,
         rawTranscript,

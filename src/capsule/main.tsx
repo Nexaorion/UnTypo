@@ -1,7 +1,8 @@
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded';
-import { StrictMode, useEffect, useState } from 'react';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
+import { StrictMode, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { CapsuleStatus } from '../shared/capsule-ipc';
 import './styles.css';
@@ -49,6 +50,113 @@ const ErrorVisual = () => (
   </div>
 );
 
+const DictionaryVisual = () => (
+  <div aria-hidden="true" className="terminal-visual terminal-dictionary">
+    <AutoAwesomeRoundedIcon />
+  </div>
+);
+
+const DictionarySuggestion = ({
+  status,
+  viewModel,
+}: {
+  status: Extract<CapsuleStatus, { type: 'dictionary-suggestion' }>;
+  viewModel: ReturnType<typeof capsuleViewModel>;
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(status.term);
+  const input = useRef<HTMLInputElement>(null);
+
+  const beginEditing = () => {
+    setEditing(true);
+    window.capsule.dictionaryFocus();
+    requestAnimationFrame(() => input.current?.focus());
+  };
+
+  const cancelEditing = () => {
+    setDraft(status.term);
+    setEditing(false);
+  };
+
+  const submit = () => window.capsule.dictionaryAccept(draft);
+
+  return editing ? (
+    <form
+      className="dictionary-suggestion-edit"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <div className="dictionary-suggestion-field">
+        <input
+          aria-label={viewModel.title}
+          disabled={status.submitting}
+          maxLength={128}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') cancelEditing();
+          }}
+          ref={input}
+          value={draft}
+        />
+        {status.error ? (
+          <span className="dictionary-suggestion-error">
+            {viewModel.detail}
+          </span>
+        ) : null}
+      </div>
+      <div className="capsule-actions">
+        <button disabled={status.submitting} type="submit">
+          {viewModel.dictionarySaveLabel}
+        </button>
+        <button
+          className="capsule-secondary"
+          disabled={status.submitting}
+          onClick={cancelEditing}
+          type="button"
+        >
+          {viewModel.dictionaryCancelLabel}
+        </button>
+        <button
+          className="capsule-secondary"
+          disabled={status.submitting}
+          onClick={() => window.capsule.dictionaryReject()}
+          type="button"
+        >
+          {viewModel.dictionaryRejectLabel}
+        </button>
+      </div>
+    </form>
+  ) : (
+    <div className="capsule-actions">
+      <button
+        disabled={status.submitting}
+        onClick={() => window.capsule.dictionaryAccept(status.term)}
+        type="button"
+      >
+        {viewModel.dictionaryAcceptLabel}
+      </button>
+      <button
+        className="capsule-secondary"
+        disabled={status.submitting}
+        onClick={beginEditing}
+        type="button"
+      >
+        {viewModel.dictionaryModifyLabel}
+      </button>
+      <button
+        className="capsule-secondary"
+        disabled={status.submitting}
+        onClick={() => window.capsule.dictionaryReject()}
+        type="button"
+      >
+        {viewModel.dictionaryRejectLabel}
+      </button>
+    </div>
+  );
+};
+
 const Capsule = () => {
   const [status, setStatus] = useState<CapsuleStatus>();
 
@@ -66,6 +174,7 @@ const Capsule = () => {
   const viewModel = capsuleViewModel(status);
   const terminal = status.type === 'error' || status.type === 'success';
   const confirmMode = status.type === 'confirm';
+  const dictionaryMode = status.type === 'dictionary-suggestion';
 
   return (
     <main
@@ -73,10 +182,12 @@ const Capsule = () => {
       className="capsule"
       data-status={status.type}
       onPointerEnter={() =>
-        (terminal || confirmMode) && window.capsule.setInteractive(true)
+        (terminal || confirmMode || dictionaryMode) &&
+        window.capsule.setInteractive(true)
       }
       onPointerLeave={() =>
-        (terminal || confirmMode) && window.capsule.setInteractive(false)
+        (terminal || confirmMode || dictionaryMode) &&
+        window.capsule.setInteractive(false)
       }
       role="status"
     >
@@ -88,6 +199,8 @@ const Capsule = () => {
         <SuccessVisual />
       ) : status.type === 'confirm' ? (
         <SuccessVisual />
+      ) : status.type === 'dictionary-suggestion' ? (
+        <DictionaryVisual />
       ) : (
         <ErrorVisual />
       )}
@@ -97,7 +210,13 @@ const Capsule = () => {
         <p>{viewModel.detail}</p>
       </div>
 
-      {confirmMode ? (
+      {dictionaryMode ? (
+        <DictionarySuggestion
+          key={status.term}
+          status={status}
+          viewModel={viewModel}
+        />
+      ) : confirmMode ? (
         <div className="capsule-actions">
           <button onClick={() => window.capsule.confirm()} type="button">
             {viewModel.confirmAcceptLabel}

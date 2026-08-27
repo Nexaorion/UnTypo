@@ -6,15 +6,19 @@ import { useId } from 'react';
 export interface SwitchFieldProps {
   checked: boolean;
   description?: string;
+  disabled?: boolean;
   label: string;
   onCheckedChange: (checked: boolean) => void;
+  testId?: string;
 }
 
 export const SwitchField = ({
   checked,
   description,
+  disabled,
   label,
   onCheckedChange,
+  testId,
 }: SwitchFieldProps) => {
   const descriptionId = useId();
 
@@ -24,6 +28,8 @@ export const SwitchField = ({
         control={
           <Switch
             checked={checked}
+            data-testid={testId}
+            disabled={disabled}
             onChange={(event) => onCheckedChange(event.target.checked)}
             // MUI renders a checkbox input; role=switch announces on/off instead of checked.
             slotProps={{

@@ -9,6 +9,7 @@ import type {
   ProviderAudioFormat,
   SupportedLanguage,
 } from '../../core/providers/contracts.js';
+import type { DictionaryCandidate } from '../../shared/dictionary.js';
 import { ProviderContractError } from '../../core/providers/contracts.js';
 import type {
   SpeechProviderRegistry,
@@ -64,7 +65,14 @@ export interface DictationPresenter {
   showSuccess: (
     result: ProcessResult,
     delivery: 'copy' | 'inserted',
-  ) => void | Promise<void>;
+  ) => number | undefined | Promise<number | undefined>;
+}
+
+export interface DictionaryLearningPort {
+  handleCandidates: (
+    candidates: readonly DictionaryCandidate[],
+    successPresentationGeneration: number,
+  ) => unknown;
 }
 
 export interface HistoryPort {
@@ -91,6 +99,7 @@ export interface DictationCoordinatorDependencies {
       action: () => Promise<T>,
     ) => Promise<T>;
   };
+  dictionaryLearning?: DictionaryLearningPort;
   getContext: () => DictationContext | Promise<DictationContext>;
   history: HistoryPort;
   injection: InjectionPort;
@@ -403,7 +412,6 @@ export class DictationCoordinator {
         }
       }
 
-      // 如果结果不是普通转写，显示确认界面让用户选择
       let finalResult = result;
       if (result.intent !== 'transcription' && result.rawTranscript) {
         try {
@@ -425,6 +433,9 @@ export class DictationCoordinator {
                 : result.rawTranscript;
 
               finalResult = {
+                ...(result.dictionaryCandidates
+                  ? { dictionaryCandidates: result.dictionaryCandidates }
+                  : {}),
                 intent: 'transcription',
                 outputText: polishedText,
                 rawTranscript: result.rawTranscript,
@@ -436,6 +447,9 @@ export class DictationCoordinator {
                 error,
               );
               finalResult = {
+                ...(result.dictionaryCandidates
+                  ? { dictionaryCandidates: result.dictionaryCandidates }
+                  : {}),
                 intent: 'transcription',
                 outputText: result.rawTranscript,
                 rawTranscript: result.rawTranscript,
@@ -444,7 +458,6 @@ export class DictationCoordinator {
             }
           }
         } catch (error) {
-          // 如果确认失败，使用原始结果
           console.error('Dictation confirmation failed', error);
         }
       }
@@ -490,12 +503,25 @@ export class DictationCoordinator {
         });
       }
 
-      await this.present(() =>
+      const successPresentationGeneration = await this.present(() =>
         this.#dependencies.presenter.showSuccess(
           finalResult,
           injected ? 'inserted' : 'copy',
         ),
       );
+      if (
+        successPresentationGeneration !== undefined &&
+        finalResult.dictionaryCandidates?.length
+      ) {
+        try {
+          this.#dependencies.dictionaryLearning?.handleCandidates(
+            finalResult.dictionaryCandidates,
+            successPresentationGeneration,
+          );
+        } catch (error) {
+          console.error('Dictionary learning dispatch failed', error);
+        }
+      }
       this.log({
         context: {
           delivery: injected ? 'inserted' : 'copy',
@@ -514,9 +540,11 @@ export class DictationCoordinator {
     }
   }
 
-  private async present(action: () => void | Promise<void>): Promise<void> {
+  private async present<T>(
+    action: () => T | Promise<T>,
+  ): Promise<T | undefined> {
     try {
-      await action();
+      return await action();
     } catch (error) {
       console.error('Dictation status presentation failed', error);
       this.recordIssue({
@@ -524,6 +552,7 @@ export class DictationCoordinator {
         kind: 'internal',
         source: 'dictation.presentation',
       });
+      return undefined;
     }
   }
 

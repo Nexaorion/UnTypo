@@ -10,8 +10,10 @@ import {
   type TextProcessResult,
   type TranscriptResult,
 } from './contracts.js';
+import type { DictionaryCandidate } from '../../shared/dictionary.js';
 
 export interface MockProviderScenario {
+  dictionaryCandidates?: readonly DictionaryCandidate[];
   generatedText?: string;
   explicitTargetLanguage?: 'zh-CN' | 'en-US';
   intent?: DictationIntent;
@@ -78,7 +80,14 @@ export class MockDictationProvider implements DictationProvider {
           ? (this.#scenario.generatedText ?? text)
           : (this.#scenario.polishedText ?? text);
 
-    return Promise.resolve({ intent, outputText });
+    return Promise.resolve({
+      ...(context.dictionaryLearningEnabled &&
+      this.#scenario.dictionaryCandidates
+        ? { dictionaryCandidates: this.#scenario.dictionaryCandidates }
+        : {}),
+      intent,
+      outputText,
+    });
   }
 
   async process(
@@ -89,6 +98,9 @@ export class MockDictationProvider implements DictationProvider {
     const processed = await this.processTranscript(transcript.text, {
       defaultTargetLanguage: options.defaultTargetLanguage,
       dictionary: options.dictionary,
+      ...(options.dictionaryLearningEnabled !== undefined
+        ? { dictionaryLearningEnabled: options.dictionaryLearningEnabled }
+        : {}),
       ...(options.explicitTargetLanguage
         ? { explicitTargetLanguage: options.explicitTargetLanguage }
         : {}),
@@ -102,6 +114,9 @@ export class MockDictationProvider implements DictationProvider {
     });
 
     return {
+      ...(processed.dictionaryCandidates
+        ? { dictionaryCandidates: processed.dictionaryCandidates }
+        : {}),
       intent: processed.intent,
       outputText: processed.outputText,
       rawTranscript: transcript.text,

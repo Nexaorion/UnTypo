@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseClipboardText,
-  parseDictionary,
+  parseDictionaryTerm,
   parseHistoryQuery,
   parseProfile,
   parseProviderInput,
@@ -75,8 +75,8 @@ describe('client IPC validation', () => {
     expect(() => parseHistoryQuery({ limit: 501 })).toThrow(
       'Invalid history query',
     );
-    expect(() => parseDictionary(['x'.repeat(129)])).toThrow(
-      'Invalid dictionary',
+    expect(() => parseDictionaryTerm('x'.repeat(129))).toThrow(
+      'Invalid dictionary term',
     );
     expect(() =>
       parseSettingsUpdate({

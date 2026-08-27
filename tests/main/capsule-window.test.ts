@@ -32,6 +32,7 @@ const electronMocks = vi.hoisted(() => {
       }),
       isDestroyed: vi.fn(() => destroyed),
       isVisible: vi.fn(() => visible),
+      focus: vi.fn(),
       loadURL,
       once: vi.fn((event: string, handler: () => void) => {
         if (event === 'closed') closedHandler = handler;
@@ -185,5 +186,151 @@ describe('CapsuleWindowController', () => {
     await expect(controller.showConfirm(confirmResult, 'en-US')).resolves.toBe(
       false,
     );
+  });
+
+  it('replaces the success window with an editable dictionary suggestion after 1.5 seconds', async () => {
+    const controller = new CapsuleWindowController();
+    await controller.showRecording('zh-CN');
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: '使用 UnTypo' },
+      'inserted',
+      'zh-CN',
+    );
+    const firstWindow = electronMocks.windows[0] as {
+      destroy: ReturnType<typeof vi.fn>;
+    };
+    const validate = vi.fn(() => Promise.resolve(undefined));
+    const suggestion = controller.showDictionarySuggestion(
+      'UnTypo',
+      'zh-CN',
+      generation,
+      validate,
+    );
+
+    await vi.advanceTimersByTimeAsync(1_499);
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(firstWindow.destroy).toHaveBeenCalledOnce();
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(2);
+
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(
+      event,
+      'UnTypo Desktop',
+    );
+    await Promise.resolve();
+
+    await expect(suggestion).resolves.toBe('accepted');
+    expect(validate).toHaveBeenCalledWith('UnTypo Desktop');
+    controller.destroy();
+  });
+
+  it('keeps a rejected validation visible and resolves an explicit rejection', async () => {
+    const controller = new CapsuleWindowController();
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: 'UnTypo' },
+      'inserted',
+      'en-US',
+    );
+    const suggestion = controller.showDictionarySuggestion(
+      'UnTypo',
+      'en-US',
+      generation,
+      () => Promise.resolve('duplicate'),
+    );
+    await vi.advanceTimersByTimeAsync(1_500);
+    const window = electronMocks.windows[1] as {
+      webContents: { send: ReturnType<typeof vi.fn> };
+    };
+    electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(
+      event,
+      'UnTypo',
+    );
+    await Promise.resolve();
+
+    expect(window.webContents.send).toHaveBeenLastCalledWith(
+      CAPSULE_CHANNELS.update,
+      expect.objectContaining({ error: 'duplicate', submitting: false }),
+    );
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryReject)?.(event);
+    await expect(suggestion).resolves.toBe('rejected');
+    controller.destroy();
+  });
+
+  it('rejects oversized edited terms before calling the validator', async () => {
+    const controller = new CapsuleWindowController();
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: 'UnTypo' },
+      'inserted',
+      'en-US',
+    );
+    const validate = vi.fn(() => Promise.resolve(undefined));
+    const suggestion = controller.showDictionarySuggestion(
+      'UnTypo',
+      'en-US',
+      generation,
+      validate,
+    );
+    await vi.advanceTimersByTimeAsync(1_500);
+    const window = electronMocks.windows[1] as {
+      webContents: { send: ReturnType<typeof vi.fn> };
+    };
+    electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
+
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(
+      event,
+      'x'.repeat(129),
+    );
+
+    expect(validate).not.toHaveBeenCalled();
+    expect(window.webContents.send).toHaveBeenLastCalledWith(
+      CAPSULE_CHANNELS.update,
+      expect.objectContaining({ error: 'too-long', submitting: false }),
+    );
+    controller.close();
+    await expect(suggestion).resolves.toBe('dismissed');
+    controller.destroy();
+  });
+
+  it('does not let a stale suggestion replace a new recording capsule', async () => {
+    const controller = new CapsuleWindowController();
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: 'UnTypo' },
+      'inserted',
+      'en-US',
+    );
+    const suggestion = controller.showDictionarySuggestion(
+      'UnTypo',
+      'en-US',
+      generation,
+      () => Promise.resolve(undefined),
+    );
+    await controller.showRecording('en-US');
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    await expect(suggestion).resolves.toBe('dismissed');
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(2);
+    controller.destroy();
+  });
+
+  it('dismisses a visible suggestion when a new recording starts', async () => {
+    const controller = new CapsuleWindowController();
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: 'UnTypo' },
+      'inserted',
+      'en-US',
+    );
+    const suggestion = controller.showDictionarySuggestion(
+      'UnTypo',
+      'en-US',
+      generation,
+      () => Promise.resolve(undefined),
+    );
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    await controller.showRecording('en-US');
+
+    await expect(suggestion).resolves.toBe('dismissed');
+    controller.destroy();
   });
 });

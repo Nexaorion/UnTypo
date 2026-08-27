@@ -5,6 +5,17 @@ interface CapsuleMessages {
   confirmAccept: string;
   confirmReject: string;
   confirmTitle: string;
+  dictionaryAccept: string;
+  dictionaryCancel: string;
+  dictionaryDetail: (term: string) => string;
+  dictionaryErrors: Record<
+    'duplicate' | 'empty' | 'full' | 'too-long' | 'unavailable',
+    string
+  >;
+  dictionaryModify: string;
+  dictionaryReject: string;
+  dictionarySave: string;
+  dictionaryTitle: string;
   copy: string;
   emptyTitle: string;
   errorTitle: string;
@@ -48,6 +59,20 @@ const messages: Record<'en-US' | 'zh-CN', CapsuleMessages> = {
     confirmTitle: 'Use this text?',
     confirmAccept: 'Use',
     confirmReject: 'Use original',
+    dictionaryAccept: 'Add',
+    dictionaryCancel: 'Cancel',
+    dictionaryDetail: (term) => `“${term}” looks like a term you use often`,
+    dictionaryErrors: {
+      duplicate: 'This term is already in your dictionary.',
+      empty: 'Enter a term before saving.',
+      full: 'Your dictionary has reached its 1000-term limit.',
+      'too-long': 'Keep the term within 128 characters.',
+      unavailable: 'Could not add this term. Please try again.',
+    },
+    dictionaryModify: 'Edit',
+    dictionaryReject: 'Reject',
+    dictionarySave: 'Save',
+    dictionaryTitle: 'Add to dictionary?',
   },
   'zh-CN': {
     close: '关闭',
@@ -77,6 +102,20 @@ const messages: Record<'en-US' | 'zh-CN', CapsuleMessages> = {
     confirmTitle: '使用此文本？',
     confirmAccept: '使用',
     confirmReject: '使用原文',
+    dictionaryAccept: '添加',
+    dictionaryCancel: '取消',
+    dictionaryDetail: (term) => `“${term}” 可能是你常用的专有词`,
+    dictionaryErrors: {
+      duplicate: '这个词已经在词典中了',
+      empty: '请输入词条后再保存',
+      full: '词典已达到 1000 条上限',
+      'too-long': '词条不能超过 128 个字符',
+      unavailable: '暂时无法添加，请稍后重试',
+    },
+    dictionaryModify: '修改',
+    dictionaryReject: '拒绝',
+    dictionarySave: '保存',
+    dictionaryTitle: '添加到词典？',
   },
 };
 
@@ -87,6 +126,11 @@ export interface CapsuleViewModel {
   confirmRejectLabel?: string;
   copyLabel: string;
   detail: string;
+  dictionaryAcceptLabel?: string;
+  dictionaryCancelLabel?: string;
+  dictionaryModifyLabel?: string;
+  dictionaryRejectLabel?: string;
+  dictionarySaveLabel?: string;
   showClose: boolean;
   showConfirm: boolean;
   showCopy: boolean;
@@ -131,6 +175,25 @@ export const capsuleViewModel = (status: CapsuleStatus): CapsuleViewModel => {
       showConfirm: true,
       showCopy: false,
       title: `${copy.confirmTitle} · ${copy.intents[status.intent]}`,
+    };
+  }
+  if (status.type === 'dictionary-suggestion') {
+    return {
+      ariaLive: 'polite',
+      closeLabel: copy.close,
+      copyLabel: copy.copy,
+      detail: status.error
+        ? copy.dictionaryErrors[status.error]
+        : copy.dictionaryDetail(status.term),
+      dictionaryAcceptLabel: copy.dictionaryAccept,
+      dictionaryCancelLabel: copy.dictionaryCancel,
+      dictionaryModifyLabel: copy.dictionaryModify,
+      dictionaryRejectLabel: copy.dictionaryReject,
+      dictionarySaveLabel: copy.dictionarySave,
+      showClose: false,
+      showConfirm: false,
+      showCopy: false,
+      title: copy.dictionaryTitle,
     };
   }
   if (status.type === 'error') {

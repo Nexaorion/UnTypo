@@ -23,6 +23,12 @@ export const messages = {
     'dictionary.emptyTitle': '还没有词条',
     'dictionary.full': '已达 1000 条上限',
     'dictionary.input': '词条',
+    'dictionary.learning': '自动学习专有词',
+    'dictionary.learningDescription':
+      '根据置信度、词类和使用频率，自动判断何时询问是否加入词典',
+    'dictionary.learningUnavailable': '配置文字模型后生效',
+    'dictionary.learnedEntry': 'AI 学习词条：{term}',
+    'dictionary.manualEntry': '手动词条：{term}',
     'dictionary.newEntry': '新词条',
     'dictionary.placeholder': '输入名称、人名或专业术语',
     'dictionary.remove': '移除 {term}',
@@ -230,6 +236,13 @@ export const messages = {
     'dictionary.emptyTitle': 'No terms yet',
     'dictionary.full': 'Limit of 1000 terms reached',
     'dictionary.input': 'Term',
+    'dictionary.learning': 'Learn proper terms automatically',
+    'dictionary.learningDescription':
+      'Decide when to ask based on confidence, term type, and usage frequency.',
+    'dictionary.learningUnavailable':
+      'Takes effect after a text model is configured.',
+    'dictionary.learnedEntry': 'AI-learned term: {term}',
+    'dictionary.manualEntry': 'Manually added term: {term}',
     'dictionary.newEntry': 'New term',
     'dictionary.placeholder': 'Enter a name, person, or technical term',
     'dictionary.remove': 'Remove {term}',

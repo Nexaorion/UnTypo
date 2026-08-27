@@ -1,3 +1,5 @@
+import type { DictionaryCandidate } from '../../shared/dictionary.js';
+
 export const PROVIDER_CONTRACT_VERSION = '3.0' as const;
 
 export type ProviderContractVersion = typeof PROVIDER_CONTRACT_VERSION;
@@ -51,6 +53,7 @@ export interface TranscribeOptions {
 export interface TextProcessContext {
   defaultTargetLanguage: SupportedLanguage;
   dictionary: readonly string[];
+  dictionaryLearningEnabled?: boolean;
   explicitTargetLanguage?: SupportedLanguage;
   forcedIntent?: DictationIntent;
   locale: SupportedLanguage;
@@ -67,6 +70,7 @@ export interface WindowContext {
 }
 
 export interface TextProcessResult {
+  dictionaryCandidates?: readonly DictionaryCandidate[];
   intent: DictationIntent;
   outputText: string;
 }
@@ -74,6 +78,7 @@ export interface TextProcessResult {
 export interface ProcessOptions {
   defaultTargetLanguage: SupportedLanguage;
   dictionary: readonly string[];
+  dictionaryLearningEnabled?: boolean;
   explicitTargetLanguage?: SupportedLanguage;
   fastMode?: boolean;
   forcedIntent?: DictationIntent;
@@ -86,6 +91,7 @@ export interface ProcessOptions {
 }
 
 export interface ProcessResult {
+  dictionaryCandidates?: readonly DictionaryCandidate[];
   intent: DictationIntent;
   outputText: string;
   rawTranscript?: string;
