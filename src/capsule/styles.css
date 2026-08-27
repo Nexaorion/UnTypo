@@ -19,7 +19,6 @@
   --capsule-primary: #171719;
   --capsule-primary-contrast: #ffffff;
   --capsule-recording: #ef3f52;
-  --capsule-shadow: rgb(15 23 42 / 18%);
   --capsule-success: #138a5b;
   --capsule-success-soft: #e9f8f1;
   --capsule-surface: rgb(255 255 255 / 96%);
@@ -39,7 +38,6 @@
     --capsule-primary: #f5f5f5;
     --capsule-primary-contrast: #111111;
     --capsule-recording: #ff6473;
-    --capsule-shadow: rgb(0 0 0 / 48%);
     --capsule-success: #56d49a;
     --capsule-success-soft: #19372c;
     --capsule-surface: rgb(22 22 24 / 96%);
@@ -80,7 +78,6 @@ button {
   border-radius: 999px;
   padding: 5px 12px;
   background: var(--capsule-surface);
-  box-shadow: 0 7px 20px var(--capsule-shadow);
   backdrop-filter: blur(18px);
 }
 
