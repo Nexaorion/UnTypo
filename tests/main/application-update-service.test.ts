@@ -113,4 +113,40 @@ describe('ApplicationUpdateService', () => {
     expect(updater.downloadUpdate).toHaveBeenCalledOnce();
     service.stop();
   });
+
+  it('keeps the discovery timeout active while the Hazel response body stalls', async () => {
+    vi.useFakeTimers();
+    const onChanged = vi.fn();
+    const fetchImplementation = vi.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            new Promise((_, reject) => {
+              init?.signal?.addEventListener('abort', () => {
+                reject(new DOMException('Timed out', 'AbortError'));
+              });
+            }),
+          status: 200,
+        } as Response),
+    );
+    const service = new ApplicationUpdateService({
+      diagnostics: { log: vi.fn() } as never,
+      fetchImplementation,
+      isPackaged: true,
+      onChanged,
+      platform: 'win32',
+      updater: updater as unknown as AppUpdater,
+      version: '0.1.2',
+    });
+    service.start({ autoCheck: false, autoDownload: false });
+
+    const check = service.checkForUpdates();
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    await expect(check).resolves.toMatchObject({ status: 'error' });
+    expect(onChanged).toHaveBeenCalled();
+    service.stop();
+    vi.useRealTimers();
+  });
 });

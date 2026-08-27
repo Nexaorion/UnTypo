@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DictionaryLearningService } from '../../src/main/dictionary/learning';
 import { ConfigurationService } from '../../src/main/storage/configuration';
 import { MemorySecretProtector } from '../../src/main/storage/secret-protector';
-import type { DictionaryCandidate } from '../../src/shared/dictionary';
+import {
+  DICTIONARY_LIMITS,
+  type DictionaryCandidate,
+} from '../../src/shared/dictionary';
 
 const candidate: DictionaryCandidate = {
   category: 'product',
@@ -123,6 +126,29 @@ describe('DictionaryLearningService', () => {
     now += 1_000;
     await expect(service.observe([mediumConfidenceCandidate])).resolves.toEqual(
       mediumConfidenceCandidate,
+    );
+  });
+
+  it('retains a refreshed rejection when the rejection limit is full', async () => {
+    await configuration.updateDictionaryLearningState(() => ({
+      candidates: [],
+      rejections: Array.from(
+        { length: DICTIONARY_LIMITS.candidates },
+        (_, index) => ({
+          fingerprint: `rejection-${String(index)}`,
+          until: now + 60_000 + index,
+        }),
+      ),
+    }));
+
+    await service.reject(candidate.term);
+
+    const state = await configuration.getDictionaryLearningState();
+    expect(state.rejections).toHaveLength(DICTIONARY_LIMITS.candidates);
+    expect(state.rejections).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ until: now + 30 * 24 * 60 * 60 * 1_000 }),
+      ]),
     );
   });
 

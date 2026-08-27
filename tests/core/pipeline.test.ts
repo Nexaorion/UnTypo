@@ -126,7 +126,7 @@ describe('DictationPipeline', () => {
     });
   });
 
-  it('forces transcription-only mode through the same processor', async () => {
+  it('honors a forced intent through the same processor outside fast mode', async () => {
     const provider = new MockDictationProvider({
       intent: 'translation',
       polishedText: 'Plain transcript',
@@ -137,7 +137,6 @@ describe('DictationPipeline', () => {
     await expect(
       new DictationPipeline(provider, provider).process(audio, {
         ...options,
-        fastMode: true,
         forcedIntent: 'transcription',
       }),
     ).resolves.toMatchObject({

@@ -260,9 +260,8 @@ export class ApplicationUpdateService {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       timeout.unref?.();
-      let response: Response;
       try {
-        response = await this.#fetch(
+        const response = await this.#fetch(
           `${HAZEL_BASE_URL}/update/win32/${encodeURIComponent(this.#version)}`,
           {
             headers: { accept: 'application/json' },
@@ -270,49 +269,51 @@ export class ApplicationUpdateService {
             signal: controller.signal,
           },
         );
+
+        const checkedAt = this.#now();
+        if (response.status === 204) {
+          this.setState({
+            currentVersion: this.#version,
+            lastCheckedAt: checkedAt,
+            status: 'up-to-date',
+            supported: true,
+          });
+          return this.snapshot();
+        }
+        if (!response.ok) {
+          throw new Error(
+            `Hazel request failed with status ${response.status}`,
+          );
+        }
+        const release = parseHazelRelease(await response.json());
+        const availableVersion = normalizeVersion(release.name);
+        if (!isNewerVersion(availableVersion, this.#version)) {
+          this.setState({
+            currentVersion: this.#version,
+            lastCheckedAt: checkedAt,
+            status: 'up-to-date',
+            supported: true,
+          });
+          return this.snapshot();
+        }
+
+        this.setState({
+          availableVersion,
+          currentVersion: this.#version,
+          lastCheckedAt: checkedAt,
+          status: 'available',
+          supported: true,
+        });
+        this.#diagnostics.log({
+          context: { version: availableVersion },
+          message: 'Application update available',
+          scope: 'app.update',
+        });
+        if (this.#policy.autoDownload) void this.downloadUpdate();
+        return this.snapshot();
       } finally {
         clearTimeout(timeout);
       }
-
-      const checkedAt = this.#now();
-      if (response.status === 204) {
-        this.setState({
-          currentVersion: this.#version,
-          lastCheckedAt: checkedAt,
-          status: 'up-to-date',
-          supported: true,
-        });
-        return this.snapshot();
-      }
-      if (!response.ok) {
-        throw new Error(`Hazel request failed with status ${response.status}`);
-      }
-      const release = parseHazelRelease(await response.json());
-      const availableVersion = normalizeVersion(release.name);
-      if (!isNewerVersion(availableVersion, this.#version)) {
-        this.setState({
-          currentVersion: this.#version,
-          lastCheckedAt: checkedAt,
-          status: 'up-to-date',
-          supported: true,
-        });
-        return this.snapshot();
-      }
-
-      this.setState({
-        availableVersion,
-        currentVersion: this.#version,
-        lastCheckedAt: checkedAt,
-        status: 'available',
-        supported: true,
-      });
-      this.#diagnostics.log({
-        context: { version: availableVersion },
-        message: 'Application update available',
-        scope: 'app.update',
-      });
-      if (this.#policy.autoDownload) void this.downloadUpdate();
-      return this.snapshot();
     } catch (error) {
       this.logFailure('Update discovery failed', error);
       this.setError('UPDATE_CHECK_FAILED');

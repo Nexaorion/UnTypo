@@ -80,7 +80,6 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         'hotkeyAccelerator',
         'language',
         'microphoneDeviceId',
-        'microphoneDeviceLabel',
       ],
       'Dictation settings',
     );

@@ -124,11 +124,13 @@ export class CapsuleWindowController {
         return 'ok';
       })()
     `)) as string;
+    if (rendererResult !== 'ok') {
+      this.close();
+      return false;
+    }
     const resolvedDecision = await decision;
     return (
-      rendererResult === 'ok' &&
-      resolvedDecision === 'accepted' &&
-      acceptedTerm === 'UnTypo Smoke Edited'
+      resolvedDecision === 'accepted' && acceptedTerm === 'UnTypo Smoke Edited'
     );
   }
 

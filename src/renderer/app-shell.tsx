@@ -271,6 +271,7 @@ export const AppShell = ({
           {update?.availableVersion &&
           ['available', 'downloaded', 'downloading'].includes(update.status) ? (
             <ListItemButton
+              aria-label={t('update.sidebarTitle')}
               data-testid="update-open"
               onClick={onOpenUpdate}
               sx={(currentTheme) => ({

@@ -91,11 +91,10 @@ export class DictationPipeline {
 
     try {
       const forcedIntent =
-        options.fastMode && options.forcedIntent
-          ? options.forcedIntent
-          : this.textProvider.capabilities.intentDetection
-            ? undefined
-            : 'transcription';
+        options.forcedIntent ??
+        (this.textProvider.capabilities.intentDetection
+          ? undefined
+          : 'transcription');
       const processed = await this.textProvider.processTranscript(
         rawTranscript,
         {

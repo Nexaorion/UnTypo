@@ -30,6 +30,7 @@ export const UpdateDialog = ({
   const downloading = status === 'checking' || status === 'downloading';
   const downloaded = status === 'downloaded';
   const failed = status === 'error';
+  const titleId = 'update-dialog-title';
   const version = update?.availableVersion ?? update?.currentVersion ?? '';
 
   const retry = async () => {
@@ -52,6 +53,7 @@ export const UpdateDialog = ({
 
   return (
     <Dialog
+      aria-labelledby={titleId}
       fullWidth
       maxWidth="xs"
       onClose={() => onOpenChange(false)}
@@ -79,7 +81,11 @@ export const UpdateDialog = ({
           >
             {icon}
           </Box>
-          <Typography component="h2" sx={{ fontSize: 22, fontWeight: 740 }}>
+          <Typography
+            component="h2"
+            id={titleId}
+            sx={{ fontSize: 22, fontWeight: 740 }}
+          >
             {downloaded
               ? t('update.readyTitle')
               : failed

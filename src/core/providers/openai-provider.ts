@@ -213,13 +213,49 @@ export class OpenAIProvider implements DictationProvider {
           schema: {
             additionalProperties: false,
             properties: {
+              ...(context.dictionaryLearningEnabled
+                ? {
+                    dictionaryCandidates: {
+                      items: {
+                        additionalProperties: false,
+                        properties: {
+                          category: {
+                            enum: [
+                              'person',
+                              'place',
+                              'organization',
+                              'product',
+                              'technical',
+                            ],
+                            type: 'string',
+                          },
+                          confidence: {
+                            maximum: 1,
+                            minimum: 0,
+                            type: 'number',
+                          },
+                          term: { minLength: 1, type: 'string' },
+                        },
+                        required: ['term', 'category', 'confidence'],
+                        type: 'object',
+                      },
+                      type: 'array',
+                    },
+                  }
+                : {}),
               intent: {
                 enum: ['transcription', 'translation', 'instruction'],
                 type: 'string',
               },
               outputText: { minLength: 1, type: 'string' },
             },
-            required: ['intent', 'outputText'],
+            required: [
+              'intent',
+              'outputText',
+              ...(context.dictionaryLearningEnabled
+                ? ['dictionaryCandidates']
+                : []),
+            ],
             type: 'object',
           },
           strict: true,

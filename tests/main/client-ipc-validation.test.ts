@@ -83,6 +83,11 @@ describe('client IPC validation', () => {
         dictation: { microphoneDeviceId: 'x'.repeat(513) },
       }),
     ).toThrow('Invalid microphone device');
+    expect(() =>
+      parseSettingsUpdate({
+        dictation: { microphoneDeviceLabel: 'USB Microphone' },
+      }),
+    ).toThrow('unsupported field');
     expect(() => parseClipboardText('x'.repeat(1_000_001))).toThrow(
       'Invalid clipboard text',
     );

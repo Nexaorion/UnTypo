@@ -100,11 +100,6 @@ const DictionarySuggestion = ({
           ref={input}
           value={draft}
         />
-        {status.error ? (
-          <span className="dictionary-suggestion-error">
-            {viewModel.detail}
-          </span>
-        ) : null}
       </div>
       <div className="capsule-actions">
         <button disabled={status.submitting} type="submit">

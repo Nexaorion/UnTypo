@@ -220,7 +220,7 @@ export class DictionaryLearningService {
             fingerprint: rejectedFingerprint,
             until: now + REJECTION_COOLDOWN_MILLISECONDS,
           },
-        ],
+        ].slice(-DICTIONARY_LIMITS.candidates),
       };
     });
   }
