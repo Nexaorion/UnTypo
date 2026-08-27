@@ -73,10 +73,16 @@ app.on('child-process-gone', (_event, details) => {
 const windowBackground = (): string =>
   nativeTheme.shouldUseDarkColors ? '#111111' : '#ffffff';
 
+const applicationIconPath = (): string =>
+  app.isPackaged
+    ? path.join(process.resourcesPath, 'untypo-icon.ico')
+    : path.join(app.getAppPath(), 'assets', 'untypo-icon.ico');
+
 const createMainWindow = async (): Promise<BrowserWindow> => {
   const window = new BrowserWindow({
     backgroundColor: windowBackground(),
     height: 760,
+    icon: applicationIconPath(),
     minHeight: 600,
     minWidth: 860,
     show: !isSmokeTest,
@@ -152,6 +158,7 @@ void app
       mainWindow.webContents.send(DIAGNOSTIC_CHANGED_CHANNEL);
     });
     runtime = new DesktopRuntime({
+      applicationIconPath: applicationIconPath(),
       diagnostics,
       onSnapshotChanged: (snapshot) => {
         if (!mainWindow || mainWindow.isDestroyed()) return;

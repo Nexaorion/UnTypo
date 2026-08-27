@@ -68,16 +68,12 @@ import { HistoryRepository, HistoryService } from '../storage/history.js';
 import { ApplicationUpdateService } from '../update/application-update-service.js';
 
 export interface DesktopRuntimeOptions {
+  applicationIconPath: string;
   diagnostics: DiagnosticCollector;
   onSnapshotChanged: (snapshot: ClientSnapshot) => void;
   onUpdateChanged: (snapshot: ClientUpdateSnapshot) => void;
   showMainWindow: () => void | Promise<void>;
 }
-
-const trayIconPng = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/l4fWpwAAAABJRU5ErkJggg==',
-  'base64',
-);
 
 const isString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
@@ -919,10 +915,17 @@ export class DesktopRuntime {
   }
 
   private createTray(locale: 'en-US' | 'zh-CN'): void {
-    const icon = nativeImage.createFromBuffer(trayIconPng).resize({
-      height: 16,
-      width: 16,
-    });
+    const icon = nativeImage
+      .createFromPath(this.#options.applicationIconPath)
+      .resize({
+        height: 16,
+        width: 16,
+      });
+    if (icon.isEmpty()) {
+      throw new Error(
+        `Application tray icon could not be loaded: ${this.#options.applicationIconPath}`,
+      );
+    }
     this.#tray = new Tray(icon);
     this.#tray.on('click', () => void this.#options.showMainWindow());
     this.applyLocale(locale);

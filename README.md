@@ -1,11 +1,11 @@
-<h1 align="center">UnTypo</h1>
+<h1 align="center"><img src="assets/untypo-icon.png" alt="UnTypo logo" width="40" height="40" /> UnTypo</h1>
 
 <p align="center">
   按住快捷键说话，松开后，文字回到你刚才正在输入的地方
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-0.1.2%20early-f4f4f5?style=flat-square&labelColor=18181b" alt="0.1.2 early">
+  <img src="https://img.shields.io/badge/status-0.1.3%20early-f4f4f5?style=flat-square&labelColor=18181b" alt="0.1.3 early">
   <img src="https://img.shields.io/badge/platform-Windows%20x64-f4f4f5?style=flat-square&labelColor=18181b" alt="Windows x64">
   <img src="https://img.shields.io/badge/desktop-Electron%20%2B%20TypeScript-f4f4f5?style=flat-square&labelColor=18181b" alt="Electron and TypeScript">
 </p>

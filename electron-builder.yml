@@ -9,6 +9,7 @@ electronLanguages:
   - en-US
   - zh-CN
 directories:
+  buildResources: assets
   output: release
 publish:
   provider: github
@@ -19,10 +20,13 @@ files:
   - dist/**/*
   - package.json
 extraResources:
+  - from: assets/untypo-icon.ico
+    to: untypo-icon.ico
   - from: build/Release/untypo_native_helper.exe
     to: bin/untypo_native_helper.exe
 win:
   executableName: UnTypo
+  icon: untypo-icon.ico
   target:
     - target: nsis
       arch:

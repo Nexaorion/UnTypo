@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">UnTypo icon</title>
+  <desc id="desc">Five black rounded waveform bars on a white rounded square with a red recording dot at bottom right.</desc>
+
+  <rect width="1024" height="1024" rx="224" fill="#ffffff"/>
+  <g fill="#171717">
+    <rect x="200" y="416" width="92" height="192" rx="46"/>
+    <rect x="316" y="320" width="104" height="384" rx="52"/>
+    <rect x="444" y="212" width="136" height="600" rx="68"/>
+    <rect x="604" y="320" width="104" height="384" rx="52"/>
+    <rect x="732" y="416" width="92" height="192" rx="46"/>
+  </g>
+  <circle cx="818" cy="818" r="54" fill="#ef4444"/>
+</svg>
