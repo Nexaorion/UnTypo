@@ -1,6 +1,6 @@
 {
   "name": "untypo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Open-source AI dictation client for Windows",
   "author": "UnTypo contributors",
@@ -56,6 +56,7 @@
     "@lobehub/icons-static-svg": "1.94.0",
     "@mui/icons-material": "9.3.1",
     "@mui/material": "9.3.1",
-    "better-sqlite3": "13.0.3"
+    "better-sqlite3": "13.0.3",
+    "electron-updater": "^6.8.9"
   }
 }

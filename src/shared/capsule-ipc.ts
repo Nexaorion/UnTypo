@@ -7,6 +7,9 @@ export const CAPSULE_CHANNELS = {
   close: 'capsule:close',
   confirm: 'capsule:confirm',
   copy: 'capsule:copy',
+  dictionaryAccept: 'capsule:dictionary-accept',
+  dictionaryFocus: 'capsule:dictionary-focus',
+  dictionaryReject: 'capsule:dictionary-reject',
   ready: 'capsule:ready',
   reject: 'capsule:reject',
   setInteractive: 'capsule:set-interactive',
@@ -20,6 +23,9 @@ export type CapsuleErrorReason =
   | 'no-speech'
   | 'provider'
   | 'unknown';
+
+export type DictionarySuggestionError =
+  'duplicate' | 'empty' | 'full' | 'too-long' | 'unavailable';
 
 export type CapsuleStatus =
   | {
@@ -46,6 +52,13 @@ export type CapsuleStatus =
       type: 'success';
     }
   | {
+      error?: DictionarySuggestionError;
+      locale: SupportedLanguage;
+      submitting?: boolean;
+      term: string;
+      type: 'dictionary-suggestion';
+    }
+  | {
       detail?: string;
       locale: SupportedLanguage;
       reason: CapsuleErrorReason;
@@ -56,6 +69,9 @@ export interface CapsuleApi {
   close: () => void;
   confirm: () => void;
   copy: () => void;
+  dictionaryAccept: (term: string) => void;
+  dictionaryFocus: () => void;
+  dictionaryReject: () => void;
   onUpdate: (listener: (status: CapsuleStatus) => void) => () => void;
   ready: () => void;
   reject: () => void;

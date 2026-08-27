@@ -1,4 +1,6 @@
-export const PROVIDER_CONTRACT_VERSION = '2.0' as const;
+import type { DictionaryCandidate } from '../../shared/dictionary.js';
+
+export const PROVIDER_CONTRACT_VERSION = '3.0' as const;
 
 export type ProviderContractVersion = typeof PROVIDER_CONTRACT_VERSION;
 export type DictationIntent = 'transcription' | 'translation' | 'instruction';
@@ -48,11 +50,16 @@ export interface TranscribeOptions {
   signal?: AbortSignal;
 }
 
-export interface IntentContext {
+export interface TextProcessContext {
   defaultTargetLanguage: SupportedLanguage;
   dictionary: readonly string[];
+  dictionaryLearningEnabled?: boolean;
+  explicitTargetLanguage?: SupportedLanguage;
+  forcedIntent?: DictationIntent;
   locale: SupportedLanguage;
+  profile?: UserProfileContext;
   signal?: AbortSignal;
+  tone?: string;
   windowContext?: WindowContext;
 }
 
@@ -62,34 +69,19 @@ export interface WindowContext {
   windowHandle: string;
 }
 
-export interface IntentClassificationResult {
-  explicitTargetLanguage?: SupportedLanguage;
+export interface TextProcessResult {
+  dictionaryCandidates?: readonly DictionaryCandidate[];
   intent: DictationIntent;
-}
-
-export interface TranslationContext {
-  signal?: AbortSignal;
-  targetLanguage: SupportedLanguage;
-}
-
-export interface GenerationContext {
-  dictionary: readonly string[];
-  locale: SupportedLanguage;
-  profile?: UserProfileContext;
-  signal?: AbortSignal;
-}
-
-export interface PolishContext {
-  dictionary: readonly string[];
-  locale: SupportedLanguage;
-  signal?: AbortSignal;
-  tone?: string;
+  outputText: string;
 }
 
 export interface ProcessOptions {
   defaultTargetLanguage: SupportedLanguage;
   dictionary: readonly string[];
+  dictionaryLearningEnabled?: boolean;
   explicitTargetLanguage?: SupportedLanguage;
+  fastMode?: boolean;
+  forcedIntent?: DictationIntent;
   language: SupportedLanguage;
   preferIntegratedProcess?: boolean;
   profile?: UserProfileContext;
@@ -99,6 +91,7 @@ export interface ProcessOptions {
 }
 
 export interface ProcessResult {
+  dictionaryCandidates?: readonly DictionaryCandidate[];
   intent: DictationIntent;
   outputText: string;
   rawTranscript?: string;
@@ -123,22 +116,12 @@ export interface SpeechRecognitionProvider extends ProviderIdentity {
 }
 
 export interface TextGenerationProvider extends ProviderIdentity {
-  classifyIntent?: (
+  processTranscript: (
     text: string,
-    context: IntentContext,
-  ) => Promise<DictationIntent | IntentClassificationResult>;
-  generateFromInstruction?: (
-    instructionText: string,
-    context: GenerationContext,
-  ) => Promise<string>;
-  polish?: (text: string, context: PolishContext) => Promise<string>;
-  translate?: (text: string, context: TranslationContext) => Promise<string>;
+    context: TextProcessContext,
+  ) => Promise<TextProcessResult>;
 }
 
-/**
- * Compatibility contract for providers that still implement both roles.
- * New runtime code should register speech and text providers independently.
- */
 export interface DictationProvider
   extends SpeechRecognitionProvider, TextGenerationProvider {
   process?: (
@@ -166,13 +149,6 @@ export class ProviderContractError extends Error {
 }
 
 const providerIdPattern = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
-
-const textCapabilityMethods = [
-  ['intentDetection', 'classifyIntent'],
-  ['instructionGeneration', 'generateFromInstruction'],
-  ['textPolish', 'polish'],
-  ['translation', 'translate'],
-] as const;
 
 const assertProviderIdentity = (provider: ProviderIdentity): void => {
   if (provider.contractVersion !== PROVIDER_CONTRACT_VERSION) {
@@ -219,13 +195,11 @@ export const assertTextProviderContract = (
   provider: TextGenerationProvider,
 ): void => {
   assertProviderIdentity(provider);
-  for (const [capability, method] of textCapabilityMethods) {
-    if (provider.capabilities[capability] && !provider[method]) {
-      throw new ProviderContractError(
-        'INVALID_PROVIDER',
-        `Text provider ${provider.id} declares ${capability} without ${method}`,
-      );
-    }
+  if (typeof provider.processTranscript !== 'function') {
+    throw new ProviderContractError(
+      'INVALID_PROVIDER',
+      `Text provider ${provider.id} must implement processTranscript`,
+    );
   }
 };
 

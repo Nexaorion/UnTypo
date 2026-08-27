@@ -3,6 +3,7 @@ import type {
   SupportedLanguage,
   UserProfileContext,
 } from '../core/providers/contracts.js';
+import type { DictionaryEntry } from './dictionary.js';
 import type {
   ClientDiagnosticExportRequest,
   ClientDiagnosticExportResult,
@@ -11,9 +12,12 @@ import type {
 } from './diagnostics.js';
 
 export const IPC_CHANNELS = {
+  addDictionaryEntry: 'client:add-dictionary-entry',
   acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
+  checkForUpdates: 'client:check-for-updates',
   clearHistory: 'client:clear-history',
   copyText: 'client:copy-text',
+  downloadUpdate: 'client:download-update',
   exportDiagnostics: 'client:export-diagnostics',
   getDiagnostics: 'client:get-diagnostics',
   getSnapshot: 'client:get-snapshot',
@@ -23,9 +27,13 @@ export const IPC_CHANNELS = {
   ping: 'app:ping',
   reportRendererIssue: 'client:report-renderer-issue',
   removeProvider: 'client:remove-provider',
-  setDictionary: 'client:set-dictionary',
+  removeDictionaryEntry: 'client:remove-dictionary-entry',
+  setDictionaryLearningEnabled: 'client:set-dictionary-learning-enabled',
   setProfile: 'client:set-profile',
+  snapshotChanged: 'client:snapshot-changed',
   testProvider: 'client:test-provider',
+  installUpdate: 'client:install-update',
+  updateChanged: 'client:update-changed',
   updateSettings: 'client:update-settings',
   upsertProvider: 'client:upsert-provider',
 } as const;
@@ -74,6 +82,7 @@ export interface ClientSettingsSnapshot {
     activeSpeechProviderProfileId?: string;
     activeTextProviderProfileId?: string;
     defaultTargetLanguage: SupportedLanguage;
+    fastMode?: boolean;
     hotkeyAccelerator: string;
     language: SupportedLanguage;
     microphoneDeviceId?: string;
@@ -86,6 +95,10 @@ export interface ClientSettingsSnapshot {
     enabled: boolean;
     retentionDays: number;
   };
+  updates: {
+    autoCheck: boolean;
+    autoDownload: boolean;
+  };
 }
 
 export interface ClientSettingsUpdate {
@@ -93,6 +106,7 @@ export interface ClientSettingsUpdate {
     activeSpeechProviderProfileId?: string | null;
     activeTextProviderProfileId?: string | null;
     defaultTargetLanguage?: SupportedLanguage;
+    fastMode?: boolean;
     hotkeyAccelerator?: string;
     language?: SupportedLanguage;
     microphoneDeviceId?: string | null;
@@ -105,13 +119,41 @@ export interface ClientSettingsUpdate {
     enabled?: boolean;
     retentionDays?: number;
   };
+  updates?: {
+    autoCheck?: boolean;
+    autoDownload?: boolean;
+  };
+}
+
+export type ClientUpdateStatus =
+  | 'available'
+  | 'checking'
+  | 'disabled'
+  | 'downloaded'
+  | 'downloading'
+  | 'error'
+  | 'idle'
+  | 'up-to-date';
+
+export interface ClientUpdateSnapshot {
+  availableVersion?: string;
+  currentVersion: string;
+  errorMessage?: string;
+  lastCheckedAt?: number;
+  progressPercent?: number;
+  status: ClientUpdateStatus;
+  supported: boolean;
 }
 
 export interface ClientSnapshot {
-  dictionary: readonly string[];
+  dictionary: readonly DictionaryEntry[];
+  dictionaryLearning: {
+    enabled: boolean;
+  };
   profile?: UserProfileContext;
   providers: readonly ClientProviderSummary[];
   settings: ClientSettingsSnapshot;
+  update: ClientUpdateSnapshot;
 }
 
 export interface ClientHistoryRecord {
@@ -152,11 +194,14 @@ export interface PingResponse {
 }
 
 export interface UntypoApi {
+  addDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   acknowledgeDiagnostics: (
     issueIds: readonly string[],
   ) => Promise<ClientDiagnosticSnapshot>;
   clearHistory: () => Promise<number>;
+  checkForUpdates: () => Promise<ClientUpdateSnapshot>;
   copyText: (text: string) => Promise<void>;
+  downloadUpdate: () => Promise<ClientUpdateSnapshot>;
   exportDiagnostics: (
     request: ClientDiagnosticExportRequest,
   ) => Promise<ClientDiagnosticExportResult>;
@@ -168,12 +213,20 @@ export interface UntypoApi {
   ) => Promise<readonly ClientHistoryRecord[]>;
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   onDiagnosticsChanged: (listener: () => void) => () => void;
+  onSnapshotChanged: (
+    listener: (snapshot: ClientSnapshot) => void,
+  ) => () => void;
+  onUpdateChanged: (
+    listener: (update: ClientUpdateSnapshot) => void,
+  ) => () => void;
   ping: () => Promise<PingResponse>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
+  removeDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => Promise<void>;
-  setDictionary: (entries: readonly string[]) => Promise<ClientSnapshot>;
+  setDictionaryLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
+  installUpdate: () => Promise<void>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<ClientSnapshot>;
   upsertProvider: (profile: ClientProviderInput) => Promise<ClientSnapshot>;
 }

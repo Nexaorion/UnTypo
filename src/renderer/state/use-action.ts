@@ -9,7 +9,6 @@ interface ActionOptions {
   successMessage?: string;
 }
 
-/** Serialises one mutation at a time and surfaces failures as a toast. */
 export const useAction = () => {
   const { t } = useI18n();
   const notify = useToast();

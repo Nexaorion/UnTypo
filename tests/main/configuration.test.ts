@@ -24,7 +24,8 @@ afterEach(async () => {
 describe('ConfigurationService', () => {
   it('returns the bilingual Windows defaults before the first write', async () => {
     await expect(service.load()).resolves.toMatchObject({
-      version: 2,
+      version: 3,
+      dictionaryLearning: { enabled: true },
       general: { locale: 'zh-CN' },
       dictation: {
         defaultTargetLanguage: 'en-US',
@@ -32,7 +33,61 @@ describe('ConfigurationService', () => {
         language: 'zh-CN',
       },
       history: { enabled: true, retentionDays: 30 },
+      updates: { autoCheck: true, autoDownload: true },
     });
+  });
+
+  it('adds update defaults to an existing v2 configuration', async () => {
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 2,
+        general: { launchAtLogin: false, locale: 'zh-CN' },
+        dictation: {
+          defaultTargetLanguage: 'en-US',
+          hotkeyAccelerator: 'Ctrl+Alt+Space',
+          language: 'zh-CN',
+        },
+        dictionary: ['UnTypo'],
+        history: { enabled: true, retentionDays: 30 },
+        providers: [],
+      }),
+      'utf8',
+    );
+
+    await expect(service.load()).resolves.toMatchObject({
+      dictionary: [{ source: 'manual', term: 'UnTypo' }],
+      dictionaryLearning: { enabled: true },
+      version: 3,
+      updates: { autoCheck: true, autoDownload: true },
+    });
+    await expect(readFile(configPath, 'utf8')).resolves.toContain(
+      '"autoDownload": true',
+    );
+    await expect(readFile(configPath, 'utf8')).resolves.toContain(
+      '"version": 3',
+    );
+  });
+
+  it('rejects migrated terms that exceed the limit after normalization', async () => {
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 2,
+        general: { launchAtLogin: false, locale: 'zh-CN' },
+        dictation: {
+          defaultTargetLanguage: 'en-US',
+          hotkeyAccelerator: 'Ctrl+Alt+Space',
+          language: 'zh-CN',
+        },
+        dictionary: ['ﬃ'.repeat(50)],
+        history: { enabled: true, retentionDays: 30 },
+        providers: [],
+      }),
+      'utf8',
+    );
+
+    await expect(service.load()).rejects.toThrow('Invalid dictionary');
   });
 
   it('migrates the legacy 1Password-conflicting default hotkey', async () => {
@@ -95,16 +150,18 @@ describe('ConfigurationService', () => {
   });
 
   it('normalizes the global dictionary', async () => {
-    const config = await service.setDictionary([
-      ' UnTypo ',
-      'Nexaorion',
-      'UnTypo',
-      '',
-    ]);
+    await service.addDictionaryEntry(' UnTypo ');
+    const config = await service.addDictionaryEntry('Nexaorion');
 
-    expect(config.dictionary).toEqual(['UnTypo', 'Nexaorion']);
+    expect(config.dictionary).toEqual([
+      { source: 'manual', term: 'UnTypo' },
+      { source: 'manual', term: 'Nexaorion' },
+    ]);
     await expect(service.load()).resolves.toMatchObject({
-      dictionary: ['UnTypo', 'Nexaorion'],
+      dictionary: [
+        { source: 'manual', term: 'UnTypo' },
+        { source: 'manual', term: 'Nexaorion' },
+      ],
     });
   });
 
@@ -364,7 +421,7 @@ describe('ConfigurationService', () => {
     const migrated = await service.load();
     const speech = migrated.providers.find(({ kind }) => kind === 'speech');
     const text = migrated.providers.find(({ kind }) => kind === 'text');
-    expect(migrated.version).toBe(2);
+    expect(migrated.version).toBe(3);
     expect(speech).toMatchObject({
       id: longId,
       providerId: 'openai-compatible-speech',
@@ -398,7 +455,7 @@ describe('ConfigurationService', () => {
     const persisted = JSON.parse(await readFile(configPath, 'utf8')) as {
       version: number;
     };
-    expect(persisted.version).toBe(2);
+    expect(persisted.version).toBe(3);
   });
 
   it('activates the first migrated pair when v1 had no explicit active profile', async () => {
@@ -486,7 +543,7 @@ describe('ConfigurationService', () => {
 
   it('serializes concurrent updates without dropping data', async () => {
     await Promise.all([
-      service.setDictionary(['UnTypo']),
+      service.addDictionaryEntry('UnTypo'),
       service.upsertProvider({
         id: 'speech-profile',
         kind: 'speech',
@@ -502,7 +559,7 @@ describe('ConfigurationService', () => {
     ]);
 
     await expect(service.load()).resolves.toMatchObject({
-      dictionary: ['UnTypo'],
+      dictionary: [{ source: 'manual', term: 'UnTypo' }],
       providers: [
         {
           id: 'speech-profile',

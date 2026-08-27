@@ -15,7 +15,15 @@ describe('AnthropicTextProvider', () => {
       Promise.resolve(
         new Response(
           JSON.stringify({
-            content: [{ text: '你好', type: 'text' }],
+            content: [
+              {
+                text: JSON.stringify({
+                  intent: 'translation',
+                  outputText: '你好',
+                }),
+                type: 'text',
+              },
+            ],
           }),
           { status: 200 },
         ),
@@ -24,8 +32,12 @@ describe('AnthropicTextProvider', () => {
     const provider = new AnthropicTextProvider(configuration, request);
 
     await expect(
-      provider.translate('hello', { targetLanguage: 'zh-CN' }),
-    ).resolves.toBe('你好');
+      provider.processTranscript('translate hello', {
+        defaultTargetLanguage: 'zh-CN',
+        dictionary: [],
+        locale: 'en-US',
+      }),
+    ).resolves.toEqual({ intent: 'translation', outputText: '你好' });
 
     const [url, init] = request.mock.calls[0] ?? [];
     expect(url).toBe('https://api.anthropic.com/v1/messages');
@@ -38,7 +50,7 @@ describe('AnthropicTextProvider', () => {
     const body = JSON.parse(init.body) as Record<string, unknown>;
     expect(body).toMatchObject({
       max_tokens: 2_048,
-      messages: [{ content: 'hello', role: 'user' }],
+      messages: [{ content: 'translate hello', role: 'user' }],
       model: 'claude-test',
     });
     expect(body).not.toHaveProperty('temperature');
@@ -57,7 +69,11 @@ describe('AnthropicTextProvider', () => {
     );
 
     await expect(
-      provider.polish('text', { dictionary: [], locale: 'en-US' }),
+      provider.processTranscript('text', {
+        defaultTargetLanguage: 'en-US',
+        dictionary: [],
+        locale: 'en-US',
+      }),
     ).rejects.toThrow('Quota spent');
   });
 });

@@ -40,7 +40,11 @@ const optionalString = (
 
 export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
   if (!isRecord(value)) throw new Error('Invalid settings update');
-  assertOnlyKeys(value, ['dictation', 'general', 'history'], 'Settings update');
+  assertOnlyKeys(
+    value,
+    ['dictation', 'general', 'history', 'updates'],
+    'Settings update',
+  );
   const result: ClientSettingsUpdate = {};
 
   if (value.general !== undefined) {
@@ -72,6 +76,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         'activeSpeechProviderProfileId',
         'activeTextProviderProfileId',
         'defaultTargetLanguage',
+        'fastMode',
         'hotkeyAccelerator',
         'language',
         'microphoneDeviceId',
@@ -106,6 +111,11 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         throw new Error('Invalid target language');
       dictation.defaultTargetLanguage = value.dictation.defaultTargetLanguage;
     }
+    if (value.dictation.fastMode !== undefined) {
+      if (typeof value.dictation.fastMode !== 'boolean')
+        throw new Error('Invalid fast mode setting');
+      dictation.fastMode = value.dictation.fastMode;
+    }
     if (value.dictation.hotkeyAccelerator !== undefined) {
       if (
         typeof value.dictation.hotkeyAccelerator !== 'string' ||
@@ -115,6 +125,11 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         throw new Error('Invalid hotkey accelerator');
       }
       dictation.hotkeyAccelerator = value.dictation.hotkeyAccelerator;
+    }
+    if (value.dictation.language !== undefined) {
+      if (!isLanguage(value.dictation.language))
+        throw new Error('Invalid dictation language');
+      dictation.language = value.dictation.language;
     }
     if (value.dictation.microphoneDeviceId !== undefined) {
       if (
@@ -126,11 +141,6 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         throw new Error('Invalid microphone device');
       }
       dictation.microphoneDeviceId = value.dictation.microphoneDeviceId;
-    }
-    if (value.dictation.language !== undefined) {
-      if (!isLanguage(value.dictation.language))
-        throw new Error('Invalid dictation language');
-      dictation.language = value.dictation.language;
     }
     result.dictation = dictation;
   }
@@ -163,21 +173,44 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
     result.history = history;
   }
 
+  if (value.updates !== undefined) {
+    if (!isRecord(value.updates)) throw new Error('Invalid update settings');
+    assertOnlyKeys(
+      value.updates,
+      ['autoCheck', 'autoDownload'],
+      'Update settings',
+    );
+    const updates: NonNullable<ClientSettingsUpdate['updates']> = {};
+    if (value.updates.autoCheck !== undefined) {
+      if (typeof value.updates.autoCheck !== 'boolean') {
+        throw new Error('Invalid automatic update check setting');
+      }
+      updates.autoCheck = value.updates.autoCheck;
+    }
+    if (value.updates.autoDownload !== undefined) {
+      if (typeof value.updates.autoDownload !== 'boolean') {
+        throw new Error('Invalid automatic update download setting');
+      }
+      updates.autoDownload = value.updates.autoDownload;
+    }
+    result.updates = updates;
+  }
+
   return result;
 };
 
-export const parseDictionary = (value: unknown): readonly string[] => {
-  if (!Array.isArray(value) || value.length > 1_000) {
-    throw new Error('Invalid dictionary');
+export const parseDictionaryTerm = (value: unknown): string => {
+  if (typeof value !== 'string' || value.length > 128) {
+    throw new Error('Invalid dictionary term');
   }
-  const entries: string[] = [];
-  for (const entry of value) {
-    if (typeof entry !== 'string' || entry.length > 128) {
-      throw new Error('Invalid dictionary');
-    }
-    entries.push(entry);
+  return value;
+};
+
+export const parseDictionaryLearningEnabled = (value: unknown): boolean => {
+  if (typeof value !== 'boolean') {
+    throw new Error('Invalid dictionary learning setting');
   }
-  return entries;
+  return value;
 };
 
 export const parseProfile = (

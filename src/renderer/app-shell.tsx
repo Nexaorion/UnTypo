@@ -3,6 +3,7 @@ import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
+import SystemUpdateAltRoundedIcon from '@mui/icons-material/SystemUpdateAltRounded';
 import Box from '@mui/material/Box';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
@@ -12,6 +13,7 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { useI18n } from './i18n/context.js';
 import type { SettingsTab } from './sections/settings-dialog.js';
+import type { ClientUpdateSnapshot } from '../shared/ipc.js';
 import { themeAlpha, themePalette } from './theme.js';
 
 export type AppPage = 'dictionary' | 'history' | 'home';
@@ -135,15 +137,19 @@ const UtilityNavigationItem = ({
 
 export const AppShell = ({
   children,
+  onOpenUpdate,
   onOpenSettings,
   onSelect,
   page,
+  update,
   version,
 }: {
   children: ReactNode;
+  onOpenUpdate: () => void;
   onOpenSettings: (tab: SettingsTab) => void;
   onSelect: (page: AppPage) => void;
   page: AppPage;
+  update?: ClientUpdateSnapshot;
   version?: string;
 }) => {
   const { t } = useI18n();
@@ -262,6 +268,48 @@ export const AppShell = ({
         </Stack>
 
         <Stack sx={{ gap: 0.75, mt: 'auto' }}>
+          {update?.availableVersion &&
+          ['available', 'downloaded', 'downloading'].includes(update.status) ? (
+            <ListItemButton
+              aria-label={t('update.sidebarTitle')}
+              data-testid="update-open"
+              onClick={onOpenUpdate}
+              sx={(currentTheme) => ({
+                alignItems: 'center',
+                backgroundColor: themeAlpha(
+                  themePalette(currentTheme).primary.main,
+                  0.07,
+                ),
+                gap: 1.25,
+                mb: 1,
+                minHeight: 58,
+                px: 1.5,
+                '&:hover': {
+                  backgroundColor: themeAlpha(
+                    themePalette(currentTheme).primary.main,
+                    0.12,
+                  ),
+                },
+                '@media (max-width: 700px)': {
+                  justifyContent: 'center',
+                  minHeight: 46,
+                  px: 0,
+                },
+              })}
+            >
+              <SystemUpdateAltRoundedIcon fontSize="small" />
+              <Stack sx={{ '@media (max-width: 700px)': { display: 'none' } }}>
+                <Typography sx={{ fontSize: 12.5, fontWeight: 700 }}>
+                  {t('update.sidebarTitle')}
+                </Typography>
+                <Typography color="text.secondary" sx={{ fontSize: 11.5 }}>
+                  {t('update.sidebarDescription', {
+                    version: update.availableVersion,
+                  })}
+                </Typography>
+              </Stack>
+            </ListItemButton>
+          ) : null}
           {utilityItems.map((item) => (
             <UtilityNavigationItem
               icon={item.icon}

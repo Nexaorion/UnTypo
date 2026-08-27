@@ -31,17 +31,22 @@ import {
 } from '../../src/main/ipc/client-controller';
 
 const createBackend = (): ClientBackendPort => ({
+  addDictionaryEntry: vi.fn(),
   acknowledgeDiagnostics: vi.fn(),
+  checkForUpdates: vi.fn(),
   clearHistory: vi.fn(),
+  downloadUpdate: vi.fn(),
   exportDiagnostics: vi.fn(),
   getClientSnapshot: vi.fn(() => Promise.resolve({} as ClientSnapshot)),
   getDiagnostics: vi.fn(),
   getUsageStats: vi.fn(),
+  installUpdate: vi.fn(),
   listHistory: vi.fn(),
   listMicrophones: vi.fn(),
   removeProvider: vi.fn(),
+  removeDictionaryEntry: vi.fn(),
   reportRendererIssue: vi.fn(),
-  setDictionary: vi.fn(),
+  setDictionaryLearningEnabled: vi.fn(),
   setProfile: vi.fn(),
   testProvider: vi.fn(),
   updateSettings: vi.fn(),
@@ -67,6 +72,26 @@ describe('ClientIpcController', () => {
     expect(electronMocks.clipboard.writeText).toHaveBeenCalledWith(
       'Copied history record',
     );
+    controller.destroy();
+  });
+
+  it('routes atomic dictionary operations through trusted IPC handlers', () => {
+    const backend = createBackend();
+    const controller = new ClientIpcController(backend);
+
+    electronMocks.handlers.get(IPC_CHANNELS.addDictionaryEntry)?.({}, 'UnTypo');
+    electronMocks.handlers.get(IPC_CHANNELS.removeDictionaryEntry)?.(
+      {},
+      'UnTypo',
+    );
+    electronMocks.handlers.get(IPC_CHANNELS.setDictionaryLearningEnabled)?.(
+      {},
+      false,
+    );
+
+    expect(backend.addDictionaryEntry).toHaveBeenCalledWith('UnTypo');
+    expect(backend.removeDictionaryEntry).toHaveBeenCalledWith('UnTypo');
+    expect(backend.setDictionaryLearningEnabled).toHaveBeenCalledWith(false);
     controller.destroy();
   });
 });

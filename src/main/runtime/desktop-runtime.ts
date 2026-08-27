@@ -40,12 +40,16 @@ import type {
   ClientProviderInput,
   ClientSettingsUpdate,
   ClientSnapshot,
+  ClientUpdateSnapshot,
   ClientUsageStats,
 } from '../../shared/ipc.js';
+import type { DictionaryCandidate } from '../../shared/dictionary.js';
+import type { DictionarySuggestionError } from '../../shared/capsule-ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
 import type { DiagnosticCollector } from '../diagnostics/collector.js';
 import { ClipboardInjectionService } from '../dictation/clipboard.js';
 import { DictationCoordinator } from '../dictation/coordinator.js';
+import { DictionaryLearningService } from '../dictionary/learning.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
 import {
   NativeHelperClient,
@@ -54,13 +58,19 @@ import {
 import { parseHotkeyAccelerator } from '../native/hotkey.js';
 import { NativeHotkeyAction } from '../native/protocol.js';
 import { RecorderWindowController } from '../recording/recorder-window.js';
-import { ConfigurationService } from '../storage/configuration.js';
+import {
+  ConfigurationService,
+  DictionaryEntryError,
+} from '../storage/configuration.js';
 import type { ProviderProfile } from '../storage/configuration.js';
 import { ElectronSecretProtector } from '../storage/electron-secret-protector.js';
 import { HistoryRepository, HistoryService } from '../storage/history.js';
+import { ApplicationUpdateService } from '../update/application-update-service.js';
 
 export interface DesktopRuntimeOptions {
   diagnostics: DiagnosticCollector;
+  onSnapshotChanged: (snapshot: ClientSnapshot) => void;
+  onUpdateChanged: (snapshot: ClientUpdateSnapshot) => void;
   showMainWindow: () => void | Promise<void>;
 }
 
@@ -180,6 +190,7 @@ const resolveNativeHelperPath = (): string =>
 export class DesktopRuntime {
   readonly #capsule = new CapsuleWindowController();
   readonly #configuration: ConfigurationService;
+  readonly #dictionaryLearning: DictionaryLearningService;
   readonly #diagnostics: DiagnosticCollector;
   readonly #historyRepository: HistoryRepository;
   readonly #history: HistoryService;
@@ -190,6 +201,7 @@ export class DesktopRuntime {
   );
   readonly #speechProviders = new SpeechProviderRegistry();
   readonly #textProviders = new TextProviderRegistry();
+  readonly #updates: ApplicationUpdateService;
   #coordinator?: DictationCoordinator;
   #hotkeyQueue: Promise<void> = Promise.resolve();
   #locale: 'en-US' | 'zh-CN' = 'en-US';
@@ -207,10 +219,17 @@ export class DesktopRuntime {
       path.join(userDataPath, 'config.json'),
       new ElectronSecretProtector(),
     );
+    this.#dictionaryLearning = new DictionaryLearningService(
+      this.#configuration,
+    );
     this.#historyRepository = new HistoryRepository(
       path.join(userDataPath, 'history.sqlite3'),
     );
     this.#history = new HistoryService(this.#historyRepository);
+    this.#updates = new ApplicationUpdateService({
+      diagnostics: this.#diagnostics,
+      onChanged: options.onUpdateChanged,
+    });
   }
 
   async start(): Promise<void> {
@@ -223,6 +242,13 @@ export class DesktopRuntime {
     await this.activateConfiguredProviders(config);
     this.#coordinator = new DictationCoordinator({
       diagnostics: this.#diagnostics,
+      dictionaryLearning: {
+        handleCandidates: (candidates, successPresentationGeneration) =>
+          this.handleDictionaryCandidates(
+            candidates,
+            successPresentationGeneration,
+          ),
+      },
       getContext: async () => {
         const current = await this.#configuration.load();
         const speechProviderId = this.#speechProviderId;
@@ -234,13 +260,22 @@ export class DesktopRuntime {
         );
         return {
           history: current.history,
+          ...(current.dictation.fastMode !== undefined
+            ? { fastMode: current.dictation.fastMode }
+            : {}),
           modelName: activeSpeechProfile?.values.model ?? speechProviderId,
           ...(current.dictation.microphoneDeviceId
             ? { microphoneDeviceId: current.dictation.microphoneDeviceId }
             : {}),
           options: {
             defaultTargetLanguage: current.dictation.defaultTargetLanguage,
-            dictionary: current.dictionary,
+            dictionary: current.dictionary.map(({ term }) => term),
+            dictionaryLearningEnabled:
+              current.dictionaryLearning.enabled &&
+              this.#textProviderId !== undefined,
+            ...(current.dictation.fastMode !== undefined
+              ? { fastMode: current.dictation.fastMode }
+              : {}),
             language: current.dictation.language,
             preferIntegratedProcess: false,
             profile: await this.#configuration.getProfile(),
@@ -305,9 +340,11 @@ export class DesktopRuntime {
       });
       app.setLoginItemSettings({ openAtLogin: config.general.launchAtLogin });
       this.createTray(config.general.locale);
+      this.#updates.start(config.updates);
       this.#started = true;
       this.#diagnostics.log({
         context: {
+          fastModeEnabled: config.dictation.fastMode === true,
           speechProviderConfigured: this.#speechProviderId !== undefined,
           textProviderConfigured: this.#textProviderId !== undefined,
         },
@@ -329,11 +366,12 @@ export class DesktopRuntime {
   }
 
   async smokeTest(): Promise<boolean> {
-    const [recorderReady] = await Promise.all([
+    const [recorderReady, , dictionaryCapsuleReady] = await Promise.all([
       this.#recorder.smokeTest(),
       this.#native.ping(),
+      this.#capsule.smokeTestDictionarySuggestion(),
     ]);
-    return recorderReady;
+    return recorderReady && dictionaryCapsuleReady;
   }
 
   async getClientSnapshot(): Promise<ClientSnapshot> {
@@ -343,6 +381,7 @@ export class DesktopRuntime {
     ]);
     return {
       dictionary: config.dictionary,
+      dictionaryLearning: { enabled: config.dictionaryLearning.enabled },
       ...(profile ? { profile } : {}),
       providers: config.providers.map((provider) => ({
         configuredSecretKeys: Object.keys(provider.secrets),
@@ -366,6 +405,9 @@ export class DesktopRuntime {
               }
             : {}),
           defaultTargetLanguage: config.dictation.defaultTargetLanguage,
+          ...(config.dictation.fastMode !== undefined
+            ? { fastMode: config.dictation.fastMode }
+            : {}),
           hotkeyAccelerator: config.dictation.hotkeyAccelerator,
           language: config.dictation.language,
           ...(config.dictation.microphoneDeviceId
@@ -374,7 +416,9 @@ export class DesktopRuntime {
         },
         general: config.general,
         history: config.history,
+        updates: config.updates,
       },
+      update: this.#updates.snapshot(),
     };
   }
 
@@ -455,6 +499,7 @@ export class DesktopRuntime {
           dictation,
           general: { ...config.general, ...update.general },
           history: { ...config.history, ...update.history },
+          updates: { ...config.updates, ...update.updates },
         };
       });
     } catch (error) {
@@ -479,6 +524,7 @@ export class DesktopRuntime {
     }
     app.setLoginItemSettings({ openAtLogin: next.general.launchAtLogin });
     this.applyLocale(next.general.locale);
+    this.#updates.configure(next.updates);
     await this.activateConfiguredProviders(next);
     this.#diagnostics.log({
       context: {
@@ -486,6 +532,7 @@ export class DesktopRuntime {
         dictationFields: Object.keys(update.dictation ?? {}),
         generalFields: Object.keys(update.general ?? {}),
         historyFields: Object.keys(update.history ?? {}),
+        updateFields: Object.keys(update.updates ?? {}),
       },
       message: 'Application settings updated',
       scope: 'client.settings',
@@ -493,8 +540,29 @@ export class DesktopRuntime {
     return this.getClientSnapshot();
   }
 
-  async setDictionary(entries: readonly string[]): Promise<ClientSnapshot> {
-    await this.#configuration.setDictionary(entries);
+  async addDictionaryEntry(term: string): Promise<ClientSnapshot> {
+    await this.#configuration.addDictionaryEntry(term, 'manual');
+    try {
+      await this.#dictionaryLearning.forgetTerm(term);
+    } catch (error) {
+      this.#diagnostics.recordIssue({
+        error,
+        kind: 'internal',
+        source: 'dictionary.learning-cleanup',
+      });
+    }
+    return this.getClientSnapshot();
+  }
+
+  async removeDictionaryEntry(term: string): Promise<ClientSnapshot> {
+    await this.#configuration.removeDictionaryEntry(term);
+    return this.getClientSnapshot();
+  }
+
+  async setDictionaryLearningEnabled(
+    enabled: boolean,
+  ): Promise<ClientSnapshot> {
+    await this.#configuration.setDictionaryLearningEnabled(enabled);
     return this.getClientSnapshot();
   }
 
@@ -594,12 +662,10 @@ export class DesktopRuntime {
           profile,
           this.providerFetch(profile),
         );
-        if (!provider.classifyIntent) {
-          throw new Error('Text provider cannot classify intent');
-        }
-        await provider.classifyIntent('Transcribe this connection test.', {
+        await provider.processTranscript('Transcribe this connection test.', {
           defaultTargetLanguage: 'en-US',
           dictionary: [],
+          forcedIntent: 'transcription',
           locale: 'en-US',
         });
       } else {
@@ -683,6 +749,27 @@ export class DesktopRuntime {
     return this.#historyRepository.clear();
   }
 
+  checkForUpdates(): Promise<ClientUpdateSnapshot> {
+    return this.#updates.checkForUpdates();
+  }
+
+  downloadUpdate(): Promise<ClientUpdateSnapshot> {
+    return this.#updates.downloadUpdate();
+  }
+
+  isUpdateReady(): boolean {
+    return this.#updates.isReadyToInstall();
+  }
+
+  quitAndInstallUpdate(): void {
+    this.#updates.quitAndInstall();
+  }
+
+  installUpdate(): void {
+    if (!this.#updates.isReadyToInstall()) return;
+    app.quit();
+  }
+
   async stop(): Promise<void> {
     if (!this.#started) return;
     this.#started = false;
@@ -690,6 +777,7 @@ export class DesktopRuntime {
     this.#removeHotkeyListener = undefined;
     this.#tray?.destroy();
     this.#tray = undefined;
+    this.#updates.stop();
     this.#capsule.destroy();
     this.#recorder.destroy();
     await this.#native.stop();
@@ -732,6 +820,61 @@ export class DesktopRuntime {
       this.#textProviders.replace(provider);
       this.#textProviderId = provider.id;
     }
+  }
+
+  private handleDictionaryCandidates(
+    candidates: readonly DictionaryCandidate[],
+    successPresentationGeneration: number,
+  ): void {
+    void (async () => {
+      const candidate = await this.#dictionaryLearning.observe(candidates);
+      if (!candidate) return;
+      const decision = await this.#capsule.showDictionarySuggestion(
+        candidate.term,
+        this.#locale,
+        successPresentationGeneration,
+        async (acceptedTerm) => {
+          try {
+            await this.#dictionaryLearning.accept(candidate.term, acceptedTerm);
+            this.#options.onSnapshotChanged(await this.getClientSnapshot());
+            this.#diagnostics.log({
+              context: { source: 'learned' },
+              message: 'Dictionary suggestion accepted',
+              scope: 'dictionary.learning',
+            });
+            return undefined;
+          } catch (error) {
+            if (error instanceof DictionaryEntryError) {
+              const errors: Record<
+                DictionaryEntryError['code'],
+                DictionarySuggestionError
+              > = {
+                DICTIONARY_DUPLICATE: 'duplicate',
+                DICTIONARY_EMPTY: 'empty',
+                DICTIONARY_FULL: 'full',
+                DICTIONARY_TOO_LONG: 'too-long',
+              };
+              return errors[error.code];
+            }
+            throw error;
+          }
+        },
+      );
+      if (decision === 'rejected') {
+        await this.#dictionaryLearning.reject(candidate.term);
+        this.#diagnostics.log({
+          context: { cooldownDays: 30 },
+          message: 'Dictionary suggestion rejected',
+          scope: 'dictionary.learning',
+        });
+      }
+    })().catch((error: unknown) => {
+      this.#diagnostics.recordIssue({
+        error,
+        kind: 'internal',
+        source: 'dictionary.learning',
+      });
+    });
   }
 
   private dispatchHotkey(action: NativeHotkeyAction): void {

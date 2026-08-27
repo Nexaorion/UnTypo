@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   type AudioPayload,
-  type GenerationContext,
   type ProcessOptions,
   type ProviderContractError,
 } from '../../src/core/providers/contracts';
@@ -49,30 +48,32 @@ const expectRecoverableRawTranscript = async (
 };
 
 describe('DictationPipeline', () => {
-  it('prefers a spoken translation target over the configured default', async () => {
+  it('processes intent and final text in one text-model call', async () => {
     const provider = new MockDictationProvider({
       intent: 'translation',
       transcript: 'hello',
       translatedText: { 'en-US': 'Hello', 'zh-CN': '你好' },
     });
-    const translate = vi.spyOn(provider, 'translate');
+    const processTranscript = vi.spyOn(provider, 'processTranscript');
 
     const result = await new DictationPipeline(provider, provider).process(
       audio,
-      {
-        ...options,
-        explicitTargetLanguage: 'en-US',
-      },
+      { ...options, explicitTargetLanguage: 'en-US' },
     );
 
-    expect(result.outputText).toBe('Hello');
-    expect(translate).toHaveBeenCalledWith(
+    expect(result).toMatchObject({
+      intent: 'translation',
+      outputText: 'Hello',
+      rawTranscript: 'hello',
+    });
+    expect(processTranscript).toHaveBeenCalledOnce();
+    expect(processTranscript).toHaveBeenCalledWith(
       'hello',
-      expect.objectContaining({ targetLanguage: 'en-US' }),
+      expect.objectContaining({ explicitTargetLanguage: 'en-US' }),
     );
   });
 
-  it('uses the target language detected by the intent classifier', async () => {
+  it('uses a spoken translation target inside the one-pass processor', async () => {
     const provider = new MockDictationProvider({
       explicitTargetLanguage: 'en-US',
       intent: 'translation',
@@ -80,18 +81,34 @@ describe('DictationPipeline', () => {
       translatedText: { 'en-US': 'Hello', 'zh-CN': '你好' },
     });
 
-    const result = await new DictationPipeline(provider, provider).process(
-      audio,
-      options,
-    );
+    await expect(
+      new DictationPipeline(provider, provider).process(audio, options),
+    ).resolves.toMatchObject({ intent: 'translation', outputText: 'Hello' });
+  });
 
-    expect(result).toMatchObject({
-      intent: 'translation',
-      outputText: 'Hello',
+  it('returns dictionary candidates from the same text-model call when enabled', async () => {
+    const dictionaryCandidate = {
+      category: 'product' as const,
+      confidence: 0.95,
+      term: 'UnTypo',
+    };
+    const provider = new MockDictationProvider({
+      dictionaryCandidates: [dictionaryCandidate],
+      transcript: 'Use UnTypo',
+    });
+
+    await expect(
+      new DictationPipeline(provider, provider).process(audio, {
+        ...options,
+        dictionaryLearningEnabled: true,
+      }),
+    ).resolves.toMatchObject({
+      dictionaryCandidates: [dictionaryCandidate],
+      outputText: 'Use UnTypo',
     });
   });
 
-  it('fixes providers without intent detection to transcription', async () => {
+  it('forces providers without intent detection to transcription', async () => {
     const provider = new MockDictationProvider(
       {
         intent: 'instruction',
@@ -101,34 +118,51 @@ describe('DictationPipeline', () => {
       { intentDetection: false },
     );
 
-    const result = await new DictationPipeline(provider, provider).process(
-      audio,
-      options,
-    );
-
-    expect(result).toMatchObject({
+    await expect(
+      new DictationPipeline(provider, provider).process(audio, options),
+    ).resolves.toMatchObject({
       intent: 'transcription',
       outputText: 'Polished transcript',
     });
   });
 
+  it('honors a forced intent through the same processor outside fast mode', async () => {
+    const provider = new MockDictationProvider({
+      intent: 'translation',
+      polishedText: 'Plain transcript',
+      transcript: 'raw transcript',
+    });
+    const processTranscript = vi.spyOn(provider, 'processTranscript');
+
+    await expect(
+      new DictationPipeline(provider, provider).process(audio, {
+        ...options,
+        forcedIntent: 'transcription',
+      }),
+    ).resolves.toMatchObject({
+      intent: 'transcription',
+      outputText: 'Plain transcript',
+    });
+    expect(processTranscript).toHaveBeenCalledWith(
+      'raw transcript',
+      expect.objectContaining({ forcedIntent: 'transcription' }),
+    );
+  });
+
   it('does not send personal profile context to BYOK providers', async () => {
     const provider = new MockDictationProvider({
-      generatedText: 'Generated',
-      intent: 'instruction',
       transcript: 'Write something',
     });
-    const generate = vi.spyOn(provider, 'generateFromInstruction');
+    const processTranscript = vi.spyOn(provider, 'processTranscript');
 
     await new DictationPipeline(provider, provider).process(audio, {
       ...options,
       profile: { displayName: 'Private Name', signature: 'Private Signature' },
     });
 
-    const calls = generate.mock.calls as unknown as Array<
-      [string, GenerationContext]
-    >;
-    expect(calls[0]?.[1].profile).toBeUndefined();
+    expect(processTranscript).toHaveBeenCalledOnce();
+    expect(processTranscript.mock.calls[0]?.[0]).toBe('Write something');
+    expect(processTranscript.mock.calls[0]?.[1]).not.toHaveProperty('profile');
   });
 
   it('rejects empty audio before calling a provider', async () => {
@@ -170,38 +204,11 @@ describe('DictationPipeline', () => {
     });
   });
 
-  it('preserves the raw transcript when intent classification fails', async () => {
+  it('preserves the raw transcript when one-pass processing fails', async () => {
     const speech = new MockDictationProvider({ transcript: 'raw transcript' });
     const text = new MockDictationProvider();
-    const failure = new Error('classification unavailable');
-    vi.spyOn(text, 'classifyIntent').mockRejectedValueOnce(failure);
-
-    await expectRecoverableRawTranscript(
-      new DictationPipeline(speech, text).process(audio, options),
-      failure,
-    );
-  });
-
-  it('preserves the raw transcript when polishing fails', async () => {
-    const speech = new MockDictationProvider({ transcript: 'raw transcript' });
-    const text = new MockDictationProvider();
-    const failure = new Error('polishing unavailable');
-    vi.spyOn(text, 'polish').mockRejectedValueOnce(failure);
-
-    await expectRecoverableRawTranscript(
-      new DictationPipeline(speech, text).process(audio, options),
-      failure,
-    );
-  });
-
-  it('preserves the raw transcript when routed text generation fails', async () => {
-    const speech = new MockDictationProvider({ transcript: 'raw transcript' });
-    const text = new MockDictationProvider();
-    const failure = new Error('translation unavailable');
-    vi.spyOn(text, 'classifyIntent').mockResolvedValueOnce({
-      intent: 'translation',
-    });
-    vi.spyOn(text, 'translate').mockRejectedValueOnce(failure);
+    const failure = new Error('text processing unavailable');
+    vi.spyOn(text, 'processTranscript').mockRejectedValueOnce(failure);
 
     await expectRecoverableRawTranscript(
       new DictationPipeline(speech, text).process(audio, options),
@@ -229,21 +236,24 @@ describe('DictationPipeline', () => {
     ).rejects.toMatchObject({ code: 'EMPTY_RESULT' });
   });
 
-  it('keeps an empty text post-processing result hard', async () => {
+  it('keeps an empty one-pass result hard', async () => {
     const speech = new MockDictationProvider({ transcript: 'raw transcript' });
     const text = new MockDictationProvider();
-    vi.spyOn(text, 'polish').mockResolvedValueOnce('   ');
+    vi.spyOn(text, 'processTranscript').mockResolvedValueOnce({
+      intent: 'transcription',
+      outputText: '   ',
+    });
 
     await expect(
       new DictationPipeline(speech, text).process(audio, options),
     ).rejects.toMatchObject({ code: 'EMPTY_RESULT' });
   });
 
-  it('keeps an abort during text post-processing hard', async () => {
+  it('keeps an abort during text processing hard', async () => {
     const controller = new AbortController();
     const speech = new MockDictationProvider({ transcript: 'raw transcript' });
     const text = new MockDictationProvider();
-    vi.spyOn(text, 'classifyIntent').mockImplementationOnce(() => {
+    vi.spyOn(text, 'processTranscript').mockImplementationOnce(() => {
       controller.abort();
       return Promise.reject(new Error('request aborted'));
     });

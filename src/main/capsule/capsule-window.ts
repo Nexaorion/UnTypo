@@ -14,14 +14,25 @@ import {
   CAPSULE_CHANNELS,
   type CapsuleErrorReason,
   type CapsuleStatus,
+  type DictionarySuggestionError,
 } from '../../shared/capsule-ipc.js';
+import { DICTIONARY_LIMITS } from '../../shared/dictionary.js';
 
 const SUCCESS_AUTO_CLOSE_MILLISECONDS = 10_000;
 const ERROR_AUTO_CLOSE_MILLISECONDS = 8_000;
+const DICTIONARY_SUGGESTION_DELAY_MILLISECONDS = 1_500;
+
+export type DictionarySuggestionDecision =
+  'accepted' | 'dismissed' | 'rejected';
+
+type DictionarySuggestionValidator = (
+  term: string,
+) => Promise<DictionarySuggestionError | undefined>;
 
 const capsuleBounds = {
   compact: { height: 56, width: 276 },
   error: { height: 68, width: 420 },
+  suggestion: { height: 84, width: 620 },
   success: { height: 68, width: 540 },
 } as const;
 
@@ -29,24 +40,32 @@ const isTerminalStatus = (
   status: CapsuleStatus | undefined,
 ): status is Extract<
   CapsuleStatus,
-  { type: 'error' | 'success' | 'confirm' }
+  { type: 'dictionary-suggestion' | 'error' | 'success' | 'confirm' }
 > =>
   status?.type === 'error' ||
   status?.type === 'success' ||
-  status?.type === 'confirm';
+  status?.type === 'confirm' ||
+  status?.type === 'dictionary-suggestion';
 
 export class CapsuleWindowController {
   #autoCloseTimer?: NodeJS.Timeout;
   #confirmResolve?: (useProcessed: boolean) => void;
+  #dictionaryAccept?: DictionarySuggestionValidator;
+  #dictionaryResolve?: (decision: DictionarySuggestionDecision) => void;
+  #generation = 0;
   #loading?: Promise<BrowserWindow>;
   #rendererReady = false;
   #status?: CapsuleStatus;
+  #successPresentedAt = 0;
   #window?: BrowserWindow;
 
   constructor() {
     ipcMain.on(CAPSULE_CHANNELS.close, this.handleClose);
     ipcMain.on(CAPSULE_CHANNELS.confirm, this.handleConfirm);
     ipcMain.on(CAPSULE_CHANNELS.copy, this.handleCopy);
+    ipcMain.on(CAPSULE_CHANNELS.dictionaryAccept, this.handleDictionaryAccept);
+    ipcMain.on(CAPSULE_CHANNELS.dictionaryFocus, this.handleDictionaryFocus);
+    ipcMain.on(CAPSULE_CHANNELS.dictionaryReject, this.handleDictionaryReject);
     ipcMain.on(CAPSULE_CHANNELS.ready, this.handleReady);
     ipcMain.on(CAPSULE_CHANNELS.reject, this.handleReject);
     ipcMain.on(CAPSULE_CHANNELS.setInteractive, this.handleSetInteractive);
@@ -55,6 +74,64 @@ export class CapsuleWindowController {
   async showRecording(locale: SupportedLanguage): Promise<void> {
     this.close();
     await this.present({ level: 0, locale, type: 'recording' });
+  }
+
+  async smokeTestDictionarySuggestion(): Promise<boolean> {
+    const generation = await this.showSuccess(
+      { intent: 'transcription', outputText: 'UnTypo smoke result' },
+      'inserted',
+      'en-US',
+    );
+    const successWebContentsId = this.#window?.webContents.id;
+    let acceptedTerm = '';
+    const decision = this.showDictionarySuggestion(
+      'UnTypo',
+      'en-US',
+      generation,
+      (term) => {
+        acceptedTerm = term;
+        return Promise.resolve(undefined);
+      },
+    );
+    await new Promise<void>((resolve) =>
+      setTimeout(resolve, DICTIONARY_SUGGESTION_DELAY_MILLISECONDS + 100),
+    );
+    const suggestionWindow = this.#window;
+    if (
+      !suggestionWindow ||
+      suggestionWindow.isDestroyed() ||
+      suggestionWindow.webContents.id === successWebContentsId
+    ) {
+      this.close();
+      return false;
+    }
+    const rendererResult = (await suggestionWindow.webContents
+      .executeJavaScript(`
+      (async () => {
+        const wait = (milliseconds) =>
+          new Promise((resolve) => setTimeout(resolve, milliseconds));
+        const capsule = document.querySelector(
+          '[data-status="dictionary-suggestion"]',
+        );
+        const buttons = [...document.querySelectorAll('button')];
+        if (!capsule || buttons.length < 3) return 'suggestion';
+        buttons[1].click();
+        await wait(80);
+        const input = document.querySelector('input[maxlength="128"]');
+        if (!(input instanceof HTMLInputElement)) return 'input';
+        if (document.activeElement !== input) return 'focus';
+        window.capsule.dictionaryAccept('UnTypo Smoke Edited');
+        return 'ok';
+      })()
+    `)) as string;
+    if (rendererResult !== 'ok') {
+      this.close();
+      return false;
+    }
+    const resolvedDecision = await decision;
+    return (
+      resolvedDecision === 'accepted' && acceptedTerm === 'UnTypo Smoke Edited'
+    );
   }
 
   async showProcessing(locale: SupportedLanguage): Promise<void> {
@@ -83,13 +160,46 @@ export class CapsuleWindowController {
     result: ProcessResult,
     delivery: 'copy' | 'inserted',
     locale: SupportedLanguage,
-  ): Promise<void> {
+  ): Promise<number> {
     await this.present({
       delivery,
       intent: result.intent,
       locale,
       outputText: result.outputText,
       type: 'success',
+    });
+    this.#successPresentedAt = Date.now();
+    return this.#generation;
+  }
+
+  async showDictionarySuggestion(
+    term: string,
+    locale: SupportedLanguage,
+    expectedSuccessGeneration: number,
+    validate: DictionarySuggestionValidator,
+  ): Promise<DictionarySuggestionDecision> {
+    const remaining = Math.max(
+      0,
+      DICTIONARY_SUGGESTION_DELAY_MILLISECONDS -
+        (Date.now() - this.#successPresentedAt),
+    );
+    if (remaining > 0) {
+      await new Promise<void>((resolve) => setTimeout(resolve, remaining));
+    }
+    if (
+      this.#generation !== expectedSuccessGeneration ||
+      this.#status?.type !== 'success'
+    ) {
+      return 'dismissed';
+    }
+
+    this.close();
+    return new Promise<DictionarySuggestionDecision>((resolve) => {
+      this.#dictionaryAccept = validate;
+      this.#dictionaryResolve = resolve;
+      void this.present({ locale, term, type: 'dictionary-suggestion' }).catch(
+        () => this.close(),
+      );
     });
   }
 
@@ -119,7 +229,10 @@ export class CapsuleWindowController {
     this.#autoCloseTimer = undefined;
     this.#rendererReady = false;
     this.#status = undefined;
+    this.#successPresentedAt = 0;
+    this.#generation += 1;
     this.resolveConfirmation(false);
+    this.resolveDictionarySuggestion('dismissed');
     this.#window?.destroy();
     this.#window = undefined;
   }
@@ -129,6 +242,18 @@ export class CapsuleWindowController {
     ipcMain.removeListener(CAPSULE_CHANNELS.close, this.handleClose);
     ipcMain.removeListener(CAPSULE_CHANNELS.confirm, this.handleConfirm);
     ipcMain.removeListener(CAPSULE_CHANNELS.copy, this.handleCopy);
+    ipcMain.removeListener(
+      CAPSULE_CHANNELS.dictionaryAccept,
+      this.handleDictionaryAccept,
+    );
+    ipcMain.removeListener(
+      CAPSULE_CHANNELS.dictionaryFocus,
+      this.handleDictionaryFocus,
+    );
+    ipcMain.removeListener(
+      CAPSULE_CHANNELS.dictionaryReject,
+      this.handleDictionaryReject,
+    );
     ipcMain.removeListener(CAPSULE_CHANNELS.ready, this.handleReady);
     ipcMain.removeListener(CAPSULE_CHANNELS.reject, this.handleReject);
     ipcMain.removeListener(
@@ -162,6 +287,84 @@ export class CapsuleWindowController {
     this.close();
   };
 
+  private readonly handleDictionaryAccept = (
+    event: IpcMainEvent,
+    value: unknown,
+  ): void => {
+    if (
+      !this.isExpectedSender(event) ||
+      this.#status?.type !== 'dictionary-suggestion' ||
+      this.#status.submitting ||
+      typeof value !== 'string'
+    ) {
+      return;
+    }
+    if (value.length > DICTIONARY_LIMITS.termLength) {
+      this.#status = {
+        ...this.#status,
+        error: 'too-long',
+        submitting: false,
+      };
+      this.sendCurrentStatus();
+      return;
+    }
+    const validate = this.#dictionaryAccept;
+    if (!validate) return;
+    const generation = this.#generation;
+    this.#status = { ...this.#status, error: undefined, submitting: true };
+    this.sendCurrentStatus();
+    void validate(value)
+      .then((error) => {
+        if (
+          this.#generation !== generation ||
+          this.#status?.type !== 'dictionary-suggestion'
+        ) {
+          return;
+        }
+        if (error) {
+          this.#status = { ...this.#status, error, submitting: false };
+          this.sendCurrentStatus();
+          return;
+        }
+        this.resolveDictionarySuggestion('accepted');
+        this.close();
+      })
+      .catch(() => {
+        if (
+          this.#generation === generation &&
+          this.#status?.type === 'dictionary-suggestion'
+        ) {
+          this.#status = {
+            ...this.#status,
+            error: 'unavailable',
+            submitting: false,
+          };
+          this.sendCurrentStatus();
+        }
+      });
+  };
+
+  private readonly handleDictionaryFocus = (event: IpcMainEvent): void => {
+    if (
+      this.isExpectedSender(event) &&
+      this.#status?.type === 'dictionary-suggestion'
+    ) {
+      this.#window?.focus();
+    }
+  };
+
+  private readonly handleDictionaryReject = (event: IpcMainEvent): void => {
+    if (
+      !this.isExpectedSender(event) ||
+      this.#status?.type !== 'dictionary-suggestion' ||
+      this.#status.submitting
+    ) {
+      return;
+    }
+    this.resolveDictionarySuggestion('rejected');
+    this.close();
+  };
+
   private readonly handleReady = (event: IpcMainEvent): void => {
     if (!this.isExpectedSender(event)) return;
     this.#rendererReady = true;
@@ -191,10 +394,23 @@ export class CapsuleWindowController {
     resolve?.(useProcessed);
   }
 
+  private resolveDictionarySuggestion(
+    decision: DictionarySuggestionDecision,
+  ): void {
+    const resolve = this.#dictionaryResolve;
+    this.#dictionaryAccept = undefined;
+    this.#dictionaryResolve = undefined;
+    resolve?.(decision);
+  }
+
   private async present(status: CapsuleStatus): Promise<void> {
     if (this.#autoCloseTimer) clearTimeout(this.#autoCloseTimer);
     this.#autoCloseTimer = undefined;
+    if (status.type !== 'dictionary-suggestion') {
+      this.resolveDictionarySuggestion('dismissed');
+    }
     this.#status = status;
+    this.#generation += 1;
 
     const window = await this.ensureWindow();
     const currentStatus = this.#status;
@@ -296,11 +512,13 @@ export class CapsuleWindowController {
     status: CapsuleStatus,
   ): void {
     const bounds =
-      status.type === 'success' || status.type === 'confirm'
-        ? capsuleBounds.success
-        : status.type === 'error'
-          ? capsuleBounds.error
-          : capsuleBounds.compact;
+      status.type === 'dictionary-suggestion'
+        ? capsuleBounds.suggestion
+        : status.type === 'success' || status.type === 'confirm'
+          ? capsuleBounds.success
+          : status.type === 'error'
+            ? capsuleBounds.error
+            : capsuleBounds.compact;
     window.setSize(bounds.width, bounds.height, false);
 
     const display = screen.getDisplayNearestPoint(

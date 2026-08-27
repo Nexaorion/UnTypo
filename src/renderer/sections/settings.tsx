@@ -34,10 +34,11 @@ export const SettingsSection = ({
   onOpenDiagnostics: () => void;
   store: ClientStore;
 }) => {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const { isPending, run } = useAction();
   const settings = store.snapshot?.settings;
   const profile = store.snapshot?.profile;
+  const update = store.snapshot?.update;
   const listMicrophones = store.listMicrophones;
   const pendingDiagnosticCount =
     store.diagnostics?.issues.filter(
@@ -195,6 +196,14 @@ export const SettingsSection = ({
         : microphones.length === 0 && !microphonesLoading
           ? t('settings.microphoneEmpty')
           : t('settings.microphoneAutoHint');
+  const lastChecked = update?.lastCheckedAt
+    ? new Intl.DateTimeFormat(locale, {
+        dateStyle: 'short',
+        timeStyle: 'short',
+      }).format(update.lastCheckedAt)
+    : update?.supported === false
+      ? t('settings.updateUnsupported')
+      : t('settings.updateNeverChecked');
 
   return (
     <Page>
@@ -274,6 +283,16 @@ export const SettingsSection = ({
             onChange={saveHotkey}
             value={hotkey}
           />
+          <SwitchField
+            checked={settings.dictation.fastMode ?? false}
+            description={t('settings.fastModeHint')}
+            label={t('settings.fastMode')}
+            onCheckedChange={(checked) =>
+              void run('fastMode', () =>
+                store.updateSettings({ dictation: { fastMode: checked } }),
+              )
+            }
+          />
           {languageSelect(
             t('settings.dictationLanguage'),
             settings.dictation.language,
@@ -314,6 +333,73 @@ export const SettingsSection = ({
               )
             }
           />
+        </Stack>
+      </Card>
+
+      <Card title={t('settings.group.updates')}>
+        <Stack sx={{ gap: 2.5 }}>
+          <SwitchField
+            checked={settings.updates.autoCheck}
+            description={t('settings.autoCheckUpdatesHint')}
+            label={t('settings.autoCheckUpdates')}
+            onCheckedChange={(checked) =>
+              void run('autoCheckUpdates', () =>
+                store.updateSettings({ updates: { autoCheck: checked } }),
+              )
+            }
+          />
+          <SwitchField
+            checked={settings.updates.autoDownload}
+            description={t('settings.autoDownloadUpdatesHint')}
+            label={t('settings.autoDownloadUpdates')}
+            onCheckedChange={(checked) =>
+              void run('autoDownloadUpdates', () =>
+                store.updateSettings({ updates: { autoDownload: checked } }),
+              )
+            }
+          />
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            sx={{
+              alignItems: { sm: 'center' },
+              borderTop: '1px solid',
+              borderTopColor: 'divider',
+              gap: 2,
+              justifyContent: 'space-between',
+              pt: 2.5,
+            }}
+          >
+            <Stack sx={{ gap: 0.35 }}>
+              <Typography sx={{ fontSize: 13.5, fontWeight: 650 }}>
+                {t('settings.currentVersion', {
+                  version:
+                    update?.currentVersion ?? store.runtime?.version ?? '—',
+                })}
+              </Typography>
+              <Typography color="text.secondary" variant="caption">
+                {t('settings.lastUpdateCheck', { time: lastChecked })}
+              </Typography>
+            </Stack>
+            <Button
+              data-testid="update-check"
+              disabled={
+                update?.supported === false ||
+                update?.status === 'checking' ||
+                update?.status === 'downloading' ||
+                update?.status === 'downloaded' ||
+                isPending('checkForUpdates')
+              }
+              onClick={() =>
+                void run('checkForUpdates', () => store.checkForUpdates())
+              }
+              startIcon={<RefreshRoundedIcon />}
+              variant="outlined"
+            >
+              {update?.status === 'checking'
+                ? t('settings.checkingForUpdates')
+                : t('settings.checkForUpdates')}
+            </Button>
+          </Stack>
         </Stack>
       </Card>
 

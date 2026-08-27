@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseClipboardText,
-  parseDictionary,
+  parseDictionaryTerm,
   parseHistoryQuery,
   parseProfile,
   parseProviderInput,
@@ -45,6 +45,7 @@ describe('client IPC validation', () => {
         },
         general: { locale: 'en-US' },
         history: { enabled: false, retentionDays: 0 },
+        updates: { autoCheck: false, autoDownload: true },
       }),
     ).toMatchObject({
       dictation: {
@@ -54,6 +55,7 @@ describe('client IPC validation', () => {
       },
       general: { locale: 'en-US' },
       history: { enabled: false, retentionDays: 0 },
+      updates: { autoCheck: false, autoDownload: true },
     });
     expect(parseHistoryQuery({ limit: 50, offset: 10 })).toEqual({
       limit: 50,
@@ -73,17 +75,25 @@ describe('client IPC validation', () => {
     expect(() => parseHistoryQuery({ limit: 501 })).toThrow(
       'Invalid history query',
     );
-    expect(() => parseDictionary(['x'.repeat(129)])).toThrow(
-      'Invalid dictionary',
+    expect(() => parseDictionaryTerm('x'.repeat(129))).toThrow(
+      'Invalid dictionary term',
     );
     expect(() =>
       parseSettingsUpdate({
         dictation: { microphoneDeviceId: 'x'.repeat(513) },
       }),
     ).toThrow('Invalid microphone device');
+    expect(() =>
+      parseSettingsUpdate({
+        dictation: { microphoneDeviceLabel: 'USB Microphone' },
+      }),
+    ).toThrow('unsupported field');
     expect(() => parseClipboardText('x'.repeat(1_000_001))).toThrow(
       'Invalid clipboard text',
     );
+    expect(() =>
+      parseSettingsUpdate({ updates: { autoCheck: 'yes' } }),
+    ).toThrow('Invalid automatic update check setting');
   });
 
   it('accepts text for the trusted clipboard bridge', () => {

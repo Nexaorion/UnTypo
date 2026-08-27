@@ -87,7 +87,6 @@ const keyLabel = (value: string): string =>
 
 export const HOTKEY_MAX_LENGTH = 128;
 
-/** Mirrors main/native/hotkey.ts so invalid input is rejected before IPC. */
 export const isValidHotkeyAccelerator = (accelerator: string): boolean => {
   if (accelerator.length === 0 || accelerator.length > HOTKEY_MAX_LENGTH) {
     return false;
@@ -193,7 +192,6 @@ export interface HotkeyCaptureEvent {
   shiftKey: boolean;
 }
 
-/** Returns undefined while only modifiers are held, so capture stays open. */
 export const acceleratorFromEvent = (
   event: HotkeyCaptureEvent,
 ): string | undefined => {
@@ -221,7 +219,6 @@ const keycapLabels: Readonly<Record<string, string>> = {
   NumpadSubtract: 'Num -',
 };
 
-/** Returns presentation-only labels; persisted accelerators remain canonical. */
 export const hotkeyKeycapLabels = (accelerator: string): readonly string[] =>
   formatHotkeyAccelerator(accelerator)
     .split('+')

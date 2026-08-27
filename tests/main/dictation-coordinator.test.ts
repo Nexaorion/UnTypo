@@ -13,6 +13,7 @@ import { NativeHotkeyAction } from '../../src/main/native/protocol';
 import type { NativeTargetSnapshot } from '../../src/main/native/protocol';
 import type { CapsuleErrorReason } from '../../src/shared/capsule-ipc';
 import type { DiagnosticIssueInput } from '../../src/main/diagnostics/collector';
+import type { DictionaryCandidate } from '../../src/shared/dictionary';
 
 const target: NativeTargetSnapshot = {
   editable: true,
@@ -30,6 +31,7 @@ const audio: AudioPayload = {
 };
 
 interface RuntimeOptions {
+  dictionaryCandidates?: readonly DictionaryCandidate[];
   injected?: boolean;
   microphoneDeviceId?: string;
   preferredAudioFormat?: ProviderAudioFormat;
@@ -40,6 +42,7 @@ interface RuntimeOptions {
 }
 
 const createCoordinator = ({
+  dictionaryCandidates,
   injected = true,
   microphoneDeviceId,
   preferredAudioFormat,
@@ -51,6 +54,7 @@ const createCoordinator = ({
   const speechProviders = new SpeechProviderRegistry();
   const textProviders = new TextProviderRegistry();
   const provider = new MockDictationProvider({
+    ...(dictionaryCandidates ? { dictionaryCandidates } : {}),
     polishedText: 'Final mock result',
     transcript,
   });
@@ -70,8 +74,10 @@ const createCoordinator = ({
   const showSuccess = vi.fn(
     (_result: unknown, delivery: 'copy' | 'inserted') => {
       events.push(`success:${delivery}`);
+      return 7;
     },
   );
+  const handleCandidates = vi.fn();
   const record = vi.fn();
   const start = vi.fn(() => Promise.resolve('recording-session'));
   const stop = vi.fn(() =>
@@ -92,6 +98,7 @@ const createCoordinator = ({
     options: {
       defaultTargetLanguage: 'en-US' as const,
       dictionary: [],
+      dictionaryLearningEnabled: true,
       language: 'en-US' as const,
       ...(signal ? { signal } : {}),
     },
@@ -110,6 +117,7 @@ const createCoordinator = ({
       recordIssue,
       runWithOperation,
     },
+    dictionaryLearning: { handleCandidates },
     getContext,
     history: { record },
     injection: { inject },
@@ -130,6 +138,7 @@ const createCoordinator = ({
     diagnosticLog,
     events,
     getContext,
+    handleCandidates,
     inject,
     provider,
     record,
@@ -152,24 +161,9 @@ type TextFailureSetup = (
 
 const textFailureCases: ReadonlyArray<readonly [string, TextFailureSetup]> = [
   [
-    'classification',
+    'one-pass processing',
     (provider, failure) => {
-      vi.spyOn(provider, 'classifyIntent').mockRejectedValueOnce(failure);
-    },
-  ],
-  [
-    'polishing',
-    (provider, failure) => {
-      vi.spyOn(provider, 'polish').mockRejectedValueOnce(failure);
-    },
-  ],
-  [
-    'routed generation',
-    (provider, failure) => {
-      vi.spyOn(provider, 'classifyIntent').mockResolvedValueOnce({
-        intent: 'translation',
-      });
-      vi.spyOn(provider, 'translate').mockRejectedValueOnce(failure);
+      vi.spyOn(provider, 'processTranscript').mockRejectedValueOnce(failure);
     },
   ],
 ];
@@ -208,6 +202,21 @@ describe('DictationCoordinator', () => {
       { enabled: true, retentionDays: 30 },
     );
     expect(runtime.coordinator.state).toBe('idle');
+  });
+
+  it('dispatches model candidates after the success capsule is visible', async () => {
+    const candidate: DictionaryCandidate = {
+      category: 'product',
+      confidence: 0.95,
+      term: 'UnTypo',
+    };
+    const runtime = createCoordinator({ dictionaryCandidates: [candidate] });
+
+    await runtime.coordinator.start();
+    await runtime.coordinator.stop();
+
+    expect(runtime.handleCandidates).toHaveBeenCalledWith([candidate], 7);
+    expect(runtime.events.at(-1)).toBe('success:inserted');
   });
 
   it('requests the speech provider preferred recording format', async () => {

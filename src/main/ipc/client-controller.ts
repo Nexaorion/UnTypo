@@ -14,6 +14,7 @@ import {
   type ClientProviderInput,
   type ClientSettingsUpdate,
   type ClientSnapshot,
+  type ClientUpdateSnapshot,
   type ClientUsageStats,
 } from '../../shared/ipc.js';
 import { assertTrustedSender } from '../security.js';
@@ -23,8 +24,9 @@ import {
   parseRendererIssue,
 } from './diagnostic-validation.js';
 import {
-  parseDictionary,
   parseClipboardText,
+  parseDictionaryLearningEnabled,
+  parseDictionaryTerm,
   parseHistoryQuery,
   parseProfile,
   parseProfileId,
@@ -33,21 +35,26 @@ import {
 } from './validation.js';
 
 export interface ClientBackendPort {
+  addDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   acknowledgeDiagnostics: (
     issueIds: readonly string[],
   ) => ClientDiagnosticSnapshot;
   clearHistory: () => number;
+  checkForUpdates: () => Promise<ClientUpdateSnapshot>;
+  downloadUpdate: () => Promise<ClientUpdateSnapshot>;
   exportDiagnostics: (
     request: ClientDiagnosticExportRequest,
   ) => Promise<ClientDiagnosticExportResult>;
   getDiagnostics: () => ClientDiagnosticSnapshot;
   getClientSnapshot: () => Promise<ClientSnapshot>;
   getUsageStats: () => ClientUsageStats;
+  installUpdate: () => void;
   listHistory: (query: ClientHistoryQuery) => readonly ClientHistoryRecord[];
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
+  removeDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => void;
-  setDictionary: (entries: readonly string[]) => Promise<ClientSnapshot>;
+  setDictionaryLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<ClientSnapshot>;
@@ -61,6 +68,7 @@ export class ClientIpcController {
 
   constructor(backend: ClientBackendPort) {
     this.#backend = backend;
+    ipcMain.handle(IPC_CHANNELS.addDictionaryEntry, this.addDictionaryEntry);
     ipcMain.handle(
       IPC_CHANNELS.acknowledgeDiagnostics,
       this.acknowledgeDiagnostics,
@@ -71,7 +79,14 @@ export class ClientIpcController {
     ipcMain.handle(IPC_CHANNELS.getUsageStats, this.getUsageStats);
     ipcMain.handle(IPC_CHANNELS.listMicrophones, this.listMicrophones);
     ipcMain.handle(IPC_CHANNELS.updateSettings, this.updateSettings);
-    ipcMain.handle(IPC_CHANNELS.setDictionary, this.setDictionary);
+    ipcMain.handle(
+      IPC_CHANNELS.removeDictionaryEntry,
+      this.removeDictionaryEntry,
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.setDictionaryLearningEnabled,
+      this.setDictionaryLearningEnabled,
+    );
     ipcMain.handle(IPC_CHANNELS.setProfile, this.setProfile);
     ipcMain.handle(IPC_CHANNELS.upsertProvider, this.upsertProvider);
     ipcMain.handle(IPC_CHANNELS.removeProvider, this.removeProvider);
@@ -79,11 +94,15 @@ export class ClientIpcController {
     ipcMain.handle(IPC_CHANNELS.testProvider, this.testProvider);
     ipcMain.handle(IPC_CHANNELS.listHistory, this.listHistory);
     ipcMain.handle(IPC_CHANNELS.clearHistory, this.clearHistory);
+    ipcMain.handle(IPC_CHANNELS.checkForUpdates, this.checkForUpdates);
     ipcMain.handle(IPC_CHANNELS.copyText, this.copyText);
+    ipcMain.handle(IPC_CHANNELS.downloadUpdate, this.downloadUpdate);
+    ipcMain.handle(IPC_CHANNELS.installUpdate, this.installUpdate);
   }
 
   destroy(): void {
     for (const channel of [
+      IPC_CHANNELS.addDictionaryEntry,
       IPC_CHANNELS.acknowledgeDiagnostics,
       IPC_CHANNELS.exportDiagnostics,
       IPC_CHANNELS.getDiagnostics,
@@ -91,7 +110,8 @@ export class ClientIpcController {
       IPC_CHANNELS.getUsageStats,
       IPC_CHANNELS.listMicrophones,
       IPC_CHANNELS.updateSettings,
-      IPC_CHANNELS.setDictionary,
+      IPC_CHANNELS.removeDictionaryEntry,
+      IPC_CHANNELS.setDictionaryLearningEnabled,
       IPC_CHANNELS.setProfile,
       IPC_CHANNELS.upsertProvider,
       IPC_CHANNELS.removeProvider,
@@ -99,11 +119,22 @@ export class ClientIpcController {
       IPC_CHANNELS.testProvider,
       IPC_CHANNELS.listHistory,
       IPC_CHANNELS.clearHistory,
+      IPC_CHANNELS.checkForUpdates,
       IPC_CHANNELS.copyText,
+      IPC_CHANNELS.downloadUpdate,
+      IPC_CHANNELS.installUpdate,
     ]) {
       ipcMain.removeHandler(channel);
     }
   }
+
+  private readonly addDictionaryEntry = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.addDictionaryEntry(parseDictionaryTerm(value));
+  };
 
   private readonly acknowledgeDiagnostics = (
     event: IpcMainInvokeEvent,
@@ -142,12 +173,22 @@ export class ClientIpcController {
     return this.#backend.updateSettings(parseSettingsUpdate(value));
   };
 
-  private readonly setDictionary = (
+  private readonly removeDictionaryEntry = (
     event: IpcMainInvokeEvent,
     value: unknown,
   ): Promise<ClientSnapshot> => {
     trust(event);
-    return this.#backend.setDictionary(parseDictionary(value));
+    return this.#backend.removeDictionaryEntry(parseDictionaryTerm(value));
+  };
+
+  private readonly setDictionaryLearningEnabled = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.setDictionaryLearningEnabled(
+      parseDictionaryLearningEnabled(value),
+    );
   };
 
   private readonly setProfile = (
@@ -193,6 +234,25 @@ export class ClientIpcController {
   private readonly clearHistory = (event: IpcMainInvokeEvent): number => {
     trust(event);
     return this.#backend.clearHistory();
+  };
+
+  private readonly checkForUpdates = (
+    event: IpcMainInvokeEvent,
+  ): Promise<ClientUpdateSnapshot> => {
+    trust(event);
+    return this.#backend.checkForUpdates();
+  };
+
+  private readonly downloadUpdate = (
+    event: IpcMainInvokeEvent,
+  ): Promise<ClientUpdateSnapshot> => {
+    trust(event);
+    return this.#backend.downloadUpdate();
+  };
+
+  private readonly installUpdate = (event: IpcMainInvokeEvent): void => {
+    trust(event);
+    this.#backend.installUpdate();
   };
 
   private readonly copyText = (

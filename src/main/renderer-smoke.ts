@@ -72,6 +72,49 @@ const smokeTestSource = `
     if (hotkeyCapture.querySelectorAll('kbd').length < 1)
       return 'hotkey-keycaps';
 
+    const fastMode = settingsPanel.querySelector('[role="switch"]');
+    if (!(fastMode instanceof HTMLInputElement)) return 'fast-mode-switch';
+    const fastModeWasEnabled = fastMode.checked;
+    fastMode.click();
+    await wait(120);
+    if (fastMode.checked === fastModeWasEnabled) return 'fast-mode-toggle';
+    fastMode.click();
+    await wait(120);
+    if (fastMode.checked !== fastModeWasEnabled) return 'fast-mode-restore';
+
+    const personalizationTab = settingsRoot.querySelector(
+      '#settings-tab-personalization',
+    );
+    if (!personalizationTab) return 'personalization-tab';
+    personalizationTab.click();
+    await wait(120);
+    if (personalizationTab.getAttribute('aria-selected') !== 'true')
+      return 'personalization-tab-state';
+    const personalizationPanel = settingsRoot.querySelector(
+      '#settings-panel-personalization',
+    );
+    if (!personalizationPanel) return 'personalization-panel';
+    if (personalizationPanel.querySelector('form'))
+      return 'personalization-dictionary-form';
+    const dictionaryLearning = personalizationPanel.querySelector(
+      '[data-testid="dictionary-learning-switch"] input',
+    );
+    if (!(dictionaryLearning instanceof HTMLInputElement))
+      return 'dictionary-learning-switch';
+    if (dictionaryLearning.checked !== snapshot.dictionaryLearning?.enabled)
+      return 'dictionary-learning-state';
+    const learningWasEnabled = dictionaryLearning.checked;
+    // Turning learning off clears private candidate state, so only exercise the
+    // switch when it was already off and can be restored without data loss.
+    if (!learningWasEnabled) {
+      dictionaryLearning.click();
+      await wait(120);
+      if (!dictionaryLearning.checked) return 'dictionary-learning-toggle';
+      dictionaryLearning.click();
+      await wait(120);
+      if (dictionaryLearning.checked) return 'dictionary-learning-restore';
+    }
+
     const settingsClose = settingsRoot.querySelector('[data-testid="settings-close"]');
     if (!settingsClose) return 'settings-close';
     settingsClose.click();
@@ -169,9 +212,14 @@ const smokeTestSource = `
       '[data-testid="dictionary-open"]',
     );
     if (!dictionaryTrigger) return 'dictionary-trigger';
+    const dictionaryLabel = dictionaryTrigger.textContent?.trim();
     dictionaryTrigger.click();
     await wait(120);
     if (!main.querySelector('form')) return 'dictionary-form';
+    if (main.querySelector('[data-testid="dictionary-learning-switch"]'))
+      return 'dictionary-learning-on-page';
+    if (!dictionaryLabel || main.querySelector('h1')?.textContent?.trim() !== dictionaryLabel)
+      return 'dictionary-heading';
     return 'ok';
   })()
 `;

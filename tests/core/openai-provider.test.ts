@@ -55,7 +55,7 @@ describe('OpenAIProvider', () => {
     expect((form.get('file') as File).name).toBe('recording.webm');
   });
 
-  it('uses Responses structured output for intent and spoken target detection', async () => {
+  it('uses one Responses structured output for intent and final text', async () => {
     const request = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       void input;
       void init;
@@ -67,8 +67,15 @@ describe('OpenAIProvider', () => {
                 content: [
                   {
                     text: JSON.stringify({
-                      explicitTargetLanguage: 'en-US',
+                      dictionaryCandidates: [
+                        {
+                          category: 'product',
+                          confidence: 0.96,
+                          term: 'UnTypo',
+                        },
+                      ],
                       intent: 'translation',
+                      outputText: 'Hello',
                     }),
                     type: 'output_text',
                   },
@@ -83,26 +90,50 @@ describe('OpenAIProvider', () => {
     const provider = new OpenAIProvider(configuration, request);
 
     await expect(
-      provider.classifyIntent('Translate this into English', {
+      provider.processTranscript('Translate this into English: 你好', {
         defaultTargetLanguage: 'zh-CN',
         dictionary: [],
+        dictionaryLearningEnabled: true,
         locale: 'en-US',
       }),
     ).resolves.toEqual({
-      explicitTargetLanguage: 'en-US',
+      dictionaryCandidates: [
+        { category: 'product', confidence: 0.96, term: 'UnTypo' },
+      ],
       intent: 'translation',
+      outputText: 'Hello',
     });
     const [, init] = request.mock.calls[0] ?? [];
     if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
     const body = JSON.parse(init.body) as {
       store: boolean;
-      text: { format: { strict: boolean; type: string } };
+      text: {
+        format: {
+          schema: {
+            properties: Record<string, unknown>;
+            required: readonly string[];
+          };
+          strict: boolean;
+          type: string;
+        };
+      };
     };
     expect(body.store).toBe(false);
     expect(body.text.format).toMatchObject({
       strict: true,
       type: 'json_schema',
     });
+    expect(
+      body.text.format.schema.properties.dictionaryCandidates,
+    ).toMatchObject({
+      items: {
+        properties: { category: {}, confidence: {}, term: {} },
+        required: ['term', 'category', 'confidence'],
+        type: 'object',
+      },
+      type: 'array',
+    });
+    expect(body.text.format.schema.required).toContain('dictionaryCandidates');
   });
 
   it('blocks plaintext public endpoints', () => {

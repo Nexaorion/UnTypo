@@ -1,31 +1,39 @@
-export const DICTIONARY_LIMITS = {
-  entries: 1_000,
-  termLength: 128,
-} as const;
+import {
+  dictionaryTermKey,
+  DICTIONARY_LIMITS,
+  normalizeDictionaryTerm,
+  type DictionaryEntry,
+} from '../../shared/dictionary.js';
+
+export { DICTIONARY_LIMITS } from '../../shared/dictionary.js';
 
 export type DictionaryAddResult =
-  | { entries: readonly string[]; ok: true }
+  | { entry: DictionaryEntry; ok: true }
   | { ok: false; reason: 'duplicate' | 'empty' | 'full' | 'tooLong' };
 
 export const addDictionaryEntry = (
-  entries: readonly string[],
+  entries: readonly DictionaryEntry[],
   term: string,
 ): DictionaryAddResult => {
-  const trimmed = term.trim();
+  const trimmed = normalizeDictionaryTerm(term);
   if (trimmed.length === 0) return { ok: false, reason: 'empty' };
   if (trimmed.length > DICTIONARY_LIMITS.termLength) {
     return { ok: false, reason: 'tooLong' };
   }
-  if (entries.some((entry) => entry.toLowerCase() === trimmed.toLowerCase())) {
+  if (
+    entries.some(
+      (entry) => dictionaryTermKey(entry.term) === dictionaryTermKey(trimmed),
+    )
+  ) {
     return { ok: false, reason: 'duplicate' };
   }
   if (entries.length >= DICTIONARY_LIMITS.entries) {
     return { ok: false, reason: 'full' };
   }
-  return { entries: [...entries, trimmed], ok: true };
+  return { entry: { source: 'manual', term: trimmed }, ok: true };
 };
 
 export const removeDictionaryEntry = (
-  entries: readonly string[],
+  entries: readonly DictionaryEntry[],
   term: string,
-): readonly string[] => entries.filter((entry) => entry !== term);
+): readonly DictionaryEntry[] => entries.filter((entry) => entry.term !== term);

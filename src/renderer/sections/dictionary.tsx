@@ -1,5 +1,6 @@
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
+import EditNoteRoundedIcon from '@mui/icons-material/EditNoteRounded';
 import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -12,11 +13,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useId, useState } from 'react';
 import { useI18n } from '../i18n/context.js';
-import {
-  addDictionaryEntry,
-  removeDictionaryEntry,
-  DICTIONARY_LIMITS,
-} from '../logic/dictionary.js';
+import { addDictionaryEntry, DICTIONARY_LIMITS } from '../logic/dictionary.js';
 import type { ClientStore } from '../state/client.js';
 import { useAction } from '../state/use-action.js';
 import { themeAlpha, themePalette } from '../theme.js';
@@ -47,42 +44,32 @@ export const DictionarySection = ({ store }: { store: ClientStore }) => {
     }
     setError(undefined);
     void run('add', async () => {
-      await store.setDictionary(result.entries);
+      await store.addDictionaryEntry(result.entry.term);
       setTerm('');
     });
   };
 
   return (
     <Page>
-      <PageHeader title={t('nav.personalization')} />
+      <Stack sx={{ gap: 0.75 }}>
+        <PageHeader
+          action={
+            <Typography
+              color="text.secondary"
+              sx={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}
+              variant="body2"
+            >
+              {entries.length} / {DICTIONARY_LIMITS.entries}
+            </Typography>
+          }
+          title={t('nav.dictionary')}
+        />
+        <Typography color="text.secondary" variant="body2">
+          {t('dictionary.subtitle')}
+        </Typography>
+      </Stack>
 
       <Stack component="section" sx={{ gap: 3.5 }}>
-        <Stack
-          direction="row"
-          sx={{
-            alignItems: 'flex-end',
-            gap: 3,
-            justifyContent: 'space-between',
-            pr: { xs: 0, sm: 1 },
-          }}
-        >
-          <Stack sx={{ gap: 0.75 }}>
-            <Typography component="h2" variant="h2">
-              {t('dictionary.title')}
-            </Typography>
-            <Typography color="text.secondary" variant="body2">
-              {t('dictionary.subtitle')}
-            </Typography>
-          </Stack>
-          <Typography
-            color="text.secondary"
-            sx={{ flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}
-            variant="body2"
-          >
-            {entries.length} / {DICTIONARY_LIMITS.entries}
-          </Typography>
-        </Stack>
-
         <Divider />
 
         <Stack
@@ -177,7 +164,7 @@ export const DictionarySection = ({ store }: { store: ClientStore }) => {
           >
             {entries.map((entry) => (
               <Paper
-                key={entry}
+                key={entry.term}
                 sx={(currentTheme) => ({
                   alignItems: 'center',
                   border: '1px solid',
@@ -201,24 +188,36 @@ export const DictionarySection = ({ store }: { store: ClientStore }) => {
                   },
                 })}
               >
-                <AutoAwesomeRoundedIcon
-                  aria-hidden="true"
-                  color="primary"
-                  sx={{ fontSize: 18 }}
-                />
+                {entry.source === 'learned' ? (
+                  <AutoAwesomeRoundedIcon
+                    aria-label={t('dictionary.learnedEntry', {
+                      term: entry.term,
+                    })}
+                    color="primary"
+                    data-testid="dictionary-entry-learned"
+                    sx={{ fontSize: 18 }}
+                  />
+                ) : (
+                  <EditNoteRoundedIcon
+                    aria-label={t('dictionary.manualEntry', {
+                      term: entry.term,
+                    })}
+                    color="action"
+                    data-testid="dictionary-entry-manual"
+                    sx={{ fontSize: 20 }}
+                  />
+                )}
                 <Typography
                   sx={{ flex: 1, fontSize: 14.5, fontWeight: 560, minWidth: 0 }}
                 >
-                  {entry}
+                  {entry.term}
                 </Typography>
                 <IconButton
-                  aria-label={t('dictionary.remove', { term: entry })}
-                  disabled={isPending(`remove-${entry}`)}
+                  aria-label={t('dictionary.remove', { term: entry.term })}
+                  disabled={isPending(`remove-${entry.term}`)}
                   onClick={() =>
-                    void run(`remove-${entry}`, () =>
-                      store.setDictionary(
-                        removeDictionaryEntry(entries, entry),
-                      ),
+                    void run(`remove-${entry.term}`, () =>
+                      store.removeDictionaryEntry(entry.term),
                     )
                   }
                   size="small"

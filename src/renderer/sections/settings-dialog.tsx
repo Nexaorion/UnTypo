@@ -14,7 +14,7 @@ import { useId, type ReactElement, type ReactNode } from 'react';
 import { useI18n } from '../i18n/context.js';
 import type { ClientStore } from '../state/client.js';
 import { themeAlpha, themePalette } from '../theme.js';
-import { DictionarySection } from './dictionary.js';
+import { PersonalizationSection } from './personalization.js';
 import { ProvidersSection } from './providers.js';
 import { SettingsSection } from './settings.js';
 
@@ -271,7 +271,7 @@ export const SettingsDialog = ({
               <ProvidersSection store={store} />
             </SettingsPanel>
             <SettingsPanel tab="personalization" value={tab}>
-              <DictionarySection store={store} />
+              <PersonalizationSection store={store} />
             </SettingsPanel>
           </Box>
         </Stack>

@@ -1,12 +1,9 @@
 import {
   PROVIDER_CONTRACT_VERSION,
   ProviderContractError,
-  type GenerationContext,
-  type IntentClassificationResult,
-  type IntentContext,
-  type PolishContext,
   type TextGenerationProvider,
-  type TranslationContext,
+  type TextProcessContext,
+  type TextProcessResult,
 } from './contracts.js';
 import {
   providerConfigSchema,
@@ -16,12 +13,9 @@ import {
   type ProviderConnectionConfiguration,
 } from './provider-http.js';
 import {
-  generationInstructions,
-  intentInstructions,
-  parseIntentClassification,
-  polishInstructions,
+  parseTranscriptProcessing,
   textProviderCapabilities,
-  translationInstructions,
+  transcriptProcessingInstructions,
 } from './text-provider-utils.js';
 
 export type OpenAIResponsesTextProviderConfiguration =
@@ -83,43 +77,16 @@ export class OpenAIResponsesTextProvider implements TextGenerationProvider {
     this.#fetch = fetchImplementation;
   }
 
-  async classifyIntent(
+  async processTranscript(
     text: string,
-    context: IntentContext,
-  ): Promise<IntentClassificationResult> {
-    return parseIntentClassification(
+    context: TextProcessContext,
+  ): Promise<TextProcessResult> {
+    return parseTranscriptProcessing(
       await this.textResponse(
         text,
-        intentInstructions(context),
+        transcriptProcessingInstructions(context),
         context.signal,
       ),
-    );
-  }
-
-  generateFromInstruction(
-    instructionText: string,
-    context: GenerationContext,
-  ): Promise<string> {
-    return this.textResponse(
-      instructionText,
-      generationInstructions(context.locale, context.dictionary),
-      context.signal,
-    );
-  }
-
-  polish(text: string, context: PolishContext): Promise<string> {
-    return this.textResponse(
-      text,
-      polishInstructions(context.locale, context.dictionary, context.tone),
-      context.signal,
-    );
-  }
-
-  translate(text: string, context: TranslationContext): Promise<string> {
-    return this.textResponse(
-      text,
-      translationInstructions(context.targetLanguage),
-      context.signal,
     );
   }
 
