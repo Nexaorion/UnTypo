@@ -105,6 +105,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         'hotkeyAccelerator',
         'language',
         'microphoneDeviceId',
+        'microphoneDeviceLabel',
       ],
       'Dictation settings',
     );
@@ -166,6 +167,23 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
         throw new Error('Invalid microphone device');
       }
       dictation.microphoneDeviceId = value.dictation.microphoneDeviceId;
+    }
+    if (value.dictation.microphoneDeviceLabel !== undefined) {
+      if (
+        value.dictation.microphoneDeviceLabel !== null &&
+        (typeof value.dictation.microphoneDeviceLabel !== 'string' ||
+          value.dictation.microphoneDeviceLabel.trim().length === 0 ||
+          value.dictation.microphoneDeviceLabel.length > 512)
+      ) {
+        throw new Error('Invalid microphone device label');
+      }
+      dictation.microphoneDeviceLabel = value.dictation.microphoneDeviceLabel;
+    }
+    if (
+      typeof dictation.microphoneDeviceLabel === 'string' &&
+      typeof dictation.microphoneDeviceId !== 'string'
+    ) {
+      throw new Error('Microphone device label requires a device id');
     }
     result.dictation = dictation;
   }

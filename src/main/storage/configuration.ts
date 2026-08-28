@@ -59,6 +59,7 @@ export interface StoredClientConfig {
     hotkeyAccelerator: string;
     language: SupportedLanguage;
     microphoneDeviceId?: string;
+    microphoneDeviceLabel?: string;
   };
   dictionary: readonly DictionaryEntry[];
   dictionaryLearning: {
@@ -540,6 +541,10 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
         !profileIdPattern.test(dictation.activeTextProviderProfileId))) ||
     (dictation.microphoneDeviceId !== undefined &&
       !isNonEmptyString(dictation.microphoneDeviceId, 512)) ||
+    (dictation.microphoneDeviceLabel !== undefined &&
+      !isNonEmptyString(dictation.microphoneDeviceLabel, 512)) ||
+    (dictation.microphoneDeviceLabel !== undefined &&
+      dictation.microphoneDeviceId === undefined) ||
     !Array.isArray(value.providers)
   ) {
     throw new Error('Invalid configuration data');
@@ -593,6 +598,9 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
       language: assertLanguage(dictation.language, 'dictation language'),
       ...(typeof dictation.microphoneDeviceId === 'string'
         ? { microphoneDeviceId: dictation.microphoneDeviceId }
+        : {}),
+      ...(typeof dictation.microphoneDeviceLabel === 'string'
+        ? { microphoneDeviceLabel: dictation.microphoneDeviceLabel }
         : {}),
     },
     providers,

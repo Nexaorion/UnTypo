@@ -46,6 +46,7 @@ describe('client IPC validation', () => {
           activeTextProviderProfileId: 'primary-text',
           hotkeyAccelerator: 'Ctrl+Shift+Space',
           microphoneDeviceId: 'microphone-1',
+          microphoneDeviceLabel: 'USB Microphone',
         },
         general: { locale: 'en-US' },
         history: { enabled: false, retentionDays: 0 },
@@ -60,6 +61,7 @@ describe('client IPC validation', () => {
         activeSpeechProviderProfileId: 'primary-speech',
         activeTextProviderProfileId: 'primary-text',
         microphoneDeviceId: 'microphone-1',
+        microphoneDeviceLabel: 'USB Microphone',
       },
       general: { locale: 'en-US' },
       history: { enabled: false, retentionDays: 0 },
@@ -95,7 +97,7 @@ describe('client IPC validation', () => {
       parseSettingsUpdate({
         dictation: { microphoneDeviceLabel: 'USB Microphone' },
       }),
-    ).toThrow('unsupported field');
+    ).toThrow('requires a device id');
     expect(() => parseClipboardText('x'.repeat(1_000_001))).toThrow(
       'Invalid clipboard text',
     );

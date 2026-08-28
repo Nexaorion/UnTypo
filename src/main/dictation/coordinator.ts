@@ -21,6 +21,7 @@ import type {
   ClientHistoryModelCall,
   ModelProviderId,
 } from '../../shared/ipc.js';
+import type { MicrophoneSelection } from '../../shared/microphone.js';
 import type { HistoryPolicy } from '../storage/configuration.js';
 import type { NewHistoryRecord } from '../storage/history.js';
 import type {
@@ -42,7 +43,7 @@ export type DictationRuntimeState = 'idle' | 'recording' | 'processing';
 export interface RecorderPort {
   start: (
     target: TargetSnapshot,
-    microphoneDeviceId?: string,
+    microphoneSelection?: MicrophoneSelection,
     outputFormat?: ProviderAudioFormat,
   ) => Promise<string>;
   stop: () => Promise<CompletedRecording>;
@@ -89,7 +90,7 @@ export interface DictationContext {
   fastMode?: boolean;
   history: HistoryPolicy;
   modelName?: string;
-  microphoneDeviceId?: string;
+  microphoneSelection?: MicrophoneSelection;
   options: ProcessOptions;
   speechProviderId: string;
   speechProviderDetails?: DictationProviderTraceDetails;
@@ -227,13 +228,13 @@ export class DictationCoordinator {
     try {
       await this.#dependencies.recorder.start(
         toRecordingTarget(target),
-        context.microphoneDeviceId,
+        context.microphoneSelection,
         recordingFormat,
       );
     } catch (error) {
       this.recordIssue({
         context: {
-          microphoneSelection: context.microphoneDeviceId
+          microphoneSelection: context.microphoneSelection
             ? 'configured'
             : 'system-default',
         },
@@ -256,7 +257,7 @@ export class DictationCoordinator {
     this.#state = 'recording';
     this.log({
       context: {
-        microphoneSelection: context.microphoneDeviceId
+        microphoneSelection: context.microphoneSelection
           ? 'configured'
           : 'system-default',
         speechProviderId: context.speechProviderId,

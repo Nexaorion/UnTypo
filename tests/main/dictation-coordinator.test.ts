@@ -37,6 +37,7 @@ interface RuntimeOptions {
   dictionaryCandidates?: readonly DictionaryCandidate[];
   injected?: boolean;
   microphoneDeviceId?: string;
+  microphoneDeviceLabel?: string;
   preferredAudioFormat?: ProviderAudioFormat;
   signal?: AbortSignal;
   speechProviderId?: string;
@@ -48,6 +49,7 @@ const createCoordinator = ({
   dictionaryCandidates,
   injected = true,
   microphoneDeviceId,
+  microphoneDeviceLabel,
   preferredAudioFormat,
   signal,
   speechProviderId = 'mock',
@@ -98,7 +100,14 @@ const createCoordinator = ({
   const getContext = vi.fn(() => ({
     history: { enabled: true, retentionDays: 30 },
     modelName: 'whisper-1',
-    ...(microphoneDeviceId ? { microphoneDeviceId } : {}),
+    ...(microphoneDeviceId
+      ? {
+          microphoneSelection: {
+            deviceId: microphoneDeviceId,
+            ...(microphoneDeviceLabel ? { label: microphoneDeviceLabel } : {}),
+          },
+        }
+      : {}),
     options: {
       defaultTargetLanguage: 'en-US' as const,
       dictionary: [],
@@ -190,7 +199,10 @@ const textFailureCases: ReadonlyArray<readonly [string, TextFailureSetup]> = [
 
 describe('DictationCoordinator', () => {
   it('runs recording, processing, insertion, and history end to end', async () => {
-    const runtime = createCoordinator({ microphoneDeviceId: 'microphone-1' });
+    const runtime = createCoordinator({
+      microphoneDeviceId: 'microphone-1',
+      microphoneDeviceLabel: 'USB Microphone',
+    });
 
     await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
     expect(runtime.coordinator.state).toBe('recording');
@@ -201,7 +213,7 @@ describe('DictationCoordinator', () => {
         processId: 42,
         windowHandle: '4660',
       },
-      'microphone-1',
+      { deviceId: 'microphone-1', label: 'USB Microphone' },
       'webm',
     );
     expect(runtime.getContext).toHaveBeenCalledTimes(1);

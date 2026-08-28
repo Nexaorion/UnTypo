@@ -1,11 +1,19 @@
 import type {
   RecorderStartMetadata,
   RecorderStopMetadata,
-} from '../shared/recorder-ipc';
-import type { ProviderAudioFormat } from '../core/providers/contracts';
-import { recorderAudioConstraints } from './device-selection';
-import { VoiceActivityDetector } from './voice-activity';
-import { BAILIAN_WAV_SAMPLE_RATE_HZ, encodePcm16Wav } from './wav';
+} from '../shared/recorder-ipc.js';
+import type { ProviderAudioFormat } from '../core/providers/contracts.js';
+import type {
+  MicrophoneDeviceInfo,
+  MicrophoneSelection,
+} from '../shared/microphone.js';
+import { resolveMicrophoneSelection } from '../shared/microphone.js';
+import {
+  isMissingMicrophoneError,
+  recorderAudioConstraints,
+} from './device-selection.js';
+import { VoiceActivityDetector } from './voice-activity.js';
+import { BAILIAN_WAV_SAMPLE_RATE_HZ, encodePcm16Wav } from './wav.js';
 
 interface ActiveRecorder {
   chunks: Blob[];
@@ -34,6 +42,45 @@ interface RecorderLevelMeter {
 const LEVEL_INTERVAL_MILLISECONDS = 80;
 
 let activeRecorder: ActiveRecorder | undefined;
+
+const listMicrophones = async (): Promise<readonly MicrophoneDeviceInfo[]> => {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices
+    .filter(({ kind }) => kind === 'audioinput')
+    .map(({ deviceId, label }, index) => {
+      const persistentLabel = label.trim();
+      return {
+        deviceId,
+        ...(persistentLabel.length === 0 ? { generatedLabel: true } : {}),
+        label: persistentLabel || `Microphone ${String(index + 1)}`,
+      };
+    });
+};
+
+const openMicrophone = async (
+  selection?: MicrophoneSelection,
+): Promise<{ selection?: MicrophoneSelection; stream: MediaStream }> => {
+  const open = (microphoneDeviceId?: string) =>
+    navigator.mediaDevices.getUserMedia({
+      audio: recorderAudioConstraints(microphoneDeviceId),
+      video: false,
+    });
+
+  try {
+    return {
+      ...(selection ? { selection } : {}),
+      stream: await open(selection?.deviceId),
+    };
+  } catch (error) {
+    if (!selection?.label || !isMissingMicrophoneError(error)) throw error;
+    const recovered = resolveMicrophoneSelection(
+      selection,
+      await listMicrophones(),
+    );
+    if (!recovered || recovered.deviceId === selection.deviceId) throw error;
+    return { selection: recovered, stream: await open(recovered.deviceId) };
+  }
+};
 
 const supportedMimeType = (): string | undefined => {
   const candidates = ['audio/webm;codecs=opus', 'audio/webm'];
@@ -170,7 +217,7 @@ const startLevelMeter = (recorder: ActiveRecorder): void => {
 
 const start = async (
   sessionId: string,
-  microphoneDeviceId?: string,
+  microphoneSelection?: MicrophoneSelection,
   outputFormat: ProviderAudioFormat = 'webm',
 ): Promise<void> => {
   if (activeRecorder) {
@@ -178,16 +225,15 @@ const start = async (
     return;
   }
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: recorderAudioConstraints(microphoneDeviceId),
-    video: false,
-  });
+  const opened = await openMicrophone(microphoneSelection);
+  const stream = opened.stream;
   const mimeType = supportedMimeType();
   const mediaRecorder = new MediaRecorder(
     stream,
     mimeType ? { mimeType } : undefined,
   );
-  const settings = stream.getAudioTracks()[0]?.getSettings();
+  const microphoneTrack = stream.getAudioTracks()[0];
+  const settings = microphoneTrack?.getSettings();
   const encodedMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
   const metadata: RecorderStartMetadata =
     outputFormat === 'wav'
@@ -277,7 +323,18 @@ const start = async (
   });
 
   mediaRecorder.start(250);
-  window.recorder.sendStarted(sessionId, metadata);
+  const microphoneLabel = microphoneTrack?.label.trim();
+  const resolvedMicrophone = opened.selection
+    ? {
+        deviceId: settings?.deviceId || opened.selection.deviceId,
+        ...(microphoneLabel
+          ? { label: microphoneLabel }
+          : opened.selection.label
+            ? { label: opened.selection.label }
+            : {}),
+      }
+    : undefined;
+  window.recorder.sendStarted(sessionId, metadata, resolvedMicrophone);
   startLevelMeter(recorder);
 };
 
@@ -293,17 +350,8 @@ const stop = (sessionId: string): void => {
 };
 
 window.recorder.onListDevices((requestId) => {
-  void navigator.mediaDevices
-    .enumerateDevices()
-    .then((devices) => {
-      const inputs = devices
-        .filter(({ kind }) => kind === 'audioinput')
-        .map(({ deviceId, label }, index) => ({
-          deviceId,
-          label: label.trim() || `Microphone ${String(index + 1)}`,
-        }));
-      window.recorder.sendDevices(requestId, inputs);
-    })
+  void listMicrophones()
+    .then((devices) => window.recorder.sendDevices(requestId, devices))
     .catch((error: unknown) => {
       const message =
         error instanceof Error ? error.message : 'Unable to list microphones';
@@ -311,8 +359,8 @@ window.recorder.onListDevices((requestId) => {
     });
 });
 
-window.recorder.onStart((sessionId, microphoneDeviceId, outputFormat) => {
-  void start(sessionId, microphoneDeviceId, outputFormat).catch(
+window.recorder.onStart((sessionId, microphoneSelection, outputFormat) => {
+  void start(sessionId, microphoneSelection, outputFormat).catch(
     (error: unknown) => {
       const message =
         error instanceof Error ? error.message : 'Microphone failed';

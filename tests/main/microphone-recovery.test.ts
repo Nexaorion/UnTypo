@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { recorderAudioConstraints } from '../../src/recorder/device-selection';
 import { ConfigurationService } from '../../src/main/storage/configuration';
 import { MemorySecretProtector } from '../../src/main/storage/secret-protector';
+import { resolveMicrophoneSelection } from '../../src/shared/microphone';
 
 describe('Microphone device recovery', () => {
   it('persists an explicit microphone through the production configuration service', async () => {
@@ -18,11 +19,18 @@ describe('Microphone device recovery', () => {
       );
       await configuration.update((config) => ({
         ...config,
-        dictation: { ...config.dictation, microphoneDeviceId: 'device-123' },
+        dictation: {
+          ...config.dictation,
+          microphoneDeviceId: 'device-123',
+          microphoneDeviceLabel: 'USB Microphone',
+        },
       }));
 
       await expect(configuration.load()).resolves.toMatchObject({
-        dictation: { microphoneDeviceId: 'device-123' },
+        dictation: {
+          microphoneDeviceId: 'device-123',
+          microphoneDeviceLabel: 'USB Microphone',
+        },
       });
     } finally {
       await rm(directory, { force: true, recursive: true });
@@ -33,5 +41,41 @@ describe('Microphone device recovery', () => {
     expect(recorderAudioConstraints('device-123')).toMatchObject({
       deviceId: { exact: 'device-123' },
     });
+  });
+
+  it('recovers a rotated device id from one matching persistent label', () => {
+    expect(
+      resolveMicrophoneSelection(
+        { deviceId: 'old-id', label: ' USB   Microphone ' },
+        [
+          { deviceId: 'default', label: 'Default - USB Microphone' },
+          { deviceId: 'new-id', label: 'USB Microphone' },
+        ],
+      ),
+    ).toEqual({ deviceId: 'new-id', label: 'USB Microphone' });
+  });
+
+  it('does not recover when a label is ambiguous or generated', () => {
+    expect(
+      resolveMicrophoneSelection(
+        { deviceId: 'old-id', label: 'USB Microphone' },
+        [
+          { deviceId: 'first', label: 'USB Microphone' },
+          { deviceId: 'second', label: 'USB Microphone' },
+        ],
+      ),
+    ).toBeUndefined();
+    expect(
+      resolveMicrophoneSelection(
+        { deviceId: 'old-id', label: 'Microphone 1' },
+        [
+          {
+            deviceId: 'new-id',
+            generatedLabel: true,
+            label: 'Microphone 1',
+          },
+        ],
+      ),
+    ).toBeUndefined();
   });
 });

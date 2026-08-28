@@ -211,10 +211,17 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
               label={t('settings.microphone')}
               onChange={(event) => {
                 const next = event.target.value;
+                const selected = microphones.find(
+                  ({ deviceId }) => deviceId === next,
+                );
                 void run('microphone', () =>
                   store.updateSettings({
                     dictation: {
                       microphoneDeviceId: next.length > 0 ? next : null,
+                      microphoneDeviceLabel:
+                        selected && !selected.generatedLabel
+                          ? selected.label
+                          : null,
                     },
                   }),
                 );

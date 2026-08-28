@@ -11,6 +11,7 @@ import type {
   ClientDiagnosticSnapshot,
   ClientRendererIssueInput,
 } from './diagnostics.js';
+import type { MicrophoneDeviceInfo } from './microphone.js';
 
 export const IPC_CHANNELS = {
   addDictionaryEntry: 'client:add-dictionary-entry',
@@ -92,6 +93,7 @@ export interface ClientSettingsSnapshot {
     hotkeyAccelerator: string;
     language: SupportedLanguage;
     microphoneDeviceId?: string;
+    microphoneDeviceLabel?: string;
   };
   general: {
     launchAtLogin: boolean;
@@ -120,6 +122,7 @@ export interface ClientSettingsUpdate {
     hotkeyAccelerator?: string;
     language?: SupportedLanguage;
     microphoneDeviceId?: string | null;
+    microphoneDeviceLabel?: string | null;
   };
   general?: {
     launchAtLogin?: boolean;
@@ -203,10 +206,7 @@ export interface ClientUsageStats {
   usageCount: number;
 }
 
-export interface ClientMicrophoneDevice {
-  deviceId: string;
-  label: string;
-}
+export type ClientMicrophoneDevice = MicrophoneDeviceInfo;
 
 export interface ClientHistoryQuery {
   limit?: number;

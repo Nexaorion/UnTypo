@@ -7,6 +7,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { ProviderAudioFormat } from '../../core/providers/contracts.js';
+import type { MicrophoneSelection } from '../../shared/microphone.js';
 import {
   RECORDER_CHANNELS,
   type RecorderDeviceInfo,
@@ -27,7 +28,7 @@ interface PendingStop {
 
 interface PendingStart {
   reject: (reason: Error) => void;
-  resolve: () => void;
+  resolve: (selection?: MicrophoneSelection) => void;
   sessionId: string;
   timer: NodeJS.Timeout;
 }
@@ -80,8 +81,39 @@ const configurePermissions = (recorderSession: Session): void => {
   );
 };
 
+const parseMicrophoneSelection = (
+  value: unknown,
+): MicrophoneSelection | undefined => {
+  if (value === undefined) return undefined;
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !('deviceId' in value) ||
+    typeof value.deviceId !== 'string' ||
+    value.deviceId.length === 0 ||
+    value.deviceId.length > 512 ||
+    ('label' in value &&
+      value.label !== undefined &&
+      (typeof value.label !== 'string' ||
+        value.label.trim().length === 0 ||
+        value.label.length > 512))
+  ) {
+    throw new Error('Recorder returned an invalid microphone selection');
+  }
+  return {
+    deviceId: value.deviceId,
+    ...('label' in value && typeof value.label === 'string'
+      ? { label: value.label }
+      : {}),
+  };
+};
+
 export class RecorderWindowController {
   readonly #onLevel?: (level: number) => void;
+  readonly #onMicrophoneResolved?: (
+    requested: MicrophoneSelection,
+    resolved: MicrophoneSelection,
+  ) => void;
   readonly #sessions: RecordingSessionManager;
   readonly #pendingDeviceRequests = new Map<string, PendingDeviceRequest>();
   #activeSessionId?: string;
@@ -90,8 +122,16 @@ export class RecorderWindowController {
   #pendingStop?: PendingStop;
   #window?: BrowserWindow;
 
-  constructor(maximumBytes?: number, onLevel?: (level: number) => void) {
+  constructor(
+    maximumBytes?: number,
+    onLevel?: (level: number) => void,
+    onMicrophoneResolved?: (
+      requested: MicrophoneSelection,
+      resolved: MicrophoneSelection,
+    ) => void,
+  ) {
     this.#onLevel = onLevel;
+    this.#onMicrophoneResolved = onMicrophoneResolved;
     this.#sessions = new RecordingSessionManager(maximumBytes);
     ipcMain.on(RECORDER_CHANNELS.started, this.handleStarted);
     ipcMain.on(RECORDER_CHANNELS.chunk, this.handleChunk);
@@ -109,28 +149,33 @@ export class RecorderWindowController {
 
   async start(
     target: TargetSnapshot,
-    microphoneDeviceId?: string,
+    microphoneSelection?: MicrophoneSelection,
     outputFormat: ProviderAudioFormat = 'webm',
   ): Promise<string> {
     await this.initialize();
     const sessionId = this.#sessions.begin(target);
     this.#activeSessionId = sessionId;
-    const started = new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.rejectSession(
-          sessionId,
-          new Error('Recorder start confirmation timed out'),
-        );
-      }, 10_000);
-      this.#pendingStart = { reject, resolve, sessionId, timer };
-    });
+    const started = new Promise<MicrophoneSelection | undefined>(
+      (resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.rejectSession(
+            sessionId,
+            new Error('Recorder start confirmation timed out'),
+          );
+        }, 10_000);
+        this.#pendingStart = { reject, resolve, sessionId, timer };
+      },
+    );
     this.#window?.webContents.send(
       RECORDER_CHANNELS.commandStart,
       sessionId,
-      microphoneDeviceId,
+      microphoneSelection,
       outputFormat,
     );
-    await started;
+    const resolvedMicrophone = await started;
+    if (microphoneSelection && resolvedMicrophone) {
+      this.#onMicrophoneResolved?.(microphoneSelection, resolvedMicrophone);
+    }
     return sessionId;
   }
 
@@ -203,13 +248,15 @@ export class RecorderWindowController {
     event: IpcMainEvent,
     sessionId: string,
     metadata: RecorderStartMetadata,
+    microphoneSelection: unknown,
   ): void => {
     if (!this.isExpectedSender(event)) return;
     try {
+      const resolvedMicrophone = parseMicrophoneSelection(microphoneSelection);
       this.#sessions.markStarted(sessionId, metadata);
       if (this.#pendingStart?.sessionId === sessionId) {
         clearTimeout(this.#pendingStart.timer);
-        this.#pendingStart.resolve();
+        this.#pendingStart.resolve(resolvedMicrophone);
         this.#pendingStart = undefined;
       }
     } catch (error) {
@@ -323,7 +370,10 @@ export class RecorderWindowController {
         !('label' in candidate) ||
         typeof candidate.label !== 'string' ||
         candidate.label.length === 0 ||
-        candidate.label.length > 512
+        candidate.label.length > 512 ||
+        ('generatedLabel' in candidate &&
+          candidate.generatedLabel !== undefined &&
+          typeof candidate.generatedLabel !== 'boolean')
       ) {
         pending.reject(new Error('Recorder returned an invalid device list'));
         return;
@@ -331,6 +381,9 @@ export class RecorderWindowController {
       if (!normalized.has(candidate.deviceId)) {
         normalized.set(candidate.deviceId, {
           deviceId: candidate.deviceId,
+          ...('generatedLabel' in candidate && candidate.generatedLabel === true
+            ? { generatedLabel: true }
+            : {}),
           label: candidate.label,
         });
       }

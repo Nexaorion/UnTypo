@@ -43,6 +43,10 @@ import type {
   ClientUpdateSnapshot,
   ClientUsageStats,
 } from '../../shared/ipc.js';
+import {
+  resolveMicrophoneSelection,
+  type MicrophoneSelection,
+} from '../../shared/microphone.js';
 import type { DictionaryCandidate } from '../../shared/dictionary.js';
 import type { DictionarySuggestionError } from '../../shared/capsule-ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
@@ -192,8 +196,11 @@ export class DesktopRuntime {
   readonly #history: HistoryService;
   readonly #native = new NativeHelperClient(resolveNativeHelperPath());
   readonly #options: DesktopRuntimeOptions;
-  readonly #recorder = new RecorderWindowController(undefined, (level) =>
-    this.#capsule.updateLevel(level),
+  readonly #recorder = new RecorderWindowController(
+    undefined,
+    (level) => this.#capsule.updateLevel(level),
+    (requested, resolved) =>
+      this.reconcileMicrophoneSelection(requested, resolved),
   );
   readonly #speechProviders = new SpeechProviderRegistry();
   readonly #textProviders = new TextProviderRegistry();
@@ -265,7 +272,14 @@ export class DesktopRuntime {
             : {}),
           modelName: activeSpeechProfile?.values.model ?? speechProviderId,
           ...(current.dictation.microphoneDeviceId
-            ? { microphoneDeviceId: current.dictation.microphoneDeviceId }
+            ? {
+                microphoneSelection: {
+                  deviceId: current.dictation.microphoneDeviceId,
+                  ...(current.dictation.microphoneDeviceLabel
+                    ? { label: current.dictation.microphoneDeviceLabel }
+                    : {}),
+                },
+              }
             : {}),
           options: {
             defaultTargetLanguage: current.dictation.defaultTargetLanguage,
@@ -434,6 +448,9 @@ export class DesktopRuntime {
           ...(config.dictation.microphoneDeviceId
             ? { microphoneDeviceId: config.dictation.microphoneDeviceId }
             : {}),
+          ...(config.dictation.microphoneDeviceLabel
+            ? { microphoneDeviceLabel: config.dictation.microphoneDeviceLabel }
+            : {}),
         },
         general: config.general,
         history: config.history,
@@ -496,6 +513,7 @@ export class DesktopRuntime {
           activeSpeechProviderProfileId,
           activeTextProviderProfileId,
           microphoneDeviceId,
+          microphoneDeviceLabel,
           ...dictationUpdate
         } = update.dictation ?? {};
         const dictation = { ...config.dictation, ...dictationUpdate };
@@ -512,8 +530,14 @@ export class DesktopRuntime {
         }
         if (microphoneDeviceId === null) {
           delete dictation.microphoneDeviceId;
+          delete dictation.microphoneDeviceLabel;
         } else if (microphoneDeviceId !== undefined) {
           dictation.microphoneDeviceId = microphoneDeviceId;
+        }
+        if (microphoneDeviceLabel === null) {
+          delete dictation.microphoneDeviceLabel;
+        } else if (microphoneDeviceLabel !== undefined) {
+          dictation.microphoneDeviceLabel = microphoneDeviceLabel;
         }
         return {
           ...config,
@@ -901,6 +925,58 @@ export class DesktopRuntime {
         error,
         kind: 'internal',
         source: 'dictionary.learning',
+      });
+    });
+  }
+
+  private reconcileMicrophoneSelection(
+    requested: MicrophoneSelection,
+    resolved: MicrophoneSelection,
+  ): void {
+    void (async () => {
+      const devices = await this.#recorder.listDevices();
+      const verified = resolveMicrophoneSelection(requested, devices);
+      if (!verified || verified.deviceId !== resolved.deviceId) {
+        throw new Error('Resolved microphone could not be verified');
+      }
+
+      let changed = false;
+      await this.#configuration.update((config) => {
+        if (
+          config.dictation.microphoneDeviceId !== requested.deviceId ||
+          config.dictation.microphoneDeviceLabel !== requested.label ||
+          (config.dictation.microphoneDeviceId === verified.deviceId &&
+            config.dictation.microphoneDeviceLabel === verified.label)
+        ) {
+          return config;
+        }
+        changed = true;
+        const dictation = {
+          ...config.dictation,
+          microphoneDeviceId: verified.deviceId,
+        };
+        if (verified.label) {
+          dictation.microphoneDeviceLabel = verified.label;
+        } else {
+          delete dictation.microphoneDeviceLabel;
+        }
+        return { ...config, dictation };
+      });
+      if (!changed) return;
+      this.#options.onSnapshotChanged(await this.getClientSnapshot());
+      this.#diagnostics.log({
+        context: {
+          identifierChanged: requested.deviceId !== verified.deviceId,
+          labelStored: verified.label !== undefined,
+        },
+        message: 'Selected microphone identity refreshed',
+        scope: 'recorder.selection',
+      });
+    })().catch((error: unknown) => {
+      this.#diagnostics.recordIssue({
+        error,
+        kind: 'microphone',
+        source: 'recorder.selection-recovery',
       });
     });
   }

@@ -5,6 +5,7 @@ import type {
   RecorderStartMetadata,
   RecorderStopMetadata,
 } from '../shared/recorder-ipc.js';
+import type { MicrophoneSelection } from '../shared/microphone.js';
 
 const channels = {
   chunk: 'recorder:chunk',
@@ -30,9 +31,9 @@ const api: RecorderApi = {
       (
         _event,
         sessionId: string,
-        microphoneDeviceId?: string,
+        microphoneSelection?: MicrophoneSelection,
         outputFormat?: 'wav' | 'webm',
-      ) => listener(sessionId, microphoneDeviceId, outputFormat),
+      ) => listener(sessionId, microphoneSelection, outputFormat),
     );
   },
   onStop: (listener) => {
@@ -56,8 +57,17 @@ const api: RecorderApi = {
   sendLevel: (sessionId: string, level: number) => {
     ipcRenderer.send(channels.level, sessionId, level);
   },
-  sendStarted: (sessionId: string, metadata: RecorderStartMetadata) => {
-    ipcRenderer.send(channels.started, sessionId, metadata);
+  sendStarted: (
+    sessionId: string,
+    metadata: RecorderStartMetadata,
+    microphoneSelection?: MicrophoneSelection,
+  ) => {
+    ipcRenderer.send(
+      channels.started,
+      sessionId,
+      metadata,
+      microphoneSelection,
+    );
   },
   sendStopped: (sessionId: string, metadata: RecorderStopMetadata) => {
     ipcRenderer.send(channels.stopped, sessionId, metadata);
