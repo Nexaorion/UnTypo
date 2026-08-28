@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppUpdater } from 'electron-updater';
 
 vi.mock('electron', () => ({
-  app: { getVersion: () => '0.1.3', isPackaged: false },
+  app: { getVersion: () => '0.1.4', isPackaged: false },
 }));
 
 vi.mock('electron-updater', () => ({ autoUpdater: {} }));
@@ -43,9 +43,9 @@ describe('ApplicationUpdateService', () => {
   });
 
   it('accepts only a strictly newer semantic version', () => {
-    expect(isNewerVersion('0.2.0', '0.1.3')).toBe(true);
-    expect(isNewerVersion('v0.1.3', '0.1.3')).toBe(false);
-    expect(isNewerVersion('0.1.1', '0.1.3')).toBe(false);
+    expect(isNewerVersion('0.2.0', '0.1.4')).toBe(true);
+    expect(isNewerVersion('v0.1.4', '0.1.4')).toBe(false);
+    expect(isNewerVersion('0.1.1', '0.1.4')).toBe(false);
     expect(isNewerVersion('1.0.0', '1.0.0-beta.2')).toBe(true);
     expect(isNewerVersion('1.0.0-beta.1', '1.0.0')).toBe(false);
     expect(isNewerVersion('1.0.0-beta.2', '1.0.0-beta')).toBe(true);
@@ -63,12 +63,12 @@ describe('ApplicationUpdateService', () => {
       onChanged,
       platform: 'win32',
       updater: updater as unknown as AppUpdater,
-      version: '0.1.3',
+      version: '0.1.4',
     });
     service.start({ autoCheck: false, autoDownload: false });
 
     await expect(service.checkForUpdates()).resolves.toMatchObject({
-      currentVersion: '0.1.3',
+      currentVersion: '0.1.4',
       status: 'up-to-date',
     });
     expect(updater.checkForUpdates).not.toHaveBeenCalled();
@@ -94,7 +94,7 @@ describe('ApplicationUpdateService', () => {
       onChanged: vi.fn(),
       platform: 'win32',
       updater: updater as unknown as AppUpdater,
-      version: '0.1.3',
+      version: '0.1.4',
     });
     service.start({ autoCheck: false, autoDownload: false });
 
@@ -137,7 +137,7 @@ describe('ApplicationUpdateService', () => {
       onChanged,
       platform: 'win32',
       updater: updater as unknown as AppUpdater,
-      version: '0.1.3',
+      version: '0.1.4',
     });
     service.start({ autoCheck: false, autoDownload: false });
 
