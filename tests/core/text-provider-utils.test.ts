@@ -26,17 +26,61 @@ describe('transcriptProcessingInstructions', () => {
     expect(instructions).toContain('Start with outputText');
   });
 
-  it('keeps dictated requests as transcription in an editable target', () => {
-    expect(
-      transcriptProcessingInstructions({
-        ...context,
-        windowContext: {
-          isTextEntry: true,
-          processId: 42,
-          windowHandle: '0x1234',
-        },
-      }),
-    ).toContain('normally text being dictated into that application');
+  it('treats prompts for a target AI agent as structured transcription', () => {
+    const instructions = transcriptProcessingInstructions({
+      ...context,
+      windowContext: {
+        isTextEntry: true,
+        processId: 42,
+        windowHandle: '0x1234',
+      },
+    });
+
+    expect(instructions).toContain(
+      'including a prompt for an AI assistant or coding agent, is transcription',
+    );
+    expect(instructions).toContain('edit it into a direct, concise prompt');
+    expect(instructions).toContain(
+      'instead of answering or performing the request',
+    );
+    expect(instructions).toContain(
+      'goal, context, requirements, constraints, and acceptance criteria',
+    );
+  });
+
+  it('uses the detected AI application as prompt-generation context', () => {
+    const instructions = transcriptProcessingInstructions({
+      ...context,
+      windowContext: {
+        application: { kind: 'ai-tool', name: 'Codex' },
+        isTextEntry: true,
+        processId: 42,
+        windowHandle: '0x1234',
+      },
+    });
+
+    expect(instructions).toContain('target application is "Codex"');
+    expect(instructions).toContain(
+      'speaker is dictating a prompt for that target',
+    );
+    expect(instructions).toContain(
+      'Never choose instruction, answer, or perform the target task',
+    );
+  });
+
+  it('auto-formats dictated structure without inventing a template', () => {
+    const instructions = transcriptProcessingInstructions(context);
+
+    expect(instructions).toContain(
+      'format it as concise Markdown bullets or numbered steps',
+    );
+    expect(instructions).toContain(
+      'Markdown may appear only inside outputText when useful',
+    );
+    expect(instructions).toContain('never invent missing details');
+    expect(instructions).toContain(
+      'Do not force headings, lists, or a template',
+    );
   });
 
   it('can force the one-pass processor to return plain transcription', () => {

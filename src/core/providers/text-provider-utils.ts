@@ -34,12 +34,16 @@ export const transcriptProcessingInstructions = (
   const intentInstruction = context.forcedIntent
     ? `The intent is forced to "${context.forcedIntent}". Do not choose another intent.`
     : `Choose exactly one intent:
-- "transcription": clean up dictated text while preserving the speaker's meaning and original language.
+- "transcription": turn dictated speech into ready-to-use writing while preserving the speaker's meaning and original language.
 - "translation": use only when the speaker explicitly asks the dictation system to translate the dictated content.
 - "instruction": use only when the speaker explicitly asks the dictation system itself to create or transform content.`;
-  const targetContext = context.windowContext?.isTextEntry
-    ? `The target is an editable field in another application. Spoken requests such as "help me write an email" are normally text being dictated into that application, so treat them as transcription unless the speaker explicitly addresses UnTypo, the dictation system, or the transcription tool and asks it to perform the request.`
-    : `When the target is not an editable field, still choose instruction only for an explicit request that the dictation system itself should perform.`;
+  const application = context.windowContext?.application;
+  const targetContext =
+    application?.kind === 'ai-tool'
+      ? `The target application is ${JSON.stringify(application.name ?? 'an AI tool')}. It is an AI assistant or coding agent, so the speaker is dictating a prompt for that target. Always treat task requests as transcription and edit them into prompts. Never choose instruction, answer, or perform the target task in this application context.`
+      : context.windowContext?.isTextEntry
+        ? `The target is an editable field in another application. Content addressed to that application, including a prompt for an AI assistant or coding agent, is transcription even when it uses imperative language. Choose instruction only when the speaker explicitly addresses UnTypo, the dictation system, or the transcription tool and asks it to perform the request.`
+        : `When the target is not an editable field, still choose instruction only for an explicit request that the dictation system itself should perform.`;
   const profile = context.profile
     ? ` User profile context, to use only when directly relevant: ${JSON.stringify(context.profile)}.`
     : '';
@@ -57,12 +61,17 @@ ${intentInstruction}
 ${targetContext}
 
 Apply the selected intent:
-- For transcription, remove filler words and accidental repetition, correct obvious recognition errors, and preserve meaning and formatting.${context.tone ? ` Use a ${context.tone} tone.` : ''}
+- For transcription, return polished, ready-to-use writing rather than a verbatim transcript.${context.tone ? ` Use a ${context.tone} tone.` : ''}
+  - Remove filler words, hesitation, false starts, accidental repetition, and superseded wording when the speaker corrects themself.
+  - Preserve the final intended meaning, original language, names, code identifiers, numbers, examples, requirements, and constraints. Correct only obvious recognition errors and never invent missing details.
+  - Infer punctuation and paragraph breaks. When the speaker clearly dictates a list, sequence, requirements, or acceptance criteria, format it as concise Markdown bullets or numbered steps.
+  - When the dictated content is a request for an AI assistant or coding agent, edit it into a direct, concise prompt instead of answering or performing the request. Lead with the requested action, remove conversational wrappers such as "I want the agent to", and group only the supplied goal, context, requirements, constraints, and acceptance criteria under short sections when that materially improves scanability.
+  - Keep short requests short. Do not force headings, lists, or a template when a clear sentence is enough.
 - For translation, omit the spoken translation command and translate the requested content. An explicitly spoken target language wins; otherwise use ${languageName(targetLanguage)}.
 - For instruction, omit the spoken command wrapper and return only the completed content. Use the speaker's language (${languageName(context.locale)}) unless they explicitly request another language.
 ${terms ? `Preserve these terms exactly when applicable: ${terms}.` : ''}${profile}${dictionaryLearning}
 
-Return only one JSON object in this exact property order: ${responseShape}. Start with outputText so its value can be shown while the response is still streaming. Add intent and dictionaryCandidates only after outputText. Do not add Markdown or commentary.`;
+Return only one JSON object in this exact property order: ${responseShape}. Start with outputText so its value can be shown while the response is still streaming. Add intent and dictionaryCandidates only after outputText. Markdown may appear only inside outputText when useful. Do not wrap the JSON in a Markdown code fence or add commentary outside it.`;
 };
 
 const decodeOutputTextPrefix = (source: string): string | undefined => {

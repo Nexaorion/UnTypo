@@ -195,8 +195,9 @@ bool PipeServer::Dispatch(MessageType type,
     return WriteFrame(MessageType::HotkeyConfigured, &result, sizeof(result));
   }
   if (type == MessageType::CaptureTarget && payload.empty()) {
-    const TargetSnapshotPayload target = callbacks_.capture_target();
-    return WriteFrame(MessageType::TargetCaptured, &target, sizeof(target));
+    const std::vector<std::uint8_t> target = callbacks_.capture_target();
+    return WriteFrame(MessageType::TargetCaptured, target.data(),
+                      static_cast<std::uint32_t>(target.size()));
   }
   if (type == MessageType::Paste) {
     PasteRequestPayload request{};

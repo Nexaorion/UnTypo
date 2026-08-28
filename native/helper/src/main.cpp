@@ -65,8 +65,8 @@ int RunSelfTest() {
   if (sizeof(untypo::FrameHeader) != 12 ||
       sizeof(untypo::HotkeyConfiguration) != 8 ||
       sizeof(untypo::HotkeyConfigurationResultPayload) != 4 ||
-      sizeof(untypo::TargetSnapshotPayload) != 14 ||
-      untypo::kProtocolVersion != 2) {
+      sizeof(untypo::TargetSnapshotHeader) != 14 ||
+      untypo::kProtocolVersion != 3) {
     return 1;
   }
   return 0;

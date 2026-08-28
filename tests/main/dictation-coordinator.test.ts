@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type {
   AudioPayload,
+  DictationIntent,
   ProviderAudioFormat,
 } from '../../src/core/providers/contracts';
 import { MockDictationProvider } from '../../src/core/providers/mock-provider';
@@ -41,7 +42,9 @@ interface RuntimeOptions {
   preferredAudioFormat?: ProviderAudioFormat;
   signal?: AbortSignal;
   speechProviderId?: string;
+  targetSnapshot?: NativeTargetSnapshot;
   transcript?: string;
+  intent?: DictationIntent;
   withTextProvider?: boolean;
 }
 
@@ -53,13 +56,16 @@ const createCoordinator = ({
   preferredAudioFormat,
   signal,
   speechProviderId = 'mock',
+  targetSnapshot = target,
   transcript = 'raw mock result',
+  intent,
   withTextProvider = true,
 }: RuntimeOptions = {}) => {
   const speechProviders = new SpeechProviderRegistry();
   const textProviders = new TextProviderRegistry();
   const provider = new MockDictationProvider({
     ...(dictionaryCandidates ? { dictionaryCandidates } : {}),
+    ...(intent ? { intent } : {}),
     polishedText: 'Final mock result',
     transcript,
   });
@@ -91,7 +97,7 @@ const createCoordinator = ({
       audio,
       peakLevel: 0.45,
       sessionId: 'recording-session',
-      target,
+      target: targetSnapshot,
       speechDurationMs: 320,
       voiceDetected: true,
     }),
@@ -148,7 +154,7 @@ const createCoordinator = ({
     getContext,
     history: { record },
     injection: { inject },
-    native: { captureTarget: () => Promise.resolve(target) },
+    native: { captureTarget: () => Promise.resolve(targetSnapshot) },
     presenter: {
       showConfirm,
       showError,
@@ -272,6 +278,42 @@ describe('DictationCoordinator', () => {
 
     expect(runtime.handleCandidates).toHaveBeenCalledWith([candidate], 7);
     expect(runtime.events.at(-1)).toBe('success:inserted');
+  });
+
+  it('forces detected Codex requests into prompt transcription', async () => {
+    const codexTarget: NativeTargetSnapshot = {
+      ...target,
+      processName: 'ChatGPT.exe',
+      windowTitle: 'ChatGPT',
+    };
+    const runtime = createCoordinator({
+      intent: 'instruction',
+      targetSnapshot: codexTarget,
+      transcript: '帮我生成一个 SECURITY.md 并推送到 GitHub',
+    });
+    const processTranscript = vi.spyOn(runtime.provider, 'processTranscript');
+
+    await runtime.coordinator.start();
+    await runtime.coordinator.stop();
+
+    expect(processTranscript).toHaveBeenCalledOnce();
+    expect(processTranscript.mock.calls[0]?.[0]).toBe(
+      '帮我生成一个 SECURITY.md 并推送到 GitHub',
+    );
+    expect(processTranscript.mock.calls[0]?.[1]).toMatchObject({
+      forcedIntent: 'transcription',
+      windowContext: {
+        application: { kind: 'ai-tool', name: 'ChatGPT/Codex' },
+      },
+    });
+    expect(
+      processTranscript.mock.calls[0]?.[1].windowContext,
+    ).not.toHaveProperty('windowTitle');
+    expect(runtime.record).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: 'transcription' }),
+      expect.anything(),
+    );
+    expect(runtime.showConfirm).not.toHaveBeenCalled();
   });
 
   it('requests the speech provider preferred recording format', async () => {

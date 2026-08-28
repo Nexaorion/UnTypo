@@ -7,6 +7,13 @@ export type DictationIntent = 'transcription' | 'translation' | 'instruction';
 export type ProviderKind = 'builtin' | 'community' | 'official-cloud' | 'local';
 export type ProviderAudioFormat = 'wav' | 'webm';
 export type SupportedLanguage = 'zh-CN' | 'en-US';
+export type TargetApplicationKind =
+  'ai-tool' | 'browser' | 'chat-app' | 'general' | 'ide' | 'office';
+
+export interface TargetApplicationContext {
+  kind: TargetApplicationKind;
+  name?: string;
+}
 
 export interface AudioPayload {
   bytes: Uint8Array;
@@ -65,6 +72,7 @@ export interface TextProcessContext {
 }
 
 export interface WindowContext {
+  application?: TargetApplicationContext;
   isTextEntry: boolean;
   processId: number;
   windowHandle: string;

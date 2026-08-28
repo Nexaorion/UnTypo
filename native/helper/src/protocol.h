@@ -1,12 +1,14 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 namespace untypo {
 
 constexpr std::uint32_t kProtocolMagic = 0x50595455;
-constexpr std::uint16_t kProtocolVersion = 2;
+constexpr std::uint16_t kProtocolVersion = 3;
 constexpr std::uint32_t kMaximumPayloadBytes = 1024 * 1024;
+constexpr std::size_t kMaximumTargetContextCharacters = 512;
 
 enum class MessageType : std::uint16_t {
   Authenticate = 1,
@@ -57,7 +59,7 @@ struct HotkeyEventPayload {
   HotkeyAction action;
 };
 
-struct TargetSnapshotPayload {
+struct TargetSnapshotHeader {
   std::uint64_t window_handle;
   std::uint32_t process_id;
   std::uint8_t editable;
@@ -77,7 +79,7 @@ struct PasteResultPayload {
 static_assert(sizeof(FrameHeader) == 12);
 static_assert(sizeof(HotkeyConfiguration) == 8);
 static_assert(sizeof(HotkeyConfigurationResultPayload) == 4);
-static_assert(sizeof(TargetSnapshotPayload) == 14);
+static_assert(sizeof(TargetSnapshotHeader) == 14);
 static_assert(sizeof(PasteRequestPayload) == 12);
 
 }  // namespace untypo

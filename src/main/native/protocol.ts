@@ -1,7 +1,9 @@
 export const NATIVE_PROTOCOL_MAGIC = 0x50595455;
-export const NATIVE_PROTOCOL_VERSION = 2;
+export const NATIVE_PROTOCOL_VERSION = 3;
 export const NATIVE_MAXIMUM_PAYLOAD_BYTES = 1024 * 1024;
 export const NATIVE_FRAME_HEADER_BYTES = 12;
+const NATIVE_TARGET_FIXED_BYTES = 14;
+const NATIVE_TARGET_CONTEXT_MAXIMUM_CHARACTERS = 512;
 
 export enum NativeMessageType {
   Authenticate = 1,
@@ -44,8 +46,10 @@ export interface NativeHotkeyConfiguration {
 export interface NativeTargetSnapshot {
   editable: boolean;
   higherIntegrity: boolean;
+  processName?: string;
   processId: number;
   windowHandle: string;
+  windowTitle?: string;
 }
 
 export const encodeNativeFrame = (
@@ -90,14 +94,39 @@ export const decodeHotkeyConfigurationResult = (payload: Buffer): number => {
 };
 
 export const decodeTargetSnapshot = (payload: Buffer): NativeTargetSnapshot => {
-  if (payload.byteLength !== 14) {
+  if (payload.byteLength < NATIVE_TARGET_FIXED_BYTES + 4) {
+    throw new Error('Native target snapshot has an invalid size');
+  }
+  let offset = NATIVE_TARGET_FIXED_BYTES;
+  const readContext = (): string => {
+    if (offset + 2 > payload.byteLength) {
+      throw new Error('Native target snapshot has an invalid size');
+    }
+    const characters = payload.readUInt16LE(offset);
+    offset += 2;
+    if (characters > NATIVE_TARGET_CONTEXT_MAXIMUM_CHARACTERS) {
+      throw new Error('Native target context is too large');
+    }
+    const bytes = characters * 2;
+    if (offset + bytes > payload.byteLength) {
+      throw new Error('Native target snapshot has an invalid size');
+    }
+    const value = payload.toString('utf16le', offset, offset + bytes);
+    offset += bytes;
+    return value;
+  };
+  const windowTitle = readContext();
+  const processName = readContext();
+  if (offset !== payload.byteLength) {
     throw new Error('Native target snapshot has an invalid size');
   }
   return {
     editable: payload.readUInt8(12) === 1,
     higherIntegrity: payload.readUInt8(13) === 1,
+    ...(processName ? { processName } : {}),
     processId: payload.readUInt32LE(8),
     windowHandle: payload.readBigUInt64LE(0).toString(),
+    ...(windowTitle ? { windowTitle } : {}),
   };
 };
 

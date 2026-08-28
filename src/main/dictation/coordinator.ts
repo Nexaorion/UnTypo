@@ -37,6 +37,7 @@ import type {
   DiagnosticIssueInput,
   DiagnosticLogInput,
 } from '../diagnostics/collector.js';
+import { ContextDetector } from './context-detector.js';
 
 export type DictationRuntimeState = 'idle' | 'recording' | 'processing';
 
@@ -140,6 +141,8 @@ const hasUsableSignal = (recording: CompletedRecording): boolean =>
 
 const elapsedSince = (startedAt: number): number =>
   Math.max(0, Date.now() - startedAt);
+
+const contextDetector = new ContextDetector();
 
 const enrichModelCalls = (
   calls: ProcessResult['modelCalls'],
@@ -376,14 +379,18 @@ export class DictationCoordinator {
       let result: ProcessResult;
       let modelProcessingMs = 0;
       const modelProcessingStartedAt = Date.now();
+      const application = contextDetector.detectApplicationContext(target);
+      const forcePromptTranscription =
+        contextDetector.shouldForceTranscription(application);
       try {
         const processRecording = () =>
           new DictationPipeline(speechProvider, textProvider).process(
             recording.audio,
             {
               ...context.options,
-              ...(context.fastMode
-                ? { fastMode: true, forcedIntent: 'transcription' }
+              ...(context.fastMode ? { fastMode: true } : {}),
+              ...(context.fastMode || forcePromptTranscription
+                ? { forcedIntent: 'transcription' }
                 : {}),
               onOutputTextUpdate: (outputText) => {
                 context.options.onOutputTextUpdate?.(outputText);
@@ -392,6 +399,7 @@ export class DictationCoordinator {
               signal: processingSignal,
               windowContext: target
                 ? {
+                    application,
                     isTextEntry: target.editable,
                     processId: target.processId,
                     windowHandle: target.windowHandle,

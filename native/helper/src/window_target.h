@@ -1,12 +1,15 @@
 #pragma once
 
+#include <cstdint>
+#include <vector>
+
 #include "protocol.h"
 
 namespace untypo {
 
 class WindowTargetService {
  public:
-  TargetSnapshotPayload Capture() const;
+  std::vector<std::uint8_t> Capture() const;
   PasteResultPayload Paste(const PasteRequestPayload& request) const;
 
  private:

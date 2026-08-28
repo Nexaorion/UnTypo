@@ -207,7 +207,8 @@ export const messages = {
     'provider.speechTitle': '语音识别模型',
     'provider.testFailed': '连接失败',
     'provider.testOk': '连接正常',
-    'provider.textDescription': '一次完成意图判断、润色、翻译或内容生成。',
+    'provider.textDescription':
+      '一次完成意图判断、智能整理、提示词优化、翻译或内容生成。',
     'provider.textModel': '文本模型',
     'provider.textTitle': '文本生成模型',
     'provider.title': '模型',
@@ -242,7 +243,8 @@ export const messages = {
     'settings.defaultTargetLanguage': '默认目标语言',
     'settings.dictationLanguage': '口述语言',
     'settings.fastMode': '仅转写模式',
-    'settings.fastModeHint': '始终整理原始转写，不执行翻译或内容生成。',
+    'settings.fastModeHint':
+      '始终按原语言智能整理，包括提示词结构化；不执行翻译或内容生成。',
     'settings.autoCheckUpdates': '自动检查更新',
     'settings.autoCheckUpdatesHint': '启动后检查，并每 6 小时在后台检查一次',
     'settings.autoDownloadUpdates': '自动下载更新',
@@ -502,7 +504,7 @@ export const messages = {
     'provider.testFailed': 'Connection failed',
     'provider.testOk': 'Connection works',
     'provider.textDescription':
-      'Determines intent and polishes, translates, or generates in one pass.',
+      'Determines intent and structures prompts, polishes, translates, or generates in one pass.',
     'provider.textModel': 'Text model',
     'provider.textTitle': 'Text generation model',
     'provider.title': 'Models',
@@ -540,7 +542,7 @@ export const messages = {
     'settings.dictationLanguage': 'Dictation language',
     'settings.fastMode': 'Transcription only',
     'settings.fastModeHint':
-      'Always clean up the raw transcript without translating or generating content.',
+      'Always organize the original-language transcript, including prompt structure, without translating or generating content.',
     'settings.autoCheckUpdates': 'Automatically check for updates',
     'settings.autoCheckUpdatesHint':
       'Check after launch and every 6 hours in the background',
