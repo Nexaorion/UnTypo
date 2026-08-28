@@ -35,6 +35,7 @@ export type CapsuleStatus =
     }
   | {
       locale: SupportedLanguage;
+      outputText?: string;
       type: 'processing';
     }
   | {

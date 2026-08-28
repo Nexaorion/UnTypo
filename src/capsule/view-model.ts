@@ -156,7 +156,7 @@ export const capsuleViewModel = (status: CapsuleStatus): CapsuleViewModel => {
       ariaLive: 'polite',
       closeLabel: copy.close,
       copyLabel: copy.copy,
-      detail: copy.processingDetail,
+      detail: status.outputText?.trim() || copy.processingDetail,
       showClose: false,
       showConfirm: false,
       showCopy: false,

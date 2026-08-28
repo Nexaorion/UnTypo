@@ -1,5 +1,6 @@
 import type {
   DictationIntent,
+  ModelCallTrace,
   SupportedLanguage,
   UserProfileContext,
 } from '../core/providers/contracts.js';
@@ -164,9 +165,26 @@ export interface ClientHistoryRecord {
   language: SupportedLanguage;
   modelName?: string;
   outputText: string;
+  processingTrace?: ClientHistoryProcessingTrace;
   providerId: string;
   rawTranscript?: string;
   scene?: string;
+}
+
+export type ClientHistoryModelCall = ModelCallTrace & {
+  modelName?: string;
+  providerName?: string;
+  providerType?: ModelProviderId;
+};
+
+export interface ClientHistoryProcessingTrace {
+  confirmationMs?: number;
+  injectionMs: number;
+  modelCalls: readonly ClientHistoryModelCall[];
+  modelProcessingMs: number;
+  operationId: string;
+  recorderFinalizationMs: number;
+  totalDurationMs: number;
 }
 
 export interface ClientUsageStats {

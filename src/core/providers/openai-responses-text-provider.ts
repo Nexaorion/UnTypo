@@ -6,13 +6,16 @@ import {
   type TextProcessResult,
 } from './contracts.js';
 import {
+  isProviderEventStream,
   providerConfigSchema,
   providerUrl,
+  readProviderEventStream,
   readProviderJson,
   resolveProviderConfiguration,
   type ProviderConnectionConfiguration,
 } from './provider-http.js';
 import {
+  createTranscriptOutputTextStream,
   parseTranscriptProcessing,
   textProviderCapabilities,
   transcriptProcessingInstructions,
@@ -30,6 +33,11 @@ interface ResponsesPayload {
     type?: string;
   }>;
   output_text?: string;
+}
+
+interface ResponsesStreamEvent {
+  delta?: string;
+  type?: string;
 }
 
 const extractText = (payload: unknown): string => {
@@ -81,19 +89,25 @@ export class OpenAIResponsesTextProvider implements TextGenerationProvider {
     text: string,
     context: TextProcessContext,
   ): Promise<TextProcessResult> {
-    return parseTranscriptProcessing(
-      await this.textResponse(
-        text,
-        transcriptProcessingInstructions(context),
-        context.signal,
-      ),
+    const outputTextStream = createTranscriptOutputTextStream(
+      context.onOutputTextUpdate,
     );
+    const output = await this.textResponse(
+      text,
+      transcriptProcessingInstructions(context),
+      context.signal,
+      outputTextStream.push,
+    );
+    const result = parseTranscriptProcessing(output);
+    outputTextStream.complete(result.outputText);
+    return result;
   }
 
   private async textResponse(
     input: string,
     instructions: string,
     signal?: AbortSignal,
+    onTextDelta?: (delta: string) => void,
   ): Promise<string> {
     const response = await this.#fetch(
       providerUrl(this.#baseUrl, '/responses'),
@@ -103,6 +117,7 @@ export class OpenAIResponsesTextProvider implements TextGenerationProvider {
           instructions,
           model: this.#model,
           store: false,
+          stream: true,
         }),
         headers: {
           Authorization: `Bearer ${this.#apiKey}`,
@@ -112,6 +127,31 @@ export class OpenAIResponsesTextProvider implements TextGenerationProvider {
         signal,
       },
     );
+    if (isProviderEventStream(response)) {
+      let output = '';
+      await readProviderEventStream(
+        response,
+        'OpenAI Responses-compatible provider',
+        (event) => {
+          const streamEvent = event as ResponsesStreamEvent;
+          if (
+            streamEvent.type !== 'response.output_text.delta' ||
+            typeof streamEvent.delta !== 'string'
+          ) {
+            return;
+          }
+          output += streamEvent.delta;
+          onTextDelta?.(streamEvent.delta);
+        },
+      );
+      if (!output.trim()) {
+        throw new ProviderContractError(
+          'EMPTY_RESULT',
+          'OpenAI Responses-compatible provider returned an empty response',
+        );
+      }
+      return output;
+    }
     return extractText(
       await readProviderJson(response, 'OpenAI Responses-compatible provider'),
     );

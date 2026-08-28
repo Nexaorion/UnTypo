@@ -138,6 +138,19 @@ export class CapsuleWindowController {
     await this.present({ locale, type: 'processing' });
   }
 
+  updateProcessing(outputText: string): void {
+    if (this.#status?.type !== 'processing') return;
+    const normalizedOutput = outputText.trim();
+    if (!normalizedOutput || normalizedOutput === this.#status.outputText)
+      return;
+    const hadOutput = Boolean(this.#status.outputText);
+    this.#status = { ...this.#status, outputText: normalizedOutput };
+    if (!hadOutput && this.#window && !this.#window.isDestroyed()) {
+      this.sizeAndPositionWindow(this.#window, this.#status);
+    }
+    this.sendCurrentStatus();
+  }
+
   async showConfirm(
     result: ProcessResult,
     locale: SupportedLanguage,
@@ -514,7 +527,9 @@ export class CapsuleWindowController {
     const bounds =
       status.type === 'dictionary-suggestion'
         ? capsuleBounds.suggestion
-        : status.type === 'success' || status.type === 'confirm'
+        : status.type === 'success' ||
+            status.type === 'confirm' ||
+            (status.type === 'processing' && Boolean(status.outputText))
           ? capsuleBounds.success
           : status.type === 'error'
             ? capsuleBounds.error

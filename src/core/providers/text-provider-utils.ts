@@ -19,7 +19,7 @@ export const textProviderCapabilities: Readonly<ProviderCapabilities> = {
   translation: true,
   instructionGeneration: true,
   intentDetection: true,
-  streamingPartial: false,
+  streamingPartial: true,
 };
 
 const languageName = (language: SupportedLanguage): string =>
@@ -47,8 +47,8 @@ export const transcriptProcessingInstructions = (
     ? `\nAlso identify up to 3 high-confidence proper terms explicitly used by the speaker. Eligible categories are person names, place names, organizations, products, acronyms, and specialized technical terms. Exclude common words, generic phrases, and anything inferred only from generated output. Use the most likely canonical spelling. Each candidate must include a confidence from 0 to 1 and one category from "person", "place", "organization", "product", or "technical".`
     : '';
   const responseShape = context.dictionaryLearningEnabled
-    ? '{"intent":"transcription|translation|instruction","outputText":"final text","dictionaryCandidates":[{"term":"canonical term","category":"person|place|organization|product|technical","confidence":0.95}]}'
-    : '{"intent":"transcription|translation|instruction","outputText":"final text"}';
+    ? '{"outputText":"final text","intent":"transcription|translation|instruction","dictionaryCandidates":[{"term":"canonical term","category":"person|place|organization|product|technical","confidence":0.95}]}'
+    : '{"outputText":"final text","intent":"transcription|translation|instruction"}';
 
   return `You are UnTypo's single-pass transcript processor. Decide the intent and produce the final text in this one response.
 
@@ -62,7 +62,85 @@ Apply the selected intent:
 - For instruction, omit the spoken command wrapper and return only the completed content. Use the speaker's language (${languageName(context.locale)}) unless they explicitly request another language.
 ${terms ? `Preserve these terms exactly when applicable: ${terms}.` : ''}${profile}${dictionaryLearning}
 
-Return only one JSON object in this shape: ${responseShape}. Do not add Markdown or commentary.`;
+Return only one JSON object in this exact property order: ${responseShape}. Start with outputText so its value can be shown while the response is still streaming. Add intent and dictionaryCandidates only after outputText. Do not add Markdown or commentary.`;
+};
+
+const decodeOutputTextPrefix = (source: string): string | undefined => {
+  const keyIndex = source.indexOf('"outputText"');
+  if (keyIndex < 0) return undefined;
+  const colonIndex = source.indexOf(':', keyIndex + 12);
+  if (colonIndex < 0) return undefined;
+
+  let index = colonIndex + 1;
+  while (/\s/u.test(source[index] ?? '')) index += 1;
+  if (source[index] !== '"') return undefined;
+  index += 1;
+
+  let output = '';
+  while (index < source.length) {
+    const character = source[index];
+    if (character === '"') return output;
+    if (character !== '\\') {
+      output += character;
+      index += 1;
+      continue;
+    }
+
+    const escape = source[index + 1];
+    if (!escape) return output;
+    const escapedCharacters: Readonly<Record<string, string>> = {
+      '"': '"',
+      '\\': '\\',
+      '/': '/',
+      b: '\b',
+      f: '\f',
+      n: '\n',
+      r: '\r',
+      t: '\t',
+    };
+    if (escape === 'u') {
+      const code = source.slice(index + 2, index + 6);
+      if (code.length < 4 || !/^[0-9a-f]{4}$/iu.test(code)) return output;
+      output += String.fromCharCode(Number.parseInt(code, 16));
+      index += 6;
+      continue;
+    }
+    const decoded = escapedCharacters[escape];
+    if (decoded === undefined) return output;
+    output += decoded;
+    index += 2;
+  }
+  return output;
+};
+
+export interface TranscriptOutputTextStream {
+  complete: (outputText: string) => void;
+  push: (delta: string) => void;
+}
+
+export const createTranscriptOutputTextStream = (
+  listener?: (outputText: string) => void,
+): TranscriptOutputTextStream => {
+  let source = '';
+  let lastOutput = '';
+  const emit = (outputText: string): void => {
+    if (!listener || !outputText || outputText === lastOutput) return;
+    lastOutput = outputText;
+    try {
+      listener(outputText);
+    } catch {
+      // Presentation failures must not invalidate an otherwise usable result.
+    }
+  };
+
+  return {
+    complete: emit,
+    push: (delta) => {
+      source += delta;
+      const outputText = decodeOutputTextPrefix(source);
+      if (outputText !== undefined) emit(outputText);
+    },
+  };
 };
 
 const parseDictionaryCandidates = (

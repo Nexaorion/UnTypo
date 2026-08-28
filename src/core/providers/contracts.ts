@@ -57,6 +57,7 @@ export interface TextProcessContext {
   explicitTargetLanguage?: SupportedLanguage;
   forcedIntent?: DictationIntent;
   locale: SupportedLanguage;
+  onOutputTextUpdate?: (outputText: string) => void;
   profile?: UserProfileContext;
   signal?: AbortSignal;
   tone?: string;
@@ -83,6 +84,7 @@ export interface ProcessOptions {
   fastMode?: boolean;
   forcedIntent?: DictationIntent;
   language: SupportedLanguage;
+  onOutputTextUpdate?: (outputText: string) => void;
   preferIntegratedProcess?: boolean;
   profile?: UserProfileContext;
   signal?: AbortSignal;
@@ -90,9 +92,53 @@ export interface ProcessOptions {
   windowContext?: WindowContext;
 }
 
+export interface SpeechRecognitionCallInput {
+  audioDurationMs: number;
+  channels: number;
+  dictionaryTermCount: number;
+  language: SupportedLanguage;
+  mimeType: string;
+  payloadSizeBytes: number;
+  sampleRateHz: number;
+}
+
+export interface TextGenerationCallInput {
+  defaultTargetLanguage: SupportedLanguage;
+  dictionaryLearningEnabled: boolean;
+  dictionaryTermCount: number;
+  explicitTargetLanguage?: SupportedLanguage;
+  forcedIntent?: DictationIntent;
+  locale: SupportedLanguage;
+  text: string;
+  tone?: string;
+}
+
+interface ModelCallTraceBase {
+  durationMs: number;
+  error?: string;
+  firstOutputMs?: number;
+  outputText?: string;
+  providerId: string;
+  status: 'failed' | 'success';
+}
+
+export interface SpeechRecognitionCallTrace extends ModelCallTraceBase {
+  input: SpeechRecognitionCallInput;
+  kind: 'speech-recognition';
+}
+
+export interface TextGenerationCallTrace extends ModelCallTraceBase {
+  input: TextGenerationCallInput;
+  kind: 'text-generation';
+}
+
+export type ModelCallTrace =
+  SpeechRecognitionCallTrace | TextGenerationCallTrace;
+
 export interface ProcessResult {
   dictionaryCandidates?: readonly DictionaryCandidate[];
   intent: DictationIntent;
+  modelCalls?: readonly ModelCallTrace[];
   outputText: string;
   rawTranscript?: string;
   usage?: ProviderUsage;

@@ -24,6 +24,17 @@ describe('capsuleViewModel', () => {
       showCopy: false,
       title: '处理中...',
     });
+
+    expect(
+      capsuleViewModel({
+        locale: 'zh-CN',
+        outputText: '正在流式生成的结果',
+        type: 'processing',
+      }),
+    ).toMatchObject({
+      detail: '正在流式生成的结果',
+      title: '处理中...',
+    });
   });
 
   it('distinguishes inserted and copy fallback results', () => {

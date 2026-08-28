@@ -9,6 +9,17 @@ const configuration = {
   model: 'claude-test',
 };
 
+const eventStreamResponse = (events: readonly unknown[]): Response =>
+  new Response(
+    events
+      .map(
+        (event) =>
+          `event: ${(event as { type?: string }).type ?? 'message'}\ndata: ${JSON.stringify(event)}\n\n`,
+      )
+      .join(''),
+    { headers: { 'Content-Type': 'text/event-stream' }, status: 200 },
+  );
+
 describe('AnthropicTextProvider', () => {
   it('uses Messages with Anthropic authentication headers', async () => {
     const request = vi.fn<typeof fetch>(() =>
@@ -54,6 +65,44 @@ describe('AnthropicTextProvider', () => {
       model: 'claude-test',
     });
     expect(body).not.toHaveProperty('temperature');
+    expect(body).toMatchObject({ stream: true });
+  });
+
+  it('streams Anthropic text deltas into outputText updates', async () => {
+    const provider = new AnthropicTextProvider(
+      configuration,
+      vi.fn(() =>
+        Promise.resolve(
+          eventStreamResponse([
+            {
+              delta: { text: '{"outputText":"Hel', type: 'text_delta' },
+              index: 0,
+              type: 'content_block_delta',
+            },
+            {
+              delta: {
+                text: 'lo","intent":"transcription"}',
+                type: 'text_delta',
+              },
+              index: 0,
+              type: 'content_block_delta',
+            },
+            { type: 'message_stop' },
+          ]),
+        ),
+      ),
+    );
+    const updates: string[] = [];
+
+    await expect(
+      provider.processTranscript('hello', {
+        defaultTargetLanguage: 'en-US',
+        dictionary: [],
+        locale: 'en-US',
+        onOutputTextUpdate: (outputText) => updates.push(outputText),
+      }),
+    ).resolves.toEqual({ intent: 'transcription', outputText: 'Hello' });
+    expect(updates).toEqual(['Hel', 'Hello']);
   });
 
   it('surfaces a provider error message', async () => {

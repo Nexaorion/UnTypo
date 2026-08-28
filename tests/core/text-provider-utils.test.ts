@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createTranscriptOutputTextStream,
   parseTranscriptProcessing,
   transcriptProcessingInstructions,
 } from '../../src/core/providers/text-provider-utils';
@@ -19,6 +20,10 @@ describe('transcriptProcessingInstructions', () => {
       'Decide the intent and produce the final text',
     );
     expect(instructions).toContain('"outputText":"final text"');
+    expect(instructions.indexOf('"outputText"')).toBeLessThan(
+      instructions.indexOf('"intent"'),
+    );
+    expect(instructions).toContain('Start with outputText');
   });
 
   it('keeps dictated requests as transcription in an editable target', () => {
@@ -51,6 +56,32 @@ describe('transcriptProcessingInstructions', () => {
 
     expect(instructions).toContain('up to 3 high-confidence proper terms');
     expect(instructions).toContain('dictionaryCandidates');
+  });
+});
+
+describe('createTranscriptOutputTextStream', () => {
+  it('emits decoded output text before trailing metadata is complete', () => {
+    const updates: string[] = [];
+    const stream = createTranscriptOutputTextStream((outputText) =>
+      updates.push(outputText),
+    );
+
+    stream.push('{"outputText":"Hello');
+    stream.push('\\nUnTypo","intent":"trans');
+    stream.push('cription","dictionaryCandidates":[]}');
+
+    expect(updates).toEqual(['Hello', 'Hello\nUnTypo']);
+  });
+
+  it('finishes with the validated output when streaming is unavailable', () => {
+    const updates: string[] = [];
+    const stream = createTranscriptOutputTextStream((outputText) =>
+      updates.push(outputText),
+    );
+
+    stream.complete('Final text');
+
+    expect(updates).toEqual(['Final text']);
   });
 });
 

@@ -16,6 +16,12 @@ const configuration = {
   transcriptionModel: 'test-transcription-model',
 };
 
+const eventStreamResponse = (events: readonly unknown[]): Response =>
+  new Response(
+    `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' }, status: 200 },
+  );
+
 describe('OpenAIProvider', () => {
   it('uploads in-memory audio with format metadata and no SDK dependency', async () => {
     const request = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
@@ -119,6 +125,7 @@ describe('OpenAIProvider', () => {
       };
     };
     expect(body.store).toBe(false);
+    expect(body).toMatchObject({ stream: true });
     expect(body.text.format).toMatchObject({
       strict: true,
       type: 'json_schema',
@@ -134,6 +141,43 @@ describe('OpenAIProvider', () => {
       type: 'array',
     });
     expect(body.text.format.schema.required).toContain('dictionaryCandidates');
+    expect(Object.keys(body.text.format.schema.properties).slice(0, 2)).toEqual(
+      ['outputText', 'intent'],
+    );
+    expect(body.text.format.schema.required.slice(0, 2)).toEqual([
+      'outputText',
+      'intent',
+    ]);
+  });
+
+  it('streams outputText before parsing intent metadata', async () => {
+    const request = vi.fn(() =>
+      Promise.resolve(
+        eventStreamResponse([
+          {
+            delta: '{"outputText":"Hel',
+            type: 'response.output_text.delta',
+          },
+          {
+            delta: 'lo","intent":"transcription"}',
+            type: 'response.output_text.delta',
+          },
+        ]),
+      ),
+    );
+    const updates: string[] = [];
+    const provider = new OpenAIProvider(configuration, request);
+
+    await expect(
+      provider.processTranscript('hello', {
+        defaultTargetLanguage: 'en-US',
+        dictionary: [],
+        locale: 'en-US',
+        onOutputTextUpdate: (outputText) => updates.push(outputText),
+      }),
+    ).resolves.toEqual({ intent: 'transcription', outputText: 'Hello' });
+    expect(updates).toEqual(['Hel', 'Hello']);
+    expect(provider.capabilities.streamingPartial).toBe(true);
   });
 
   it('blocks plaintext public endpoints', () => {

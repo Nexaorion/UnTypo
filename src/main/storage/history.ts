@@ -7,6 +7,7 @@ import type {
   SupportedLanguage,
 } from '../../core/providers/contracts.js';
 import type { HistoryPolicy } from './configuration.js';
+import type { ClientHistoryProcessingTrace } from '../../shared/ipc.js';
 
 export interface HistoryRecord {
   audioDurationMs?: number;
@@ -16,6 +17,7 @@ export interface HistoryRecord {
   language: SupportedLanguage;
   modelName?: string;
   outputText: string;
+  processingTrace?: ClientHistoryProcessingTrace;
   providerId: string;
   rawTranscript?: string;
   scene?: string;
@@ -34,25 +36,54 @@ interface HistoryRow {
   language: SupportedLanguage;
   model_name: string | null;
   output_text: string;
+  processing_trace_json: string | null;
   provider_id: string;
   raw_transcript: string | null;
   scene: string | null;
 }
 
-const mapRow = (row: HistoryRow): HistoryRecord => ({
-  createdAt: row.created_at,
-  id: row.id,
-  intent: row.intent,
-  language: row.language,
-  outputText: row.output_text,
-  providerId: row.provider_id,
-  ...(row.audio_duration_ms === null
-    ? {}
-    : { audioDurationMs: row.audio_duration_ms }),
-  ...(row.model_name === null ? {} : { modelName: row.model_name }),
-  ...(row.raw_transcript === null ? {} : { rawTranscript: row.raw_transcript }),
-  ...(row.scene === null ? {} : { scene: row.scene }),
-});
+const parseProcessingTrace = (
+  value: string | null,
+): ClientHistoryProcessingTrace | undefined => {
+  if (value === null) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (
+      !parsed ||
+      typeof parsed !== 'object' ||
+      !('operationId' in parsed) ||
+      typeof parsed.operationId !== 'string' ||
+      !('modelCalls' in parsed) ||
+      !Array.isArray(parsed.modelCalls)
+    ) {
+      return undefined;
+    }
+    return parsed as ClientHistoryProcessingTrace;
+  } catch {
+    return undefined;
+  }
+};
+
+const mapRow = (row: HistoryRow): HistoryRecord => {
+  const processingTrace = parseProcessingTrace(row.processing_trace_json);
+  return {
+    createdAt: row.created_at,
+    id: row.id,
+    intent: row.intent,
+    language: row.language,
+    outputText: row.output_text,
+    providerId: row.provider_id,
+    ...(row.audio_duration_ms === null
+      ? {}
+      : { audioDurationMs: row.audio_duration_ms }),
+    ...(row.model_name === null ? {} : { modelName: row.model_name }),
+    ...(processingTrace ? { processingTrace } : {}),
+    ...(row.raw_transcript === null
+      ? {}
+      : { rawTranscript: row.raw_transcript }),
+    ...(row.scene === null ? {} : { scene: row.scene }),
+  };
+};
 
 interface UsageStatsRow {
   output_characters: number;
@@ -92,15 +123,18 @@ export class HistoryRepository {
       .prepare(
         `INSERT INTO dictation_history
           (id, created_at, provider_id, intent, output_text, raw_transcript, language, scene,
-           audio_duration_ms, model_name)
+           audio_duration_ms, model_name, processing_trace_json)
          VALUES
           (@id, @createdAt, @providerId, @intent, @outputText, @rawTranscript, @language, @scene,
-           @audioDurationMs, @modelName)`,
+           @audioDurationMs, @modelName, @processingTraceJson)`,
       )
       .run({
         ...record,
         audioDurationMs: record.audioDurationMs ?? null,
         modelName: record.modelName ?? null,
+        processingTraceJson: record.processingTrace
+          ? JSON.stringify(record.processingTrace)
+          : null,
         rawTranscript: record.rawTranscript ?? null,
         scene: record.scene ?? null,
       });
@@ -113,7 +147,8 @@ export class HistoryRepository {
     const rows = this.#database
       .prepare(
         `SELECT id, created_at, provider_id, intent, output_text,
-                raw_transcript, language, scene, audio_duration_ms, model_name
+                raw_transcript, language, scene, audio_duration_ms, model_name,
+                processing_trace_json
          FROM dictation_history
          ORDER BY created_at DESC, id DESC
          LIMIT ? OFFSET ?`,
@@ -176,7 +211,8 @@ export class HistoryRepository {
         language TEXT NOT NULL CHECK (language IN ('zh-CN', 'en-US')),
         scene TEXT,
         audio_duration_ms INTEGER,
-        model_name TEXT
+        model_name TEXT,
+        processing_trace_json TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_dictation_history_created_at
         ON dictation_history(created_at DESC);
@@ -195,7 +231,12 @@ export class HistoryRepository {
         'ALTER TABLE dictation_history ADD COLUMN model_name TEXT',
       );
     }
-    this.#database.pragma('user_version = 2');
+    if (!names.has('processing_trace_json')) {
+      this.#database.exec(
+        'ALTER TABLE dictation_history ADD COLUMN processing_trace_json TEXT',
+      );
+    }
+    this.#database.pragma('user_version = 3');
   }
 }
 

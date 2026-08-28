@@ -254,6 +254,9 @@ export class DesktopRuntime {
         const activeSpeechProfile = current.providers.find(
           ({ id, kind }) => id === speechProviderId && kind === 'speech',
         );
+        const activeTextProfile = current.providers.find(
+          ({ id, kind }) => id === this.#textProviderId && kind === 'text',
+        );
         return {
           history: current.history,
           ...(current.dictation.fastMode !== undefined
@@ -277,8 +280,26 @@ export class DesktopRuntime {
             profile: await this.#configuration.getProfile(),
           },
           speechProviderId,
+          ...(activeSpeechProfile
+            ? {
+                speechProviderDetails: {
+                  modelName: activeSpeechProfile.values.model,
+                  providerName: activeSpeechProfile.values.name,
+                  providerType: activeSpeechProfile.providerId,
+                },
+              }
+            : {}),
           ...(this.#textProviderId
             ? { textProviderId: this.#textProviderId }
+            : {}),
+          ...(activeTextProfile
+            ? {
+                textProviderDetails: {
+                  modelName: activeTextProfile.values.model,
+                  providerName: activeTextProfile.values.name,
+                  providerType: activeTextProfile.providerId,
+                },
+              }
             : {}),
           uiLanguage: current.general.locale,
         };
@@ -298,6 +319,8 @@ export class DesktopRuntime {
         showRecording: () => this.#capsule.showRecording(this.#locale),
         showSuccess: (result, delivery) =>
           this.#capsule.showSuccess(result, delivery, this.#locale),
+        updateProcessing: (outputText) =>
+          this.#capsule.updateProcessing(outputText),
       },
       recorder: this.#recorder,
       speechProviders: this.#speechProviders,

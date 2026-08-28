@@ -1,8 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
+  formatBytes,
+  formatDuration,
   formatTimestamp,
   mergeHistoryPage,
 } from '../../src/renderer/logic/history';
+
+describe('formatDuration', () => {
+  it('keeps sub-second timings readable and short', () => {
+    expect(formatDuration(729)).toBe('729 ms');
+    expect(formatDuration(23_073)).toBe('23.1 s');
+    expect(formatDuration(Number.NaN)).toBe('—');
+  });
+});
+
+describe('formatBytes', () => {
+  it('formats audio payload sizes without exposing payload contents', () => {
+    expect(formatBytes(800)).toBe('800 B');
+    expect(formatBytes(2_048)).toBe('2.0 KB');
+  });
+});
 
 describe('formatTimestamp', () => {
   it('returns an empty string for a non-finite timestamp', () => {

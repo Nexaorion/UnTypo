@@ -10,9 +10,14 @@ import {
   type TranscribeOptions,
 } from './contracts.js';
 import {
+  createTranscriptOutputTextStream,
   parseTranscriptProcessing,
   transcriptProcessingInstructions,
 } from './text-provider-utils.js';
+import {
+  isProviderEventStream,
+  readProviderEventStream,
+} from './provider-http.js';
 
 export interface OpenAIProviderConfiguration {
   allowInsecurePrivateEndpoint?: boolean;
@@ -46,6 +51,11 @@ interface OpenAIResponsePayload {
   output_text?: string;
 }
 
+interface OpenAIResponseStreamEvent {
+  delta?: string;
+  type?: string;
+}
+
 const capabilities: ProviderCapabilities = {
   speechToText: true,
   textPolish: true,
@@ -53,7 +63,7 @@ const capabilities: ProviderCapabilities = {
   translation: true,
   instructionGeneration: true,
   intentDetection: true,
-  streamingPartial: false,
+  streamingPartial: true,
 };
 
 const privateHostPattern =
@@ -203,6 +213,9 @@ export class OpenAIProvider implements DictationProvider {
     text: string,
     context: TextProcessContext,
   ): Promise<TextProcessResult> {
+    const outputTextStream = createTranscriptOutputTextStream(
+      context.onOutputTextUpdate,
+    );
     const output = await this.textResponse(
       text,
       transcriptProcessingInstructions(context),
@@ -213,6 +226,11 @@ export class OpenAIProvider implements DictationProvider {
           schema: {
             additionalProperties: false,
             properties: {
+              outputText: { minLength: 1, type: 'string' },
+              intent: {
+                enum: ['transcription', 'translation', 'instruction'],
+                type: 'string',
+              },
               ...(context.dictionaryLearningEnabled
                 ? {
                     dictionaryCandidates: {
@@ -243,15 +261,10 @@ export class OpenAIProvider implements DictationProvider {
                     },
                   }
                 : {}),
-              intent: {
-                enum: ['transcription', 'translation', 'instruction'],
-                type: 'string',
-              },
-              outputText: { minLength: 1, type: 'string' },
             },
             required: [
-              'intent',
               'outputText',
+              'intent',
               ...(context.dictionaryLearningEnabled
                 ? ['dictionaryCandidates']
                 : []),
@@ -262,8 +275,11 @@ export class OpenAIProvider implements DictationProvider {
           type: 'json_schema',
         },
       },
+      outputTextStream.push,
     );
-    return parseTranscriptProcessing(output);
+    const result = parseTranscriptProcessing(output);
+    outputTextStream.complete(result.outputText);
+    return result;
   }
 
   private async textResponse(
@@ -271,6 +287,7 @@ export class OpenAIProvider implements DictationProvider {
     instructions: string,
     signal?: AbortSignal,
     text?: Readonly<Record<string, unknown>>,
+    onTextDelta?: (delta: string) => void,
   ): Promise<string> {
     const response = await this.request('/responses', {
       body: JSON.stringify({
@@ -278,12 +295,34 @@ export class OpenAIProvider implements DictationProvider {
         instructions,
         model: this.#textModel,
         store: false,
+        stream: true,
         ...(text ? { text } : {}),
       }),
       headers: { 'Content-Type': 'application/json' },
       method: 'POST',
       signal,
     });
+    if (isProviderEventStream(response)) {
+      let output = '';
+      await readProviderEventStream(response, 'OpenAI', (event) => {
+        const streamEvent = event as OpenAIResponseStreamEvent;
+        if (
+          streamEvent.type !== 'response.output_text.delta' ||
+          typeof streamEvent.delta !== 'string'
+        ) {
+          return;
+        }
+        output += streamEvent.delta;
+        onTextDelta?.(streamEvent.delta);
+      });
+      if (!output.trim()) {
+        throw new ProviderContractError(
+          'EMPTY_RESULT',
+          'OpenAI returned an empty response',
+        );
+      }
+      return output;
+    }
     return extractOutputText((await response.json()) as OpenAIResponsePayload);
   }
 

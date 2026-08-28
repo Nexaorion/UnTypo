@@ -6,13 +6,16 @@ import {
   type TextProcessResult,
 } from './contracts.js';
 import {
+  isProviderEventStream,
   providerConfigSchema,
   providerUrl,
+  readProviderEventStream,
   readProviderJson,
   resolveProviderConfiguration,
   type ProviderConnectionConfiguration,
 } from './provider-http.js';
 import {
+  createTranscriptOutputTextStream,
   parseTranscriptProcessing,
   textProviderCapabilities,
   transcriptProcessingInstructions,
@@ -26,6 +29,14 @@ interface AnthropicMessagePayload {
     text?: string;
     type?: string;
   }>;
+}
+
+interface AnthropicStreamEvent {
+  delta?: {
+    text?: string;
+    type?: string;
+  };
+  type?: string;
 }
 
 const extractText = (payload: unknown): string => {
@@ -71,19 +82,25 @@ export class AnthropicTextProvider implements TextGenerationProvider {
     text: string,
     context: TextProcessContext,
   ): Promise<TextProcessResult> {
-    return parseTranscriptProcessing(
-      await this.textResponse(
-        text,
-        transcriptProcessingInstructions(context),
-        context.signal,
-      ),
+    const outputTextStream = createTranscriptOutputTextStream(
+      context.onOutputTextUpdate,
     );
+    const output = await this.textResponse(
+      text,
+      transcriptProcessingInstructions(context),
+      context.signal,
+      outputTextStream.push,
+    );
+    const result = parseTranscriptProcessing(output);
+    outputTextStream.complete(result.outputText);
+    return result;
   }
 
   private async textResponse(
     input: string,
     instructions: string,
     signal?: AbortSignal,
+    onTextDelta?: (delta: string) => void,
   ): Promise<string> {
     const response = await this.#fetch(
       providerUrl(this.#baseUrl, '/messages'),
@@ -92,6 +109,7 @@ export class AnthropicTextProvider implements TextGenerationProvider {
           max_tokens: 2_048,
           messages: [{ content: input, role: 'user' }],
           model: this.#model,
+          stream: true,
           system: instructions,
         }),
         headers: {
@@ -103,6 +121,29 @@ export class AnthropicTextProvider implements TextGenerationProvider {
         signal,
       },
     );
+    if (isProviderEventStream(response)) {
+      let output = '';
+      await readProviderEventStream(response, 'Anthropic', (event) => {
+        const streamEvent = event as AnthropicStreamEvent;
+        const delta = streamEvent.delta;
+        if (
+          streamEvent.type !== 'content_block_delta' ||
+          delta?.type !== 'text_delta' ||
+          typeof delta.text !== 'string'
+        ) {
+          return;
+        }
+        output += delta.text;
+        onTextDelta?.(delta.text);
+      });
+      if (!output.trim()) {
+        throw new ProviderContractError(
+          'EMPTY_RESULT',
+          'Anthropic returned an empty response',
+        );
+      }
+      return output;
+    }
     return extractText(await readProviderJson(response, 'Anthropic'));
   }
 }

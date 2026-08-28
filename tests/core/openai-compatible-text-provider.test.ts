@@ -9,6 +9,12 @@ const configuration = {
   model: 'chat-model',
 };
 
+const eventStreamResponse = (events: readonly unknown[]): Response =>
+  new Response(
+    `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' }, status: 200 },
+  );
+
 describe('OpenAICompatibleTextProvider', () => {
   it('uses Chat Completions with bearer authentication', async () => {
     const request = vi.fn<typeof fetch>(() =>
@@ -60,6 +66,36 @@ describe('OpenAICompatibleTextProvider', () => {
     });
     expect(body).not.toHaveProperty('max_tokens');
     expect(body).not.toHaveProperty('temperature');
+    expect(body).toMatchObject({ stream: true });
+  });
+
+  it('streams Chat Completions deltas into outputText updates', async () => {
+    const provider = new OpenAICompatibleTextProvider(
+      configuration,
+      vi.fn(() =>
+        Promise.resolve(
+          eventStreamResponse([
+            { choices: [{ delta: { content: '{"outputText":"Hel' } }] },
+            {
+              choices: [
+                { delta: { content: 'lo","intent":"transcription"}' } },
+              ],
+            },
+          ]),
+        ),
+      ),
+    );
+    const updates: string[] = [];
+
+    await expect(
+      provider.processTranscript('hello', {
+        defaultTargetLanguage: 'en-US',
+        dictionary: [],
+        locale: 'en-US',
+        onOutputTextUpdate: (outputText) => updates.push(outputText),
+      }),
+    ).resolves.toEqual({ intent: 'transcription', outputText: 'Hello' });
+    expect(updates).toEqual(['Hel', 'Hello']);
   });
 
   it('surfaces a provider error message', async () => {

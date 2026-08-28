@@ -9,6 +9,12 @@ const configuration = {
   model: 'response-model',
 };
 
+const eventStreamResponse = (events: readonly unknown[]): Response =>
+  new Response(
+    `${events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('')}data: [DONE]\n\n`,
+    { headers: { 'Content-Type': 'text/event-stream' }, status: 200 },
+  );
+
 describe('OpenAIResponsesTextProvider', () => {
   it('uses the Responses endpoint and extracts output content', async () => {
     const request = vi.fn<typeof fetch>(() =>
@@ -58,7 +64,39 @@ describe('OpenAIResponsesTextProvider', () => {
       input: '翻译成英文：你好',
       model: 'response-model',
       store: false,
+      stream: true,
     });
+  });
+
+  it('streams outputText before the final Responses JSON is complete', async () => {
+    const provider = new OpenAIResponsesTextProvider(
+      configuration,
+      vi.fn(() =>
+        Promise.resolve(
+          eventStreamResponse([
+            {
+              delta: '{"outputText":"Hel',
+              type: 'response.output_text.delta',
+            },
+            {
+              delta: 'lo","intent":"translation"}',
+              type: 'response.output_text.delta',
+            },
+          ]),
+        ),
+      ),
+    );
+    const updates: string[] = [];
+
+    await expect(
+      provider.processTranscript('翻译：你好', {
+        defaultTargetLanguage: 'en-US',
+        dictionary: [],
+        locale: 'zh-CN',
+        onOutputTextUpdate: (outputText) => updates.push(outputText),
+      }),
+    ).resolves.toEqual({ intent: 'translation', outputText: 'Hello' });
+    expect(updates).toEqual(['Hel', 'Hello']);
   });
 
   it('accepts an output_text convenience field', async () => {

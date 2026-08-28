@@ -208,6 +208,48 @@ const smokeTestSource = `
     if (document.querySelectorAll('[role="dialog"]').length !== 0)
       return 'models-dialog-close';
 
+    const historyTrigger = document.querySelector('[data-testid="history-open"]');
+    if (!historyTrigger) return 'history-trigger';
+    const historyLabel = historyTrigger.textContent?.trim();
+    historyTrigger.click();
+    await wait(200);
+    if (!historyLabel || main.querySelector('h1')?.textContent?.trim() !== historyLabel)
+      return 'history-heading';
+    const historySummary = main.querySelector(
+      '[data-testid^="history-details-summary-"]',
+    );
+    if (historySummary) {
+      historySummary.click();
+      await wait(120);
+      const modelDetailsTrigger = main.querySelector(
+        '[data-testid^="history-model-details-"]',
+      );
+      if (!modelDetailsTrigger) return 'history-model-details-trigger';
+      modelDetailsTrigger.click();
+      await wait(200);
+      const modelDetailsRoot = document.querySelector(
+        '[data-testid="history-model-details-dialog"]',
+      );
+      if (!modelDetailsRoot) return 'history-model-details-dialog';
+      const modelDetailsDialog = modelDetailsRoot.matches('[role="dialog"]')
+        ? modelDetailsRoot
+        : modelDetailsRoot.querySelector('[role="dialog"]');
+      if (!modelDetailsDialog) return 'history-model-details-dialog-role';
+      const modelDetailsLabelledBy = modelDetailsDialog.getAttribute(
+        'aria-labelledby',
+      );
+      if (!modelDetailsLabelledBy || !document.getElementById(modelDetailsLabelledBy))
+        return 'history-model-details-label';
+      const modelDetailsClose = modelDetailsRoot.querySelector(
+        '[data-testid="history-model-details-close"]',
+      );
+      if (!modelDetailsClose) return 'history-model-details-close';
+      modelDetailsClose.click();
+      await wait(300);
+      if (document.querySelector('[data-testid="history-model-details-dialog"]'))
+        return 'history-model-details-stale';
+    }
+
     const dictionaryTrigger = document.querySelector(
       '[data-testid="dictionary-open"]',
     );

@@ -149,6 +149,28 @@ describe('CapsuleWindowController', () => {
     controller.destroy();
   });
 
+  it('shows partial output in an expanded processing capsule', async () => {
+    const controller = new CapsuleWindowController();
+    await controller.showProcessing('zh-CN');
+    const window = electronMocks.windows[0] as {
+      setSize: ReturnType<typeof vi.fn>;
+      webContents: { send: ReturnType<typeof vi.fn> };
+    };
+    electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
+
+    controller.updateProcessing('流式结果');
+
+    expect(window.setSize).toHaveBeenLastCalledWith(540, 68, false);
+    expect(window.webContents.send).toHaveBeenLastCalledWith(
+      CAPSULE_CHANNELS.update,
+      expect.objectContaining({
+        outputText: '流式结果',
+        type: 'processing',
+      }),
+    );
+    controller.destroy();
+  });
+
   it('only copies terminal success text from the expected renderer', async () => {
     const controller = new CapsuleWindowController();
     await controller.showRecording('en-US');

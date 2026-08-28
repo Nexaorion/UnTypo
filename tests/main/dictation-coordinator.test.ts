@@ -8,7 +8,10 @@ import {
   SpeechProviderRegistry,
   TextProviderRegistry,
 } from '../../src/core/providers/registry';
-import { DictationCoordinator } from '../../src/main/dictation/coordinator';
+import {
+  DictationCoordinator,
+  type HistoryPort,
+} from '../../src/main/dictation/coordinator';
 import { NativeHotkeyAction } from '../../src/main/native/protocol';
 import type { NativeTargetSnapshot } from '../../src/main/native/protocol';
 import type { CapsuleErrorReason } from '../../src/shared/capsule-ipc';
@@ -77,8 +80,9 @@ const createCoordinator = ({
       return 7;
     },
   );
+  const updateProcessing = vi.fn();
   const handleCandidates = vi.fn();
-  const record = vi.fn();
+  const record = vi.fn<HistoryPort['record']>();
   const start = vi.fn(() => Promise.resolve('recording-session'));
   const stop = vi.fn(() =>
     Promise.resolve({
@@ -103,7 +107,21 @@ const createCoordinator = ({
       ...(signal ? { signal } : {}),
     },
     speechProviderId,
+    speechProviderDetails: {
+      modelName: 'whisper-1',
+      providerName: 'Mock speech',
+      providerType: 'openai-compatible-speech' as const,
+    },
     ...(withTextProvider ? { textProviderId: 'mock' } : {}),
+    ...(withTextProvider
+      ? {
+          textProviderDetails: {
+            modelName: 'mock-text',
+            providerName: 'Mock text',
+            providerType: 'openai-compatible-text' as const,
+          },
+        }
+      : {}),
     uiLanguage: 'en-US' as const,
   }));
   const diagnosticLog = vi.fn();
@@ -128,6 +146,7 @@ const createCoordinator = ({
       showProcessing,
       showRecording,
       showSuccess,
+      updateProcessing,
     },
     recorder: { start, stop },
     speechProviders,
@@ -151,6 +170,7 @@ const createCoordinator = ({
     showSuccess,
     start,
     stop,
+    updateProcessing,
   };
 };
 
@@ -186,6 +206,7 @@ describe('DictationCoordinator', () => {
     );
     expect(runtime.getContext).toHaveBeenCalledTimes(1);
     expect(runtime.inject).toHaveBeenCalledWith('Final mock result', target);
+    expect(runtime.updateProcessing).toHaveBeenCalledWith('Final mock result');
     expect(runtime.events).toEqual([
       'recording',
       'processing',
@@ -201,6 +222,28 @@ describe('DictationCoordinator', () => {
       }),
       { enabled: true, retentionDays: 30 },
     );
+    const trace = runtime.record.mock.calls[0]?.[0].processingTrace;
+    expect(trace?.modelCalls).toHaveLength(2);
+    expect(trace?.modelCalls[0]).toMatchObject({
+      kind: 'speech-recognition',
+      modelName: 'whisper-1',
+      outputText: 'raw mock result',
+    });
+    const textCall = trace?.modelCalls[1];
+    expect(textCall).toMatchObject({
+      kind: 'text-generation',
+      modelName: 'mock-text',
+      outputText: 'Final mock result',
+    });
+    expect(textCall?.firstOutputMs).toBeTypeOf('number');
+    expect(
+      textCall?.kind === 'text-generation' ? textCall.input.text : undefined,
+    ).toBe('raw mock result');
+    expect(trace?.injectionMs).toBeTypeOf('number');
+    expect(trace?.modelProcessingMs).toBeTypeOf('number');
+    expect(trace?.operationId).toBeTypeOf('string');
+    expect(trace?.recorderFinalizationMs).toBeTypeOf('number');
+    expect(trace?.totalDurationMs).toBeTypeOf('number');
     expect(runtime.coordinator.state).toBe('idle');
   });
 

@@ -5,6 +5,7 @@ import {
   ProviderContractError,
   type AudioPayload,
   type DictationProvider,
+  type ModelCallTrace,
   type ProcessOptions,
   type ProcessResult,
   type SpeechRecognitionProvider,
@@ -16,6 +17,15 @@ const throwIfAborted = (signal?: AbortSignal): void => {
     throw new ProviderContractError('ABORTED', 'Dictation was cancelled');
   }
 };
+
+const elapsedSince = (startedAt: number): number =>
+  Math.max(0, Date.now() - startedAt);
+
+const traceError = (error: unknown): string =>
+  (error instanceof Error ? error.message : String(error))
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .slice(0, 180);
 
 export class RecoverablePostProcessingError extends Error {
   readonly fallbackResult: ProcessResult;
@@ -58,6 +68,8 @@ export class DictationPipeline {
       return result;
     }
 
+    const modelCalls: ModelCallTrace[] = [];
+    const speechStartedAt = Date.now();
     const transcript = await this.speechProvider.transcribe(audio, {
       dictionary: options.dictionary,
       language: options.language,
@@ -72,29 +84,53 @@ export class DictationPipeline {
         'Provider returned an empty transcript',
       );
     }
+    modelCalls.push({
+      durationMs: elapsedSince(speechStartedAt),
+      input: {
+        audioDurationMs: audio.durationMs,
+        channels: audio.channels,
+        dictionaryTermCount: options.dictionary.length,
+        language: options.language,
+        mimeType: audio.mimeType,
+        payloadSizeBytes: audio.bytes.byteLength,
+        sampleRateHz: audio.sampleRateHz,
+      },
+      kind: 'speech-recognition',
+      outputText: rawTranscript,
+      providerId: this.speechProvider.id,
+      status: 'success',
+    });
 
     if (!this.textProvider) {
       return {
         intent: 'transcription',
+        modelCalls,
         outputText: rawTranscript,
         rawTranscript,
         usage: transcript.usage,
       };
     }
 
-    const fallbackResult: ProcessResult = {
-      intent: 'transcription',
-      outputText: rawTranscript,
-      rawTranscript,
-      usage: transcript.usage,
+    const forcedIntent =
+      options.forcedIntent ??
+      (this.textProvider.capabilities.intentDetection
+        ? undefined
+        : 'transcription');
+    const textInput = {
+      defaultTargetLanguage: options.defaultTargetLanguage,
+      dictionaryLearningEnabled: options.dictionaryLearningEnabled === true,
+      dictionaryTermCount: options.dictionary.length,
+      ...(options.explicitTargetLanguage
+        ? { explicitTargetLanguage: options.explicitTargetLanguage }
+        : {}),
+      ...(forcedIntent ? { forcedIntent } : {}),
+      locale: options.language,
+      text: rawTranscript,
+      ...(options.tone ? { tone: options.tone } : {}),
     };
-
+    const textStartedAt = Date.now();
+    let firstOutputMs: number | undefined;
     try {
-      const forcedIntent =
-        options.forcedIntent ??
-        (this.textProvider.capabilities.intentDetection
-          ? undefined
-          : 'transcription');
       const processed = await this.textProvider.processTranscript(
         rawTranscript,
         {
@@ -110,6 +146,10 @@ export class DictationPipeline {
             : {}),
           ...(forcedIntent ? { forcedIntent } : {}),
           locale: options.language,
+          onOutputTextUpdate: (outputText) => {
+            firstOutputMs ??= elapsedSince(textStartedAt);
+            options.onOutputTextUpdate?.(outputText);
+          },
           ...(this.textProvider.kind === 'official-cloud' && options.profile
             ? { profile: options.profile }
             : {}),
@@ -131,6 +171,18 @@ export class DictationPipeline {
           ? { dictionaryCandidates: processed.dictionaryCandidates }
           : {}),
         intent: processed.intent,
+        modelCalls: [
+          ...modelCalls,
+          {
+            durationMs: elapsedSince(textStartedAt),
+            ...(firstOutputMs === undefined ? {} : { firstOutputMs }),
+            input: textInput,
+            kind: 'text-generation',
+            outputText: processed.outputText,
+            providerId: this.textProvider.id,
+            status: 'success',
+          },
+        ],
         outputText: processed.outputText,
         rawTranscript,
         usage: transcript.usage,
@@ -146,6 +198,24 @@ export class DictationPipeline {
       ) {
         throw error;
       }
+      const fallbackResult: ProcessResult = {
+        intent: 'transcription',
+        modelCalls: [
+          ...modelCalls,
+          {
+            durationMs: elapsedSince(textStartedAt),
+            error: traceError(error),
+            ...(firstOutputMs === undefined ? {} : { firstOutputMs }),
+            input: textInput,
+            kind: 'text-generation',
+            providerId: this.textProvider.id,
+            status: 'failed',
+          },
+        ],
+        outputText: rawTranscript,
+        rawTranscript,
+        usage: transcript.usage,
+      };
       throw new RecoverablePostProcessingError(fallbackResult, error);
     }
   }

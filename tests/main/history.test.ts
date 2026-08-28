@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -47,6 +48,117 @@ describe('HistoryRepository', () => {
         scene: 'editor',
       },
     ]);
+  });
+
+  it('round-trips local model-call timing and input/output details', () => {
+    repository.add({
+      createdAt: 101,
+      id: 'trace',
+      intent: 'transcription',
+      language: 'zh-CN',
+      outputText: '整理后的文本',
+      processingTrace: {
+        injectionMs: 12,
+        modelCalls: [
+          {
+            durationMs: 1_234,
+            firstOutputMs: 456,
+            input: {
+              defaultTargetLanguage: 'zh-CN',
+              dictionaryLearningEnabled: true,
+              dictionaryTermCount: 3,
+              forcedIntent: 'transcription',
+              locale: 'zh-CN',
+              text: '原始文本',
+            },
+            kind: 'text-generation',
+            modelName: 'glm-5.3-flash',
+            outputText: '整理后的文本',
+            providerId: 'text-profile',
+            providerName: '智谱',
+            providerType: 'openai-compatible-text',
+            status: 'success',
+          },
+        ],
+        modelProcessingMs: 1_500,
+        operationId: 'operation-1',
+        recorderFinalizationMs: 40,
+        totalDurationMs: 1_552,
+      },
+      providerId: 'speech-profile',
+      rawTranscript: '原始文本',
+    });
+
+    const saved = repository.list()[0]?.processingTrace;
+    expect(saved).toMatchObject({
+      injectionMs: 12,
+      modelProcessingMs: 1_500,
+      operationId: 'operation-1',
+      recorderFinalizationMs: 40,
+      totalDurationMs: 1_552,
+    });
+    expect(saved?.modelCalls).toHaveLength(1);
+    const call = saved?.modelCalls[0];
+    expect(call).toMatchObject({
+      durationMs: 1_234,
+      firstOutputMs: 456,
+      modelName: 'glm-5.3-flash',
+      outputText: '整理后的文本',
+    });
+    expect(call?.kind === 'text-generation' ? call.input.text : undefined).toBe(
+      '原始文本',
+    );
+  });
+
+  it('migrates existing history databases without losing old records', () => {
+    const databasePath = path.join(temporaryDirectory, 'legacy.sqlite3');
+    const legacy = new Database(databasePath);
+    legacy.exec(`
+      CREATE TABLE dictation_history (
+        id TEXT PRIMARY KEY,
+        created_at INTEGER NOT NULL,
+        provider_id TEXT NOT NULL,
+        intent TEXT NOT NULL,
+        output_text TEXT NOT NULL,
+        raw_transcript TEXT,
+        language TEXT NOT NULL,
+        scene TEXT,
+        audio_duration_ms INTEGER,
+        model_name TEXT
+      );
+      INSERT INTO dictation_history
+        (id, created_at, provider_id, intent, output_text, language)
+      VALUES ('legacy', 100, 'mock', 'transcription', 'Old text', 'en-US');
+      PRAGMA user_version = 2;
+    `);
+    legacy.close();
+
+    const migrated = new HistoryRepository(databasePath);
+    try {
+      expect(migrated.list()).toEqual([
+        expect.objectContaining({ id: 'legacy', outputText: 'Old text' }),
+      ]);
+      migrated.add({
+        id: 'new',
+        intent: 'transcription',
+        language: 'en-US',
+        outputText: 'New text',
+        processingTrace: {
+          injectionMs: 1,
+          modelCalls: [],
+          modelProcessingMs: 2,
+          operationId: 'operation-2',
+          recorderFinalizationMs: 3,
+          totalDurationMs: 6,
+        },
+        providerId: 'mock',
+      });
+      expect(migrated.list()[0]?.processingTrace?.operationId).toBe(
+        'operation-2',
+      );
+    } finally {
+      migrated.close();
+    }
   });
 
   it('aggregates dashboard usage across all history records', () => {

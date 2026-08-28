@@ -80,6 +80,8 @@ export class MockDictationProvider implements DictationProvider {
           ? (this.#scenario.generatedText ?? text)
           : (this.#scenario.polishedText ?? text);
 
+    context.onOutputTextUpdate?.(outputText);
+
     return Promise.resolve({
       ...(context.dictionaryLearningEnabled &&
       this.#scenario.dictionaryCandidates
@@ -106,6 +108,9 @@ export class MockDictationProvider implements DictationProvider {
         : {}),
       ...(options.forcedIntent ? { forcedIntent: options.forcedIntent } : {}),
       locale: options.language,
+      ...(options.onOutputTextUpdate
+        ? { onOutputTextUpdate: options.onOutputTextUpdate }
+        : {}),
       signal: options.signal,
       ...(options.tone ? { tone: options.tone } : {}),
       ...(options.windowContext

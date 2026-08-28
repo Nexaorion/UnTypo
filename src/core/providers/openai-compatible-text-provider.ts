@@ -6,13 +6,16 @@ import {
   type TextProcessResult,
 } from './contracts.js';
 import {
+  isProviderEventStream,
   providerConfigSchema,
   providerUrl,
+  readProviderEventStream,
   readProviderJson,
   resolveProviderConfiguration,
   type ProviderConnectionConfiguration,
 } from './provider-http.js';
 import {
+  createTranscriptOutputTextStream,
   parseTranscriptProcessing,
   textProviderCapabilities,
   transcriptProcessingInstructions,
@@ -28,6 +31,25 @@ interface ChatCompletionPayload {
     };
   }>;
 }
+
+interface ChatCompletionStreamEvent {
+  choices?: Array<{
+    delta?: {
+      content?: string | Array<{ text?: string; type?: string }> | null;
+    };
+  }>;
+}
+
+const extractDeltaText = (event: unknown): string => {
+  const content = (event as ChatCompletionStreamEvent).choices?.[0]?.delta
+    ?.content;
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .filter((part) => part.type === 'text' && typeof part.text === 'string')
+    .map((part) => part.text)
+    .join('');
+};
 
 const extractText = (payload: unknown): string => {
   const content = (payload as ChatCompletionPayload).choices?.[0]?.message
@@ -77,19 +99,25 @@ export class OpenAICompatibleTextProvider implements TextGenerationProvider {
     text: string,
     context: TextProcessContext,
   ): Promise<TextProcessResult> {
-    return parseTranscriptProcessing(
-      await this.textResponse(
-        text,
-        transcriptProcessingInstructions(context),
-        context.signal,
-      ),
+    const outputTextStream = createTranscriptOutputTextStream(
+      context.onOutputTextUpdate,
     );
+    const output = await this.textResponse(
+      text,
+      transcriptProcessingInstructions(context),
+      context.signal,
+      outputTextStream.push,
+    );
+    const result = parseTranscriptProcessing(output);
+    outputTextStream.complete(result.outputText);
+    return result;
   }
 
   private async textResponse(
     input: string,
     instructions: string,
     signal?: AbortSignal,
+    onTextDelta?: (delta: string) => void,
   ): Promise<string> {
     const response = await this.#fetch(
       providerUrl(this.#baseUrl, '/chat/completions'),
@@ -100,6 +128,7 @@ export class OpenAICompatibleTextProvider implements TextGenerationProvider {
             { content: input, role: 'user' },
           ],
           model: this.#model,
+          stream: true,
         }),
         headers: {
           Authorization: `Bearer ${this.#apiKey}`,
@@ -109,6 +138,26 @@ export class OpenAICompatibleTextProvider implements TextGenerationProvider {
         signal,
       },
     );
+    if (isProviderEventStream(response)) {
+      let output = '';
+      await readProviderEventStream(
+        response,
+        'OpenAI-compatible provider',
+        (event) => {
+          const delta = extractDeltaText(event);
+          if (!delta) return;
+          output += delta;
+          onTextDelta?.(delta);
+        },
+      );
+      if (!output.trim()) {
+        throw new ProviderContractError(
+          'EMPTY_RESULT',
+          'OpenAI-compatible provider returned an empty response',
+        );
+      }
+      return output;
+    }
     return extractText(
       await readProviderJson(response, 'OpenAI-compatible provider'),
     );

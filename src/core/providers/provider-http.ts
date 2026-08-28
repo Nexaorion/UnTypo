@@ -97,6 +97,12 @@ export const resolveProviderConfiguration = (
 export const providerUrl = (baseUrl: string, pathname: string): string =>
   `${baseUrl}${pathname.startsWith('/') ? pathname : `/${pathname}`}`;
 
+export const isProviderEventStream = (response: Response): boolean =>
+  response.headers
+    .get('content-type')
+    ?.toLowerCase()
+    .includes('text/event-stream') ?? false;
+
 const responseMessage = (payload: unknown): string | undefined => {
   if (typeof payload !== 'object' || payload === null) return undefined;
   const record = payload as Record<string, unknown>;
@@ -197,6 +203,96 @@ export const readProviderJson = async (
     throw new Error(`${providerName} returned an error: ${envelopeError}`);
   }
   return payload;
+};
+
+const streamErrorMessage = (event: unknown): string | undefined => {
+  if (typeof event !== 'object' || event === null) return undefined;
+  const record = event as Record<string, unknown>;
+  const error =
+    typeof record.error === 'object' && record.error !== null
+      ? (record.error as Record<string, unknown>)
+      : typeof record.response === 'object' && record.response !== null
+        ? ((record.response as Record<string, unknown>).error as
+            Record<string, unknown> | undefined)
+        : undefined;
+  if (
+    (record.type === 'error' || record.type === 'response.failed') &&
+    typeof error?.message === 'string' &&
+    error.message.trim()
+  ) {
+    return error.message.trim();
+  }
+  return undefined;
+};
+
+export const readProviderEventStream = async (
+  response: Response,
+  providerName: string,
+  onEvent: (event: unknown) => void,
+): Promise<void> => {
+  if (!response.ok) {
+    await readProviderJson(response, providerName);
+    return;
+  }
+  if (!response.body) {
+    throw new ProviderContractError(
+      'INVALID_PROVIDER',
+      `${providerName} returned an empty event stream`,
+    );
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let source = '';
+
+  const processFrame = (frame: string): void => {
+    const data = frame
+      .split(/\r?\n/u)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).replace(/^ /u, ''))
+      .join('\n');
+    if (!data || data === '[DONE]') return;
+
+    let event: unknown;
+    try {
+      event = JSON.parse(data) as unknown;
+    } catch {
+      throw new ProviderContractError(
+        'INVALID_PROVIDER',
+        `${providerName} returned an invalid event stream`,
+      );
+    }
+    const error = streamErrorMessage(event);
+    if (error) throw new Error(`${providerName} returned an error: ${error}`);
+    onEvent(event);
+  };
+
+  const drainFrames = (complete: boolean): void => {
+    while (true) {
+      const match = /\r?\n\r?\n/u.exec(source);
+      if (!match || match.index === undefined) break;
+      const frame = source.slice(0, match.index);
+      source = source.slice(match.index + match[0].length);
+      processFrame(frame);
+    }
+    if (complete && source.trim()) {
+      processFrame(source);
+      source = '';
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      source += decoder.decode(value, { stream: true });
+      drainFrames(false);
+    }
+    source += decoder.decode();
+    drainFrames(true);
+  } finally {
+    reader.releaseLock();
+  }
 };
 
 export const providerConfigSchema = {

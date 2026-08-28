@@ -39,6 +39,14 @@ const expectRecoverableRawTranscript = async (
   expect(thrown).toMatchObject({
     fallbackResult: {
       intent: 'transcription',
+      modelCalls: [
+        { kind: 'speech-recognition', status: 'success' },
+        {
+          error: 'text processing unavailable',
+          kind: 'text-generation',
+          status: 'failed',
+        },
+      ],
       outputText: 'raw transcript',
       rawTranscript: 'raw transcript',
       usage: { audioDurationMs: 500 },
@@ -63,9 +71,34 @@ describe('DictationPipeline', () => {
 
     expect(result).toMatchObject({
       intent: 'translation',
+      modelCalls: [
+        {
+          input: {
+            audioDurationMs: 500,
+            dictionaryTermCount: 1,
+            payloadSizeBytes: 1,
+          },
+          kind: 'speech-recognition',
+          outputText: 'hello',
+          providerId: 'mock',
+          status: 'success',
+        },
+        {
+          input: {
+            dictionaryTermCount: 1,
+            explicitTargetLanguage: 'en-US',
+            text: 'hello',
+          },
+          kind: 'text-generation',
+          outputText: 'Hello',
+          providerId: 'mock',
+          status: 'success',
+        },
+      ],
       outputText: 'Hello',
       rawTranscript: 'hello',
     });
+    expect(result.modelCalls?.[1]?.firstOutputMs).toBeTypeOf('number');
     expect(processTranscript).toHaveBeenCalledOnce();
     expect(processTranscript).toHaveBeenCalledWith(
       'hello',
