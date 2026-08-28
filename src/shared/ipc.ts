@@ -16,6 +16,7 @@ export const IPC_CHANNELS = {
   addDictionaryEntry: 'client:add-dictionary-entry',
   acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
   checkForUpdates: 'client:check-for-updates',
+  clearDiagnostics: 'client:clear-diagnostics',
   clearHistory: 'client:clear-history',
   copyText: 'client:copy-text',
   downloadUpdate: 'client:download-update',
@@ -79,6 +80,10 @@ export interface ClientProviderSummary {
 }
 
 export interface ClientSettingsSnapshot {
+  diagnostics: {
+    automaticCollection: boolean;
+    showErrorDialogs: boolean;
+  };
   dictation: {
     activeSpeechProviderProfileId?: string;
     activeTextProviderProfileId?: string;
@@ -103,6 +108,10 @@ export interface ClientSettingsSnapshot {
 }
 
 export interface ClientSettingsUpdate {
+  diagnostics?: {
+    automaticCollection?: boolean;
+    showErrorDialogs?: boolean;
+  };
   dictation?: {
     activeSpeechProviderProfileId?: string | null;
     activeTextProviderProfileId?: string | null;
@@ -216,6 +225,7 @@ export interface UntypoApi {
   acknowledgeDiagnostics: (
     issueIds: readonly string[],
   ) => Promise<ClientDiagnosticSnapshot>;
+  clearDiagnostics: () => Promise<ClientDiagnosticSnapshot>;
   clearHistory: () => Promise<number>;
   checkForUpdates: () => Promise<ClientUpdateSnapshot>;
   copyText: (text: string) => Promise<void>;

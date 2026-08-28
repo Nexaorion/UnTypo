@@ -34,6 +34,7 @@ const createBackend = (): ClientBackendPort => ({
   addDictionaryEntry: vi.fn(),
   acknowledgeDiagnostics: vi.fn(),
   checkForUpdates: vi.fn(),
+  clearDiagnostics: vi.fn(),
   clearHistory: vi.fn(),
   downloadUpdate: vi.fn(),
   exportDiagnostics: vi.fn(),
@@ -92,6 +93,17 @@ describe('ClientIpcController', () => {
     expect(backend.addDictionaryEntry).toHaveBeenCalledWith('UnTypo');
     expect(backend.removeDictionaryEntry).toHaveBeenCalledWith('UnTypo');
     expect(backend.setDictionaryLearningEnabled).toHaveBeenCalledWith(false);
+    controller.destroy();
+  });
+
+  it('clears diagnostic records through a trusted IPC handler', () => {
+    const backend = createBackend();
+    const controller = new ClientIpcController(backend);
+
+    electronMocks.handlers.get(IPC_CHANNELS.clearDiagnostics)?.({});
+
+    expect(assertTrustedSender).toHaveBeenCalledOnce();
+    expect(backend.clearDiagnostics).toHaveBeenCalledOnce();
     controller.destroy();
   });
 });

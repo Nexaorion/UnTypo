@@ -1,5 +1,6 @@
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined';
 import KeyboardRoundedIcon from '@mui/icons-material/KeyboardRounded';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import Box from '@mui/material/Box';
@@ -15,10 +16,12 @@ import { useI18n } from '../i18n/context.js';
 import type { ClientStore } from '../state/client.js';
 import { themeAlpha, themePalette } from '../theme.js';
 import { PersonalizationSection } from './personalization.js';
+import { ProblemsSection } from './problems.js';
 import { ProvidersSection } from './providers.js';
 import { SettingsSection } from './settings.js';
 
-export type SettingsTab = 'settings' | 'models' | 'personalization';
+export type SettingsTab =
+  'settings' | 'models' | 'personalization' | 'problems';
 
 const SettingsPanel = ({
   children,
@@ -70,6 +73,11 @@ const SettingsNavigation = ({
       icon: <AutoAwesomeRoundedIcon fontSize="small" />,
       label: t('nav.personalization'),
       value: 'personalization',
+    },
+    {
+      icon: <FeedbackOutlinedIcon fontSize="small" />,
+      label: t('nav.problems'),
+      value: 'problems',
     },
   ];
 
@@ -173,14 +181,12 @@ const SettingsNavigation = ({
 };
 
 export const SettingsDialog = ({
-  onOpenDiagnostics,
   onOpenChange,
   onTabChange,
   open,
   store,
   tab,
 }: {
-  onOpenDiagnostics: () => void;
   onOpenChange: (open: boolean) => void;
   onTabChange: (tab: SettingsTab) => void;
   open: boolean;
@@ -194,7 +200,9 @@ export const SettingsDialog = ({
       ? t('nav.providers')
       : tab === 'personalization'
         ? t('nav.personalization')
-        : t('nav.settings');
+        : tab === 'problems'
+          ? t('nav.problems')
+          : t('nav.settings');
 
   return (
     <Dialog
@@ -262,16 +270,16 @@ export const SettingsDialog = ({
           </DialogTitle>
           <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             <SettingsPanel tab="settings" value={tab}>
-              <SettingsSection
-                onOpenDiagnostics={onOpenDiagnostics}
-                store={store}
-              />
+              <SettingsSection store={store} />
             </SettingsPanel>
             <SettingsPanel tab="models" value={tab}>
               <ProvidersSection store={store} />
             </SettingsPanel>
             <SettingsPanel tab="personalization" value={tab}>
               <PersonalizationSection store={store} />
+            </SettingsPanel>
+            <SettingsPanel tab="problems" value={tab}>
+              <ProblemsSection store={store} />
             </SettingsPanel>
           </Box>
         </Stack>

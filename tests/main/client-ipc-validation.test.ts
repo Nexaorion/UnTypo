@@ -37,6 +37,10 @@ describe('client IPC validation', () => {
   it('accepts bounded settings and history requests', () => {
     expect(
       parseSettingsUpdate({
+        diagnostics: {
+          automaticCollection: false,
+          showErrorDialogs: true,
+        },
         dictation: {
           activeSpeechProviderProfileId: 'primary-speech',
           activeTextProviderProfileId: 'primary-text',
@@ -48,6 +52,10 @@ describe('client IPC validation', () => {
         updates: { autoCheck: false, autoDownload: true },
       }),
     ).toMatchObject({
+      diagnostics: {
+        automaticCollection: false,
+        showErrorDialogs: true,
+      },
       dictation: {
         activeSpeechProviderProfileId: 'primary-speech',
         activeTextProviderProfileId: 'primary-text',
@@ -94,6 +102,11 @@ describe('client IPC validation', () => {
     expect(() =>
       parseSettingsUpdate({ updates: { autoCheck: 'yes' } }),
     ).toThrow('Invalid automatic update check setting');
+    expect(() =>
+      parseSettingsUpdate({
+        diagnostics: { showErrorDialogs: 'yes' },
+      }),
+    ).toThrow('Invalid diagnostic dialog setting');
   });
 
   it('accepts text for the trusted clipboard bridge', () => {

@@ -32,6 +32,7 @@ export interface ClientStore {
   addDictionaryEntry: (term: string) => Promise<void>;
   acknowledgeDiagnostics: (issueIds: readonly string[]) => Promise<void>;
   checkForUpdates: () => Promise<void>;
+  clearDiagnostics: () => Promise<void>;
   clearHistory: () => Promise<void>;
   copyText: (text: string) => Promise<void>;
   diagnostics: ClientDiagnosticSnapshot | null;
@@ -188,6 +189,11 @@ export const useClientStore = (): ClientStore => {
     [],
   );
 
+  const clearDiagnostics = useCallback(async () => {
+    const next = await requireApi().clearDiagnostics();
+    if (mounted.current) setDiagnostics(next);
+  }, []);
+
   const exportDiagnostics = useCallback(
     (request: ClientDiagnosticExportRequest) =>
       requireApi().exportDiagnostics(request),
@@ -269,6 +275,7 @@ export const useClientStore = (): ClientStore => {
     addDictionaryEntry,
     acknowledgeDiagnostics,
     checkForUpdates,
+    clearDiagnostics,
     clearHistory,
     copyText,
     diagnostics,

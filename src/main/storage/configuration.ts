@@ -31,6 +31,11 @@ export interface UpdatePolicy {
   autoDownload: boolean;
 }
 
+export interface DiagnosticPolicy {
+  automaticCollection: boolean;
+  showErrorDialogs: boolean;
+}
+
 export interface StoredProviderProfile {
   id: string;
   kind: ModelProviderKind;
@@ -41,6 +46,7 @@ export interface StoredProviderProfile {
 
 export interface StoredClientConfig {
   version: 3;
+  diagnostics: DiagnosticPolicy;
   general: {
     launchAtLogin: boolean;
     locale: SupportedLanguage;
@@ -143,6 +149,10 @@ const migrateDefaultHotkey = (accelerator: string): string =>
 
 const defaultConfig = (): StoredClientConfig => ({
   version: 3,
+  diagnostics: {
+    automaticCollection: true,
+    showErrorDialogs: false,
+  },
   general: {
     launchAtLogin: false,
     locale: 'zh-CN',
@@ -208,6 +218,28 @@ const parseGeneral = (value: unknown): StoredClientConfig['general'] => {
   return {
     launchAtLogin: value.launchAtLogin,
     locale: assertLanguage(value.locale, 'locale'),
+  };
+};
+
+const parseDiagnostics = (value: unknown): DiagnosticPolicy => {
+  if (value === undefined) {
+    return { automaticCollection: true, showErrorDialogs: false };
+  }
+  if (
+    !isRecord(value) ||
+    typeof value.automaticCollection !== 'boolean' ||
+    typeof value.showErrorDialogs !== 'boolean'
+  ) {
+    throw new Error('Invalid diagnostic settings');
+  }
+  assertOnlyKeys(
+    value,
+    ['automaticCollection', 'showErrorDialogs'],
+    'Diagnostic settings',
+  );
+  return {
+    automaticCollection: value.automaticCollection,
+    showErrorDialogs: value.showErrorDialogs,
   };
 };
 
@@ -468,11 +500,12 @@ const parseCommonData = (
   value: Record<string, unknown>,
 ): Pick<
   StoredClientConfig,
-  'encryptedProfile' | 'general' | 'history' | 'updates'
+  'diagnostics' | 'encryptedProfile' | 'general' | 'history' | 'updates'
 > => {
   const encryptedProfile = parseEncryptedProfile(value);
   return {
     ...(encryptedProfile ? { encryptedProfile } : {}),
+    diagnostics: parseDiagnostics(value.diagnostics),
     general: parseGeneral(value.general),
     history: parseHistory(value.history),
     updates: parseUpdates(value.updates),
@@ -786,6 +819,7 @@ const parseConfig = (source: string): ParsedConfig => {
     return {
       config,
       migrated:
+        value.diagnostics === undefined ||
         value.updates === undefined ||
         (isRecord(value.dictation) &&
           (value.dictation.hotkeyAccelerator ===

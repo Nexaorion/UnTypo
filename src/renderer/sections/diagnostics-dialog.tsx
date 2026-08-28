@@ -16,7 +16,10 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useState } from 'react';
 import type { ClientDiagnosticIssue } from '../../shared/diagnostics.js';
 import { useI18n } from '../i18n/context.js';
-import { latestDiagnosticIssue } from '../logic/diagnostics.js';
+import {
+  diagnosticKindKey,
+  latestDiagnosticIssue,
+} from '../logic/diagnostics.js';
 import { describeError, type ClientStore } from '../state/client.js';
 import { tokens } from '../theme.js';
 import { useToast } from '../ui/toast.js';
@@ -32,20 +35,13 @@ const issueLog = (issue: ClientDiagnosticIssue): string => {
   return `${timeline.join('\n')}\n\n${issue.error.name}: ${issue.error.message}${stack}`;
 };
 
-const issueKindKey = (kind: ClientDiagnosticIssue['kind']) => {
-  if (kind === 'provider') return 'diagnostics.kind.provider' as const;
-  if (kind === 'microphone') return 'diagnostics.kind.microphone' as const;
-  if (kind === 'configuration')
-    return 'diagnostics.kind.configuration' as const;
-  if (kind === 'renderer') return 'diagnostics.kind.renderer' as const;
-  return 'diagnostics.kind.internal' as const;
-};
-
 export const DiagnosticsDialog = ({
+  issueId,
   onOpenChange,
   open,
   store,
 }: {
+  issueId?: string;
   onOpenChange: (open: boolean) => void;
   open: boolean;
   store: ClientStore;
@@ -56,22 +52,25 @@ export const DiagnosticsDialog = ({
   const [includeAudio, setIncludeAudio] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
-  const latestIssue = latestDiagnosticIssue(issues);
+  const selectedIssue = issueId
+    ? issues.find(({ id }) => id === issueId)
+    : latestDiagnosticIssue(issues);
+  const detailMode = issueId !== undefined;
 
-  useEffect(() => setIncludeAudio(false), [latestIssue?.id, open]);
+  useEffect(() => setIncludeAudio(false), [selectedIssue?.id, open]);
 
   const log = useMemo(
-    () => (latestIssue ? issueLog(latestIssue) : ''),
-    [latestIssue],
+    () => (selectedIssue ? issueLog(selectedIssue) : ''),
+    [selectedIssue],
   );
 
   const exportSelected = async () => {
-    if (!latestIssue) return;
+    if (!selectedIssue) return;
     setExporting(true);
     try {
       const result = await store.exportDiagnostics({
-        includeAudio: includeAudio && latestIssue.audioAvailable,
-        issueIds: [latestIssue.id],
+        includeAudio: includeAudio && selectedIssue.audioAvailable,
+        issueIds: [selectedIssue.id],
       });
       if (!result.canceled) {
         notify(t('diagnostics.exported'), {
@@ -90,10 +89,10 @@ export const DiagnosticsDialog = ({
   };
 
   const acknowledgeSelected = async () => {
-    if (!latestIssue) return;
+    if (!selectedIssue) return;
     setAcknowledging(true);
     try {
-      await store.acknowledgeDiagnostics([latestIssue.id]);
+      await store.acknowledgeDiagnostics([selectedIssue.id]);
       onOpenChange(false);
     } catch (error) {
       notify(t('diagnostics.acknowledgeFailed'), {
@@ -133,22 +132,26 @@ export const DiagnosticsDialog = ({
           </Box>
           <Box>
             <Typography component="span" sx={{ fontSize: 21, fontWeight: 760 }}>
-              {t('diagnostics.title')}
+              {t(detailMode ? 'diagnostics.detailTitle' : 'diagnostics.title')}
             </Typography>
             <Typography
               color="text.secondary"
               sx={{ display: 'block' }}
               variant="body2"
             >
-              {latestIssue
-                ? t('diagnostics.latestSummary')
+              {selectedIssue
+                ? t(
+                    detailMode
+                      ? 'diagnostics.detailSummary'
+                      : 'diagnostics.latestSummary',
+                  )
                 : t('diagnostics.empty')}
             </Typography>
           </Box>
         </Stack>
       </DialogTitle>
       <DialogContent sx={{ pt: 1 }}>
-        {latestIssue ? (
+        {selectedIssue ? (
           <Stack sx={{ gap: 2.25 }}>
             <Stack sx={{ gap: 0.75 }}>
               <Stack
@@ -157,7 +160,7 @@ export const DiagnosticsDialog = ({
               >
                 <Chip
                   color="error"
-                  label={t(issueKindKey(latestIssue.kind))}
+                  label={t(diagnosticKindKey(selectedIssue.kind))}
                   size="small"
                   variant="outlined"
                 />
@@ -165,14 +168,14 @@ export const DiagnosticsDialog = ({
                   {new Intl.DateTimeFormat(locale, {
                     dateStyle: 'long',
                     timeStyle: 'medium',
-                  }).format(latestIssue.occurredAt)}
+                  }).format(selectedIssue.occurredAt)}
                 </Typography>
               </Stack>
               <Typography sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>
-                {latestIssue.error.message}
+                {selectedIssue.error.message}
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                {t('diagnostics.source', { source: latestIssue.source })}
+                {t('diagnostics.source', { source: selectedIssue.source })}
               </Typography>
             </Stack>
 
@@ -229,7 +232,7 @@ export const DiagnosticsDialog = ({
                 control={
                   <Checkbox
                     checked={includeAudio}
-                    disabled={!latestIssue.audioAvailable}
+                    disabled={!selectedIssue.audioAvailable}
                     onChange={(event) => setIncludeAudio(event.target.checked)}
                   />
                 }
@@ -240,7 +243,7 @@ export const DiagnosticsDialog = ({
                 sx={{ pl: 4 }}
                 variant="caption"
               >
-                {latestIssue.audioAvailable
+                {selectedIssue.audioAvailable
                   ? t('diagnostics.audioHint')
                   : t('diagnostics.noAudio')}
               </Typography>
@@ -273,9 +276,9 @@ export const DiagnosticsDialog = ({
           data-testid="diagnostics-later"
           onClick={() => onOpenChange(false)}
         >
-          {t('diagnostics.later')}
+          {t(detailMode ? 'action.close' : 'diagnostics.later')}
         </Button>
-        {latestIssue?.acknowledgedAt === undefined ? (
+        {selectedIssue?.acknowledgedAt === undefined ? (
           <Button
             disabled={acknowledging}
             onClick={() => void acknowledgeSelected()}
@@ -286,7 +289,7 @@ export const DiagnosticsDialog = ({
         ) : null}
         <Button
           data-testid="diagnostics-export"
-          disabled={!latestIssue || exporting}
+          disabled={!selectedIssue || exporting}
           onClick={() => void exportSelected()}
           startIcon={<DownloadRoundedIcon />}
           variant="contained"

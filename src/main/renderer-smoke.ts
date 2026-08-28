@@ -63,8 +63,6 @@ const smokeTestSource = `
       return 'microphone-select';
     if (!settingsPanel.querySelector('[data-testid="microphone-refresh"]'))
       return 'microphone-refresh';
-    if (!settingsPanel.querySelector('[data-testid="diagnostics-open"]'))
-      return 'diagnostics-open';
     const hotkeyCapture = settingsPanel.querySelector(
       '[data-testid="hotkey-capture"]',
     );
@@ -113,6 +111,72 @@ const smokeTestSource = `
       dictionaryLearning.click();
       await wait(120);
       if (dictionaryLearning.checked) return 'dictionary-learning-restore';
+    }
+
+    const problemsTab = settingsRoot.querySelector('#settings-tab-problems');
+    if (!problemsTab) return 'problems-tab';
+    problemsTab.click();
+    await wait(120);
+    if (problemsTab.getAttribute('aria-selected') !== 'true')
+      return 'problems-tab-state';
+    const problemsPanel = settingsRoot.querySelector('#settings-panel-problems');
+    if (!problemsPanel) return 'problems-panel';
+    const automaticCollection = problemsPanel.querySelector(
+      '[data-testid="automatic-error-collection-switch"] input',
+    );
+    if (!(automaticCollection instanceof HTMLInputElement))
+      return 'automatic-error-collection-switch';
+    if (
+      automaticCollection.checked !==
+      snapshot.settings.diagnostics.automaticCollection
+    ) {
+      return 'automatic-error-collection-state';
+    }
+    const automaticCollectionLabel = problemsPanel.querySelector(
+      '[data-testid="automatic-error-collection-switch-label"]',
+    );
+    if (!automaticCollectionLabel)
+      return 'automatic-error-collection-label';
+    const collectionBeforeLabelClick = automaticCollection.checked;
+    automaticCollectionLabel.click();
+    await wait(120);
+    if (automaticCollection.checked !== collectionBeforeLabelClick)
+      return 'automatic-error-collection-label-toggle';
+    const collectionWasEnabled = automaticCollection.checked;
+    automaticCollection.click();
+    await wait(120);
+    if (automaticCollection.checked === collectionWasEnabled)
+      return 'automatic-error-collection-toggle';
+    automaticCollection.click();
+    await wait(120);
+    if (automaticCollection.checked !== collectionWasEnabled)
+      return 'automatic-error-collection-restore';
+    const showErrorDialogs = problemsPanel.querySelector(
+      '[data-testid="show-error-dialogs-switch"] input',
+    );
+    if (!(showErrorDialogs instanceof HTMLInputElement))
+      return 'show-error-dialogs-switch';
+    if (
+      showErrorDialogs.checked !== snapshot.settings.diagnostics.showErrorDialogs
+    ) {
+      return 'show-error-dialogs-state';
+    }
+    const renderedIssues = problemsPanel.querySelectorAll(
+      '[role="button"][data-testid^="diagnostic-issue-"]',
+    );
+    if (renderedIssues.length > 10)
+      return 'diagnostic-page-size:' + renderedIssues.length;
+    if (
+      diagnostics.issues.length > 10 &&
+      !problemsPanel.querySelector('[data-testid="diagnostic-pagination"]')
+    ) {
+      return 'diagnostic-pagination';
+    }
+    if (
+      diagnostics.issues.length > 0 &&
+      !problemsPanel.querySelector('[data-testid="diagnostics-clear"]')
+    ) {
+      return 'diagnostics-clear';
     }
 
     const settingsClose = settingsRoot.querySelector('[data-testid="settings-close"]');
@@ -300,6 +364,30 @@ const responsiveSmokeTestSource = `
     if (!modelsPanel) return 'models-panel';
     if (modelsPanel.scrollWidth > modelsPanel.clientWidth + 1)
       return 'models-horizontal-scroll';
+
+    const problemsTab = settingsRoot.querySelector('#settings-tab-problems');
+    if (!problemsTab) return 'problems-tab';
+    problemsTab.click();
+    await wait(120);
+    const problemsPanel = settingsRoot.querySelector('#settings-panel-problems');
+    if (!problemsPanel) return 'problems-panel';
+    if (problemsPanel.scrollWidth > problemsPanel.clientWidth + 1)
+      return 'problems-horizontal-scroll';
+    const showErrorDialogs = problemsPanel.querySelector(
+      '[data-testid="show-error-dialogs-switch"] input',
+    );
+    if (!(showErrorDialogs instanceof HTMLInputElement))
+      return 'show-error-dialogs-switch';
+    const renderedIssues = problemsPanel.querySelectorAll(
+      '[role="button"][data-testid^="diagnostic-issue-"]',
+    );
+    if (renderedIssues.length > 10)
+      return 'diagnostic-page-size:' + renderedIssues.length;
+
+    const modelsTab = settingsRoot.querySelector('#settings-tab-models');
+    if (!modelsTab) return 'models-tab';
+    modelsTab.click();
+    await wait(120);
 
     const addText = modelsPanel.querySelector('[data-testid="provider-add-text"]');
     if (!addText) return 'provider-trigger';

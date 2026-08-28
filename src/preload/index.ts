@@ -25,6 +25,7 @@ const channels = {
   addDictionaryEntry: 'client:add-dictionary-entry',
   acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
   checkForUpdates: 'client:check-for-updates',
+  clearDiagnostics: 'client:clear-diagnostics',
   clearHistory: 'client:clear-history',
   copyText: 'client:copy-text',
   downloadUpdate: 'client:download-update',
@@ -55,6 +56,10 @@ const api: UntypoApi = {
     ipcRenderer.invoke(
       channels.acknowledgeDiagnostics,
       issueIds,
+    ) as Promise<ClientDiagnosticSnapshot>,
+  clearDiagnostics: () =>
+    ipcRenderer.invoke(
+      channels.clearDiagnostics,
     ) as Promise<ClientDiagnosticSnapshot>,
   clearHistory: () =>
     ipcRenderer.invoke(channels.clearHistory) as Promise<number>,

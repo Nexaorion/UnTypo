@@ -158,6 +158,7 @@ export class DiagnosticCollector {
   readonly #retentionDays: number;
   readonly #rootDirectory: string;
   readonly #sessionId = randomUUID();
+  #enabled = true;
   #issues: StoredDiagnosticIssue[] = [];
   #recentEntries: ClientDiagnosticLogEntry[] = [];
 
@@ -210,6 +211,23 @@ export class DiagnosticCollector {
       });
       this.emitChanged();
     }
+    return this.snapshot();
+  }
+
+  clear(): ClientDiagnosticSnapshot {
+    this.#issues = [];
+    this.#recentEntries = [];
+    this.persistIssues();
+    for (const directory of [this.#attachmentsDirectory, this.#logsDirectory]) {
+      for (const fileName of readdirSync(directory)) {
+        try {
+          unlinkSync(path.join(directory, fileName));
+        } catch (error) {
+          console.error('Diagnostic data cleanup failed', error);
+        }
+      }
+    }
+    this.emitChanged();
     return this.snapshot();
   }
 
@@ -375,6 +393,7 @@ export class DiagnosticCollector {
       scope: redactDiagnosticText(input.scope).slice(0, 120),
       timestamp: this.#now(),
     };
+    if (!this.#enabled) return entry;
     this.#recentEntries.push(entry);
     if (this.#recentEntries.length > maxRecentEntries) {
       this.#recentEntries.splice(
@@ -397,6 +416,11 @@ export class DiagnosticCollector {
     return () => this.#changedListeners.delete(listener);
   }
 
+  setEnabled(enabled: boolean): void {
+    this.#enabled = enabled;
+    if (!enabled) this.#recentEntries = [];
+  }
+
   recordIssue(input: DiagnosticIssueInput): ClientDiagnosticIssue {
     const occurredAt = this.#now();
     const operationId =
@@ -411,7 +435,7 @@ export class DiagnosticCollector {
     });
     const id = randomUUID();
     let audioFileName: string | undefined;
-    if (input.audio && input.audio.bytes.byteLength > 0) {
+    if (this.#enabled && input.audio && input.audio.bytes.byteLength > 0) {
       const fileName = `${id}.${audioExtension(input.audio.mimeType)}`;
       try {
         writeFileSync(
@@ -448,6 +472,7 @@ export class DiagnosticCollector {
         errorEntry,
       ],
     };
+    if (!this.#enabled) return toClientIssue(issue);
     this.#issues.unshift(issue);
     this.#issues = this.#issues.slice(0, 100);
     this.persistIssues();

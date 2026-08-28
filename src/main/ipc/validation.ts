@@ -42,10 +42,35 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
   if (!isRecord(value)) throw new Error('Invalid settings update');
   assertOnlyKeys(
     value,
-    ['dictation', 'general', 'history', 'updates'],
+    ['diagnostics', 'dictation', 'general', 'history', 'updates'],
     'Settings update',
   );
   const result: ClientSettingsUpdate = {};
+
+  if (value.diagnostics !== undefined) {
+    if (!isRecord(value.diagnostics)) {
+      throw new Error('Invalid diagnostic settings');
+    }
+    assertOnlyKeys(
+      value.diagnostics,
+      ['automaticCollection', 'showErrorDialogs'],
+      'Diagnostic settings',
+    );
+    const diagnostics: NonNullable<ClientSettingsUpdate['diagnostics']> = {};
+    if (value.diagnostics.automaticCollection !== undefined) {
+      if (typeof value.diagnostics.automaticCollection !== 'boolean') {
+        throw new Error('Invalid automatic diagnostic collection setting');
+      }
+      diagnostics.automaticCollection = value.diagnostics.automaticCollection;
+    }
+    if (value.diagnostics.showErrorDialogs !== undefined) {
+      if (typeof value.diagnostics.showErrorDialogs !== 'boolean') {
+        throw new Error('Invalid diagnostic dialog setting');
+      }
+      diagnostics.showErrorDialogs = value.diagnostics.showErrorDialogs;
+    }
+    result.diagnostics = diagnostics;
+  }
 
   if (value.general !== undefined) {
     if (!isRecord(value.general)) throw new Error('Invalid general settings');

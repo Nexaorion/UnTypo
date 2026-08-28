@@ -1,6 +1,7 @@
-import FormControlLabel from '@mui/material/FormControlLabel';
 import FormHelperText from '@mui/material/FormHelperText';
+import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
+import Typography from '@mui/material/Typography';
 import { useId } from 'react';
 
 export interface SwitchFieldProps {
@@ -21,30 +22,36 @@ export const SwitchField = ({
   testId,
 }: SwitchFieldProps) => {
   const descriptionId = useId();
+  const labelId = useId();
 
   return (
     <div>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={checked}
-            data-testid={testId}
-            disabled={disabled}
-            onChange={(event) => onCheckedChange(event.target.checked)}
-            // MUI renders a checkbox input; role=switch announces on/off instead of checked.
-            slotProps={{
-              input: {
-                'aria-describedby': description ? descriptionId : undefined,
-                role: 'switch',
-              },
-            }}
-          />
-        }
-        label={label}
-        slotProps={{ typography: { sx: { fontSize: 13, fontWeight: 500 } } }}
-        sx={{ justifyContent: 'space-between', ml: 0, width: '100%' }}
-        labelPlacement="start"
-      />
+      <Stack
+        direction="row"
+        sx={{ alignItems: 'center', gap: 2, justifyContent: 'space-between' }}
+      >
+        <Typography
+          data-testid={testId ? `${testId}-label` : undefined}
+          id={labelId}
+          sx={{ fontSize: 13, fontWeight: 500 }}
+        >
+          {label}
+        </Typography>
+        <Switch
+          checked={checked}
+          data-testid={testId}
+          disabled={disabled}
+          onChange={(event) => onCheckedChange(event.target.checked)}
+          // MUI renders a checkbox input; role=switch announces on/off instead of checked.
+          slotProps={{
+            input: {
+              'aria-describedby': description ? descriptionId : undefined,
+              'aria-labelledby': labelId,
+              role: 'switch',
+            },
+          }}
+        />
+      </Stack>
       {description ? (
         <FormHelperText id={descriptionId}>{description}</FormHelperText>
       ) : null}

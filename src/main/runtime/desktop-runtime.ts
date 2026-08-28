@@ -230,11 +230,12 @@ export class DesktopRuntime {
 
   async start(): Promise<void> {
     if (this.#started) throw new Error('Desktop runtime is already active');
+    const config = await this.#configuration.load();
+    this.#diagnostics.setEnabled(config.diagnostics.automaticCollection);
     this.#diagnostics.log({
       message: 'Desktop runtime startup requested',
       scope: 'app.runtime',
     });
-    const config = await this.#configuration.load();
     await this.activateConfiguredProviders(config);
     this.#coordinator = new DictationCoordinator({
       diagnostics: this.#diagnostics,
@@ -410,6 +411,7 @@ export class DesktopRuntime {
         values: structuredClone(provider.values),
       })),
       settings: {
+        diagnostics: config.diagnostics,
         dictation: {
           ...(config.dictation.activeSpeechProviderProfileId
             ? {
@@ -515,6 +517,7 @@ export class DesktopRuntime {
         }
         return {
           ...config,
+          diagnostics: { ...config.diagnostics, ...update.diagnostics },
           dictation,
           general: { ...config.general, ...update.general },
           history: { ...config.history, ...update.history },
@@ -538,6 +541,7 @@ export class DesktopRuntime {
       }
       throw error;
     }
+    this.#diagnostics.setEnabled(next.diagnostics.automaticCollection);
     if (hotkeyChanged) {
       this.logHotkeyConfiguration(next.dictation.hotkeyAccelerator, nextHotkey);
     }
@@ -548,6 +552,7 @@ export class DesktopRuntime {
     this.#diagnostics.log({
       context: {
         changedGroups: Object.keys(update),
+        diagnosticFields: Object.keys(update.diagnostics ?? {}),
         dictationFields: Object.keys(update.dictation ?? {}),
         generalFields: Object.keys(update.general ?? {}),
         historyFields: Object.keys(update.history ?? {}),
@@ -727,6 +732,10 @@ export class DesktopRuntime {
     issueIds: readonly string[],
   ): ClientDiagnosticSnapshot {
     return this.#diagnostics.acknowledge(issueIds);
+  }
+
+  clearDiagnostics(): ClientDiagnosticSnapshot {
+    return this.#diagnostics.clear();
   }
 
   async exportDiagnostics(

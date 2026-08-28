@@ -85,6 +85,82 @@ describe('diagnostic redaction', () => {
 });
 
 describe('DiagnosticCollector', () => {
+  it('clears issues, collected logs, and recording attachments together', () => {
+    const rootDirectory = temporaryDirectory();
+    const collector = new DiagnosticCollector({
+      appName: 'UnTypo',
+      appVersion: '0.1.0',
+      rootDirectory,
+    });
+    collector.recordIssue({
+      audio: {
+        bytes: new Uint8Array([1, 2, 3, 4]),
+        channels: 1,
+        durationMs: 120,
+        mimeType: 'audio/webm;codecs=opus',
+        sampleRateHz: 48_000,
+      },
+      error: new Error('Collected issue'),
+      kind: 'internal',
+      source: 'test.clear',
+    });
+
+    const snapshot = collector.clear();
+
+    expect(snapshot.issues).toEqual([]);
+    expect(readdirSync(path.join(rootDirectory, 'attachments'))).toEqual([]);
+    expect(readdirSync(path.join(rootDirectory, 'logs'))).toEqual([]);
+    expect(
+      JSON.parse(readFileSync(path.join(rootDirectory, 'issues.json'), 'utf8')),
+    ).toEqual({ issues: [], version: 1 });
+  });
+
+  it('stops persisting logs and issues while automatic collection is disabled', () => {
+    const rootDirectory = temporaryDirectory();
+    const collector = new DiagnosticCollector({
+      appName: 'UnTypo',
+      appVersion: '0.1.0',
+      rootDirectory,
+    });
+    const logsDirectory = path.join(rootDirectory, 'logs');
+    const logFiles = readdirSync(logsDirectory);
+    const originalLogs = logFiles.map((fileName) =>
+      readFileSync(path.join(logsDirectory, fileName), 'utf8'),
+    );
+
+    collector.setEnabled(false);
+    collector.log({ message: 'Disabled log', scope: 'test.disabled' });
+    collector.recordIssue({
+      audio: {
+        bytes: new Uint8Array([1, 2, 3, 4]),
+        channels: 1,
+        durationMs: 120,
+        mimeType: 'audio/webm;codecs=opus',
+        sampleRateHz: 48_000,
+      },
+      error: new Error('Disabled issue'),
+      kind: 'internal',
+      source: 'test.disabled',
+    });
+
+    expect(collector.snapshot().issues).toEqual([]);
+    expect(readdirSync(logsDirectory)).toEqual(logFiles);
+    expect(
+      logFiles.map((fileName) =>
+        readFileSync(path.join(logsDirectory, fileName), 'utf8'),
+      ),
+    ).toEqual(originalLogs);
+    expect(readdirSync(path.join(rootDirectory, 'attachments'))).toEqual([]);
+
+    collector.setEnabled(true);
+    collector.recordIssue({
+      error: new Error('Enabled issue'),
+      kind: 'internal',
+      source: 'test.enabled',
+    });
+    expect(collector.snapshot().issues).toHaveLength(1);
+  });
+
   it('persists a redacted issue and exports audio only with explicit opt-in', async () => {
     let now = Date.UTC(2026, 7, 24, 10, 0, 0);
     const rootDirectory = temporaryDirectory();

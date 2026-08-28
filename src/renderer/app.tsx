@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppShell, type AppPage } from './app-shell.js';
 import { I18nProvider, useI18n } from './i18n/context.js';
 import { DictionarySection } from './sections/dictionary.js';
@@ -19,19 +19,26 @@ const Shell = ({ store }: { store: ClientStore }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('settings');
   const [updateOpen, setUpdateOpen] = useState(false);
+  const knownDiagnosticIds = useRef<Set<string> | undefined>(undefined);
   const userName = store.runtime?.userName ?? 'User';
-  const pendingDiagnosticKey = useMemo(
-    () =>
-      (store.diagnostics?.issues ?? [])
-        .filter(({ acknowledgedAt }) => acknowledgedAt === undefined)
-        .map(({ id }) => id)
-        .join(','),
-    [store.diagnostics?.issues],
-  );
+  const showErrorDialogs =
+    store.snapshot?.settings.diagnostics.showErrorDialogs ?? false;
 
   useEffect(() => {
-    if (pendingDiagnosticKey) setDiagnosticsOpen(true);
-  }, [pendingDiagnosticKey]);
+    if (!store.diagnostics) return;
+    const issues = store.diagnostics.issues;
+    const known = knownDiagnosticIds.current;
+    if (!known) {
+      knownDiagnosticIds.current = new Set(issues.map(({ id }) => id));
+      return;
+    }
+    const newPendingIssue = issues.find(
+      ({ acknowledgedAt, id }) =>
+        acknowledgedAt === undefined && !known.has(id),
+    );
+    for (const { id } of issues) known.add(id);
+    if (showErrorDialogs && newPendingIssue) setDiagnosticsOpen(true);
+  }, [showErrorDialogs, store.diagnostics]);
 
   useEffect(() => {
     const status = store.snapshot?.update.status;
@@ -74,11 +81,6 @@ const Shell = ({ store }: { store: ClientStore }) => {
         {content}
       </AppShell>
       <SettingsDialog
-        onOpenDiagnostics={() => {
-          setSettingsOpen(false);
-          setDiagnosticsOpen(true);
-          void store.reloadDiagnostics();
-        }}
         onOpenChange={setSettingsOpen}
         onTabChange={setSettingsTab}
         open={settingsOpen}

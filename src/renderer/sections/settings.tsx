@@ -1,4 +1,3 @@
-import BugReportOutlinedIcon from '@mui/icons-material/BugReportOutlined';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import Button from '@mui/material/Button';
 import FormLabel from '@mui/material/FormLabel';
@@ -27,24 +26,13 @@ const LANGUAGES: readonly { label: string; value: SupportedLanguage }[] = [
   { label: 'English', value: 'en-US' },
 ];
 
-export const SettingsSection = ({
-  onOpenDiagnostics,
-  store,
-}: {
-  onOpenDiagnostics: () => void;
-  store: ClientStore;
-}) => {
+export const SettingsSection = ({ store }: { store: ClientStore }) => {
   const { locale, t } = useI18n();
   const { isPending, run } = useAction();
   const settings = store.snapshot?.settings;
   const profile = store.snapshot?.profile;
   const update = store.snapshot?.update;
   const listMicrophones = store.listMicrophones;
-  const pendingDiagnosticCount =
-    store.diagnostics?.issues.filter(
-      ({ acknowledgedAt }) => acknowledgedAt === undefined,
-    ).length ?? 0;
-
   const [hotkey, setHotkey] = useState('');
   const [hotkeyError, setHotkeyError] = useState<string | undefined>(undefined);
   const [microphones, setMicrophones] = useState<
@@ -425,33 +413,6 @@ export const SettingsSection = ({
             type="number"
             value={retention}
           />
-        </Stack>
-      </Card>
-
-      <Card
-        actions={
-          <Button
-            data-testid="diagnostics-open"
-            onClick={onOpenDiagnostics}
-            startIcon={<BugReportOutlinedIcon />}
-            variant="outlined"
-          >
-            {t('settings.diagnosticsOpen')}
-          </Button>
-        }
-        title={t('settings.group.diagnostics')}
-      >
-        <Stack sx={{ gap: 0.75 }}>
-          <Typography variant="body2">
-            {t('settings.diagnosticsDescription')}
-          </Typography>
-          <Typography color="text.secondary" variant="caption">
-            {pendingDiagnosticCount > 0
-              ? t('settings.diagnosticsPending', {
-                  count: String(pendingDiagnosticCount),
-                })
-              : t('settings.diagnosticsReady')}
-          </Typography>
         </Stack>
       </Card>
 

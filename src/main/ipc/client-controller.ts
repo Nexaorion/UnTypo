@@ -39,6 +39,7 @@ export interface ClientBackendPort {
   acknowledgeDiagnostics: (
     issueIds: readonly string[],
   ) => ClientDiagnosticSnapshot;
+  clearDiagnostics: () => ClientDiagnosticSnapshot;
   clearHistory: () => number;
   checkForUpdates: () => Promise<ClientUpdateSnapshot>;
   downloadUpdate: () => Promise<ClientUpdateSnapshot>;
@@ -73,6 +74,7 @@ export class ClientIpcController {
       IPC_CHANNELS.acknowledgeDiagnostics,
       this.acknowledgeDiagnostics,
     );
+    ipcMain.handle(IPC_CHANNELS.clearDiagnostics, this.clearDiagnostics);
     ipcMain.handle(IPC_CHANNELS.exportDiagnostics, this.exportDiagnostics);
     ipcMain.handle(IPC_CHANNELS.getDiagnostics, this.getDiagnostics);
     ipcMain.handle(IPC_CHANNELS.getSnapshot, this.getSnapshot);
@@ -104,6 +106,7 @@ export class ClientIpcController {
     for (const channel of [
       IPC_CHANNELS.addDictionaryEntry,
       IPC_CHANNELS.acknowledgeDiagnostics,
+      IPC_CHANNELS.clearDiagnostics,
       IPC_CHANNELS.exportDiagnostics,
       IPC_CHANNELS.getDiagnostics,
       IPC_CHANNELS.getSnapshot,
@@ -142,6 +145,13 @@ export class ClientIpcController {
   ): ClientDiagnosticSnapshot => {
     trust(event);
     return this.#backend.acknowledgeDiagnostics(parseDiagnosticIssueIds(value));
+  };
+
+  private readonly clearDiagnostics = (
+    event: IpcMainInvokeEvent,
+  ): ClientDiagnosticSnapshot => {
+    trust(event);
+    return this.#backend.clearDiagnostics();
   };
 
   private readonly getSnapshot = (

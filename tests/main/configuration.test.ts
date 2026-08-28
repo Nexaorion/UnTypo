@@ -25,6 +25,10 @@ describe('ConfigurationService', () => {
   it('returns the bilingual Windows defaults before the first write', async () => {
     await expect(service.load()).resolves.toMatchObject({
       version: 3,
+      diagnostics: {
+        automaticCollection: true,
+        showErrorDialogs: false,
+      },
       dictionaryLearning: { enabled: true },
       general: { locale: 'zh-CN' },
       dictation: {
@@ -37,7 +41,7 @@ describe('ConfigurationService', () => {
     });
   });
 
-  it('adds update defaults to an existing v2 configuration', async () => {
+  it('adds diagnostic and update defaults to an existing v2 configuration', async () => {
     await writeFile(
       configPath,
       JSON.stringify({
@@ -58,11 +62,18 @@ describe('ConfigurationService', () => {
     await expect(service.load()).resolves.toMatchObject({
       dictionary: [{ source: 'manual', term: 'UnTypo' }],
       dictionaryLearning: { enabled: true },
+      diagnostics: {
+        automaticCollection: true,
+        showErrorDialogs: false,
+      },
       version: 3,
       updates: { autoCheck: true, autoDownload: true },
     });
     await expect(readFile(configPath, 'utf8')).resolves.toContain(
       '"autoDownload": true',
+    );
+    await expect(readFile(configPath, 'utf8')).resolves.toContain(
+      '"showErrorDialogs": false',
     );
     await expect(readFile(configPath, 'utf8')).resolves.toContain(
       '"version": 3',
