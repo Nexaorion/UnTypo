@@ -48,6 +48,7 @@ const createBackend = (): ClientBackendPort => ({
   removeDictionaryEntry: vi.fn(),
   reportRendererIssue: vi.fn(),
   setDictionaryLearningEnabled: vi.fn(),
+  setApplicationWritingStyle: vi.fn(),
   setProfile: vi.fn(),
   testProvider: vi.fn(),
   updateSettings: vi.fn(),
@@ -89,10 +90,18 @@ describe('ClientIpcController', () => {
       {},
       false,
     );
+    electronMocks.handlers.get(IPC_CHANNELS.setApplicationWritingStyle)?.(
+      {},
+      { application: 'office', style: 'formal' },
+    );
 
     expect(backend.addDictionaryEntry).toHaveBeenCalledWith('UnTypo');
     expect(backend.removeDictionaryEntry).toHaveBeenCalledWith('UnTypo');
     expect(backend.setDictionaryLearningEnabled).toHaveBeenCalledWith(false);
+    expect(backend.setApplicationWritingStyle).toHaveBeenCalledWith({
+      application: 'office',
+      style: 'formal',
+    });
     controller.destroy();
   });
 

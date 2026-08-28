@@ -15,6 +15,7 @@ import type {
   PingResponse,
   UntypoApi,
 } from '../../shared/ipc.js';
+import type { ClientApplicationWritingStyleUpdate } from '../../shared/personalization.js';
 import { HISTORY_PAGE_SIZE, mergeHistoryPage } from '../logic/history.js';
 
 export const describeError = (error: unknown): string | undefined =>
@@ -52,6 +53,9 @@ export interface ClientStore {
   runtime: PingResponse | null;
   usage: ClientUsageStats | null;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<void>;
+  setApplicationWritingStyle: (
+    update: ClientApplicationWritingStyleUpdate,
+  ) => Promise<void>;
   setProfile: (profile?: UserProfileContext) => Promise<void>;
   snapshot: ClientSnapshot | null;
   testProvider: (profileId: string) => Promise<void>;
@@ -260,6 +264,13 @@ export const useClientStore = (): ClientStore => {
     [applySnapshot],
   );
 
+  const setApplicationWritingStyle = useCallback(
+    async (update: ClientApplicationWritingStyleUpdate) => {
+      applySnapshot(await requireApi().setApplicationWritingStyle(update));
+    },
+    [applySnapshot],
+  );
+
   const setProfile = useCallback(
     async (profile?: UserProfileContext) => {
       applySnapshot(await requireApi().setProfile(profile));
@@ -293,6 +304,7 @@ export const useClientStore = (): ClientStore => {
     runtime,
     usage,
     setDictionaryLearningEnabled,
+    setApplicationWritingStyle,
     setProfile,
     snapshot,
     testProvider,

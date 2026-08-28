@@ -22,6 +22,7 @@ import type {
   ModelProviderId,
 } from '../../shared/ipc.js';
 import type { MicrophoneSelection } from '../../shared/microphone.js';
+import type { ApplicationWritingStyles } from '../../shared/personalization.js';
 import type { HistoryPolicy } from '../storage/configuration.js';
 import type { NewHistoryRecord } from '../storage/history.js';
 import type {
@@ -88,6 +89,7 @@ export interface HistoryPort {
 }
 
 export interface DictationContext {
+  applicationStyles: ApplicationWritingStyles;
   fastMode?: boolean;
   history: HistoryPolicy;
   modelName?: string;
@@ -405,6 +407,7 @@ export class DictationCoordinator {
                     windowHandle: target.windowHandle,
                   }
                 : undefined,
+              writingStyle: context.applicationStyles[application.kind],
             },
           );
         result = this.#dependencies.diagnostics

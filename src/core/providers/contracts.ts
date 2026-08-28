@@ -1,4 +1,14 @@
 import type { DictionaryCandidate } from '../../shared/dictionary.js';
+import type {
+  TargetApplicationContext,
+  WritingStylePreset,
+} from '../../shared/personalization.js';
+
+export type {
+  TargetApplicationContext,
+  TargetApplicationKind,
+  WritingStylePreset,
+} from '../../shared/personalization.js';
 
 export const PROVIDER_CONTRACT_VERSION = '3.0' as const;
 
@@ -7,13 +17,6 @@ export type DictationIntent = 'transcription' | 'translation' | 'instruction';
 export type ProviderKind = 'builtin' | 'community' | 'official-cloud' | 'local';
 export type ProviderAudioFormat = 'wav' | 'webm';
 export type SupportedLanguage = 'zh-CN' | 'en-US';
-export type TargetApplicationKind =
-  'ai-tool' | 'browser' | 'chat-app' | 'general' | 'ide' | 'office';
-
-export interface TargetApplicationContext {
-  kind: TargetApplicationKind;
-  name?: string;
-}
 
 export interface AudioPayload {
   bytes: Uint8Array;
@@ -69,6 +72,7 @@ export interface TextProcessContext {
   signal?: AbortSignal;
   tone?: string;
   windowContext?: WindowContext;
+  writingStyle?: WritingStylePreset;
 }
 
 export interface WindowContext {
@@ -98,6 +102,7 @@ export interface ProcessOptions {
   signal?: AbortSignal;
   tone?: string;
   windowContext?: WindowContext;
+  writingStyle?: WritingStylePreset;
 }
 
 export interface SpeechRecognitionCallInput {
@@ -119,6 +124,7 @@ export interface TextGenerationCallInput {
   locale: SupportedLanguage;
   text: string;
   tone?: string;
+  writingStyle?: WritingStylePreset;
 }
 
 interface ModelCallTraceBase {

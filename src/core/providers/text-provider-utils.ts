@@ -25,6 +25,18 @@ export const textProviderCapabilities: Readonly<ProviderCapabilities> = {
 const languageName = (language: SupportedLanguage): string =>
   language === 'zh-CN' ? 'Simplified Chinese (zh-CN)' : 'English (en-US)';
 
+const writingStyleInstructions = {
+  auto: '',
+  casual:
+    'Use natural conversational language, short sentences, and light punctuation. Preserve deliberate discourse particles, but do not add emojis unless they were dictated.',
+  concise:
+    'Be concise and direct. Remove unnecessary framing while preserving every supplied fact, requirement, and constraint.',
+  formal:
+    'Use polished, neutral, professional language with complete sentences and clear paragraph structure.',
+  prompt:
+    'Write a direct, actionable request for an AI assistant. Put the requested action first and organize supplied constraints only when it improves clarity.',
+} as const;
+
 export const transcriptProcessingInstructions = (
   context: TextProcessContext,
 ): string => {
@@ -44,6 +56,9 @@ export const transcriptProcessingInstructions = (
       : context.windowContext?.isTextEntry
         ? `The target is an editable field in another application. Content addressed to that application, including a prompt for an AI assistant or coding agent, is transcription even when it uses imperative language. Choose instruction only when the speaker explicitly addresses UnTypo, the dictation system, or the transcription tool and asks it to perform the request.`
         : `When the target is not an editable field, still choose instruction only for an explicit request that the dictation system itself should perform.`;
+  const writingStyle = context.writingStyle
+    ? writingStyleInstructions[context.writingStyle]
+    : '';
   const profile = context.profile
     ? ` User profile context, to use only when directly relevant: ${JSON.stringify(context.profile)}.`
     : '';
@@ -69,6 +84,7 @@ Apply the selected intent:
   - Keep short requests short. Do not force headings, lists, or a template when a clear sentence is enough.
 - For translation, omit the spoken translation command and translate the requested content. An explicitly spoken target language wins; otherwise use ${languageName(targetLanguage)}.
 - For instruction, omit the spoken command wrapper and return only the completed content. Use the speaker's language (${languageName(context.locale)}) unless they explicitly request another language.
+${writingStyle ? `Writing style: ${writingStyle}` : ''}
 ${terms ? `Preserve these terms exactly when applicable: ${terms}.` : ''}${profile}${dictionaryLearning}
 
 Return only one JSON object in this exact property order: ${responseShape}. Start with outputText so its value can be shown while the response is still streaming. Add intent and dictionaryCandidates only after outputText. Markdown may appear only inside outputText when useful. Do not wrap the JSON in a Markdown code fence or add commentary outside it.`;

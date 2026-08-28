@@ -48,6 +48,7 @@ import {
   type MicrophoneSelection,
 } from '../../shared/microphone.js';
 import type { DictionaryCandidate } from '../../shared/dictionary.js';
+import type { ClientApplicationWritingStyleUpdate } from '../../shared/personalization.js';
 import type { DictionarySuggestionError } from '../../shared/capsule-ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
 import type { DiagnosticCollector } from '../diagnostics/collector.js';
@@ -266,6 +267,7 @@ export class DesktopRuntime {
           ({ id, kind }) => id === this.#textProviderId && kind === 'text',
         );
         return {
+          applicationStyles: current.personalization.applicationStyles,
           history: current.history,
           ...(current.dictation.fastMode !== undefined
             ? { fastMode: current.dictation.fastMode }
@@ -416,6 +418,7 @@ export class DesktopRuntime {
     return {
       dictionary: config.dictionary,
       dictionaryLearning: { enabled: config.dictionaryLearning.enabled },
+      personalization: structuredClone(config.personalization),
       ...(profile ? { profile } : {}),
       providers: config.providers.map((provider) => ({
         configuredSecretKeys: Object.keys(provider.secrets),
@@ -611,6 +614,13 @@ export class DesktopRuntime {
     enabled: boolean,
   ): Promise<ClientSnapshot> {
     await this.#configuration.setDictionaryLearningEnabled(enabled);
+    return this.getClientSnapshot();
+  }
+
+  async setApplicationWritingStyle(
+    update: ClientApplicationWritingStyleUpdate,
+  ): Promise<ClientSnapshot> {
+    await this.#configuration.setApplicationWritingStyle(update);
     return this.getClientSnapshot();
   }
 

@@ -127,6 +127,7 @@ export class DictationPipeline {
       locale: options.language,
       text: rawTranscript,
       ...(options.tone ? { tone: options.tone } : {}),
+      ...(options.writingStyle ? { writingStyle: options.writingStyle } : {}),
     };
     const textStartedAt = Date.now();
     let firstOutputMs: number | undefined;
@@ -157,6 +158,9 @@ export class DictationPipeline {
           ...(options.tone ? { tone: options.tone } : {}),
           ...(options.windowContext
             ? { windowContext: options.windowContext }
+            : {}),
+          ...(options.writingStyle
+            ? { writingStyle: options.writingStyle }
             : {}),
         },
       );

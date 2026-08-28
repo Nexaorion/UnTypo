@@ -12,6 +12,10 @@ import type {
   ClientRendererIssueInput,
 } from './diagnostics.js';
 import type { MicrophoneDeviceInfo } from './microphone.js';
+import type {
+  ApplicationWritingStyles,
+  ClientApplicationWritingStyleUpdate,
+} from './personalization.js';
 
 export const IPC_CHANNELS = {
   addDictionaryEntry: 'client:add-dictionary-entry',
@@ -32,6 +36,7 @@ export const IPC_CHANNELS = {
   removeProvider: 'client:remove-provider',
   removeDictionaryEntry: 'client:remove-dictionary-entry',
   setDictionaryLearningEnabled: 'client:set-dictionary-learning-enabled',
+  setApplicationWritingStyle: 'client:set-application-writing-style',
   setProfile: 'client:set-profile',
   snapshotChanged: 'client:snapshot-changed',
   testProvider: 'client:test-provider',
@@ -163,6 +168,10 @@ export interface ClientSnapshot {
   dictionaryLearning: {
     enabled: boolean;
   };
+  personalization: {
+    applicationStyles: ApplicationWritingStyles;
+    learningEnabled: boolean;
+  };
   profile?: UserProfileContext;
   providers: readonly ClientProviderSummary[];
   settings: ClientSettingsSnapshot;
@@ -252,6 +261,9 @@ export interface UntypoApi {
   removeDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => Promise<void>;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
+  setApplicationWritingStyle: (
+    update: ClientApplicationWritingStyleUpdate,
+  ) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
   installUpdate: () => Promise<void>;

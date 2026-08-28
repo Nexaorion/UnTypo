@@ -94,6 +94,58 @@ const smokeTestSource = `
     if (!personalizationPanel) return 'personalization-panel';
     if (personalizationPanel.querySelector('form'))
       return 'personalization-dictionary-form';
+    const chatStyleRoot = personalizationPanel.querySelector(
+      '[data-testid="writing-style-chat-app"]',
+    );
+    const originalChatStyle =
+      snapshot.personalization?.applicationStyles?.['chat-app'];
+    if (
+      !chatStyleRoot?.querySelector('[role="combobox"]') ||
+      typeof originalChatStyle !== 'string'
+    )
+      return 'writing-style-chat-app';
+    const alternateChatStyle =
+      originalChatStyle === 'formal' ? 'casual' : 'formal';
+    const pickWritingStyle = async (style) => {
+      const combobox = personalizationPanel.querySelector(
+        '[data-testid="writing-style-chat-app"] [role="combobox"]',
+      );
+      if (!combobox) return false;
+      combobox.dispatchEvent(
+        new MouseEvent('mousedown', {
+          bubbles: true,
+          button: 0,
+          cancelable: true,
+          view: window,
+        }),
+      );
+      await wait(80);
+      const option = Array.from(document.querySelectorAll('[role="option"]')).find(
+        (candidate) => candidate.getAttribute('data-value') === style,
+      );
+      if (!option) return false;
+      option.click();
+      await wait(160);
+      return true;
+    };
+    if (!(await pickWritingStyle(alternateChatStyle)))
+      return 'writing-style-option';
+    const changedPersonalization = await window.untypo?.getSnapshot();
+    if (
+      changedPersonalization?.personalization?.applicationStyles?.['chat-app'] !==
+      alternateChatStyle
+    ) {
+      return 'writing-style-update';
+    }
+    if (!(await pickWritingStyle(originalChatStyle)))
+      return 'writing-style-restore-option';
+    const restoredPersonalization = await window.untypo?.getSnapshot();
+    if (
+      restoredPersonalization?.personalization?.applicationStyles?.['chat-app'] !==
+      originalChatStyle
+    ) {
+      return 'writing-style-restore';
+    }
     const dictionaryLearning = personalizationPanel.querySelector(
       '[data-testid="dictionary-learning-switch"] input',
     );

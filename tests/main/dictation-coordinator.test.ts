@@ -18,6 +18,7 @@ import type { NativeTargetSnapshot } from '../../src/main/native/protocol';
 import type { CapsuleErrorReason } from '../../src/shared/capsule-ipc';
 import type { DiagnosticIssueInput } from '../../src/main/diagnostics/collector';
 import type { DictionaryCandidate } from '../../src/shared/dictionary';
+import { DEFAULT_APPLICATION_WRITING_STYLES } from '../../src/shared/personalization';
 
 const target: NativeTargetSnapshot = {
   editable: true,
@@ -104,6 +105,7 @@ const createCoordinator = ({
   );
   const inject = vi.fn(() => Promise.resolve({ injected }));
   const getContext = vi.fn(() => ({
+    applicationStyles: DEFAULT_APPLICATION_WRITING_STYLES,
     history: { enabled: true, retentionDays: 30 },
     modelName: 'whisper-1',
     ...(microphoneDeviceId
@@ -302,6 +304,7 @@ describe('DictationCoordinator', () => {
     );
     expect(processTranscript.mock.calls[0]?.[1]).toMatchObject({
       forcedIntent: 'transcription',
+      writingStyle: 'prompt',
       windowContext: {
         application: { kind: 'ai-tool', name: 'ChatGPT/Codex' },
       },

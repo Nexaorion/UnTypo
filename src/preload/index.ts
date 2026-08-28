@@ -16,6 +16,7 @@ import type {
   PingResponse,
   UntypoApi,
 } from '../shared/ipc.js';
+import type { ClientApplicationWritingStyleUpdate } from '../shared/personalization.js';
 
 const PING_CHANNEL = 'app:ping';
 const DIAGNOSTIC_CHANGED_CHANNEL = 'client:diagnostics-changed';
@@ -40,6 +41,7 @@ const channels = {
   removeDictionaryEntry: 'client:remove-dictionary-entry',
   reportRendererIssue: 'client:report-renderer-issue',
   setDictionaryLearningEnabled: 'client:set-dictionary-learning-enabled',
+  setApplicationWritingStyle: 'client:set-application-writing-style',
   setProfile: 'client:set-profile',
   testProvider: 'client:test-provider',
   updateSettings: 'client:update-settings',
@@ -137,6 +139,11 @@ const api: UntypoApi = {
     ipcRenderer.invoke(
       channels.setDictionaryLearningEnabled,
       enabled,
+    ) as Promise<ClientSnapshot>,
+  setApplicationWritingStyle: (update: ClientApplicationWritingStyleUpdate) =>
+    ipcRenderer.invoke(
+      channels.setApplicationWritingStyle,
+      update,
     ) as Promise<ClientSnapshot>,
   setProfile: (profile) =>
     ipcRenderer.invoke(channels.setProfile, profile) as Promise<ClientSnapshot>,

@@ -17,6 +17,7 @@ import {
   type ClientUpdateSnapshot,
   type ClientUsageStats,
 } from '../../shared/ipc.js';
+import type { ClientApplicationWritingStyleUpdate } from '../../shared/personalization.js';
 import { assertTrustedSender } from '../security.js';
 import {
   parseDiagnosticExportRequest,
@@ -24,6 +25,7 @@ import {
   parseRendererIssue,
 } from './diagnostic-validation.js';
 import {
+  parseApplicationWritingStyleUpdate,
   parseClipboardText,
   parseDictionaryLearningEnabled,
   parseDictionaryTerm,
@@ -56,6 +58,9 @@ export interface ClientBackendPort {
   removeDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => void;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
+  setApplicationWritingStyle: (
+    update: ClientApplicationWritingStyleUpdate,
+  ) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<ClientSnapshot>;
@@ -89,6 +94,10 @@ export class ClientIpcController {
       IPC_CHANNELS.setDictionaryLearningEnabled,
       this.setDictionaryLearningEnabled,
     );
+    ipcMain.handle(
+      IPC_CHANNELS.setApplicationWritingStyle,
+      this.setApplicationWritingStyle,
+    );
     ipcMain.handle(IPC_CHANNELS.setProfile, this.setProfile);
     ipcMain.handle(IPC_CHANNELS.upsertProvider, this.upsertProvider);
     ipcMain.handle(IPC_CHANNELS.removeProvider, this.removeProvider);
@@ -115,6 +124,7 @@ export class ClientIpcController {
       IPC_CHANNELS.updateSettings,
       IPC_CHANNELS.removeDictionaryEntry,
       IPC_CHANNELS.setDictionaryLearningEnabled,
+      IPC_CHANNELS.setApplicationWritingStyle,
       IPC_CHANNELS.setProfile,
       IPC_CHANNELS.upsertProvider,
       IPC_CHANNELS.removeProvider,
@@ -198,6 +208,16 @@ export class ClientIpcController {
     trust(event);
     return this.#backend.setDictionaryLearningEnabled(
       parseDictionaryLearningEnabled(value),
+    );
+  };
+
+  private readonly setApplicationWritingStyle = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.setApplicationWritingStyle(
+      parseApplicationWritingStyleUpdate(value),
     );
   };
 

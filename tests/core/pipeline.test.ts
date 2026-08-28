@@ -66,7 +66,11 @@ describe('DictationPipeline', () => {
 
     const result = await new DictationPipeline(provider, provider).process(
       audio,
-      { ...options, explicitTargetLanguage: 'en-US' },
+      {
+        ...options,
+        explicitTargetLanguage: 'en-US',
+        writingStyle: 'concise',
+      },
     );
 
     expect(result).toMatchObject({
@@ -88,6 +92,7 @@ describe('DictationPipeline', () => {
             dictionaryTermCount: 1,
             explicitTargetLanguage: 'en-US',
             text: 'hello',
+            writingStyle: 'concise',
           },
           kind: 'text-generation',
           outputText: 'Hello',
@@ -102,7 +107,10 @@ describe('DictationPipeline', () => {
     expect(processTranscript).toHaveBeenCalledOnce();
     expect(processTranscript).toHaveBeenCalledWith(
       'hello',
-      expect.objectContaining({ explicitTargetLanguage: 'en-US' }),
+      expect.objectContaining({
+        explicitTargetLanguage: 'en-US',
+        writingStyle: 'concise',
+      }),
     );
   });
 

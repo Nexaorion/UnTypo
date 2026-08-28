@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseApplicationWritingStyleUpdate,
   parseClipboardText,
   parseDictionaryTerm,
   parseHistoryQuery,
@@ -71,6 +72,12 @@ describe('client IPC validation', () => {
       limit: 50,
       offset: 10,
     });
+    expect(
+      parseApplicationWritingStyleUpdate({
+        application: 'chat-app',
+        style: 'casual',
+      }),
+    ).toEqual({ application: 'chat-app', style: 'casual' });
   });
 
   it('rejects unknown fields and unbounded values', () => {
@@ -104,6 +111,12 @@ describe('client IPC validation', () => {
     expect(() =>
       parseSettingsUpdate({ updates: { autoCheck: 'yes' } }),
     ).toThrow('Invalid automatic update check setting');
+    expect(() =>
+      parseApplicationWritingStyleUpdate({
+        application: 'chat-app',
+        style: 'unbounded-freeform',
+      }),
+    ).toThrow('Invalid application writing style');
     expect(() =>
       parseSettingsUpdate({
         diagnostics: { showErrorDialogs: 'yes' },

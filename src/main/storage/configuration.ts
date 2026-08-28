@@ -11,6 +11,13 @@ import type {
   ModelProviderKind,
 } from '../../shared/ipc.js';
 import {
+  DEFAULT_APPLICATION_WRITING_STYLES,
+  TARGET_APPLICATION_KINDS,
+  WRITING_STYLE_PRESETS,
+  type ApplicationWritingStyles,
+  type ClientApplicationWritingStyleUpdate,
+} from '../../shared/personalization.js';
+import {
   dictionaryTermKey,
   DICTIONARY_CANDIDATE_CATEGORIES,
   DICTIONARY_LIMITS,
@@ -45,7 +52,7 @@ export interface StoredProviderProfile {
 }
 
 export interface StoredClientConfig {
-  version: 3;
+  version: 4;
   diagnostics: DiagnosticPolicy;
   general: {
     launchAtLogin: boolean;
@@ -68,6 +75,10 @@ export interface StoredClientConfig {
   };
   encryptedProfile?: EncryptedValue;
   history: HistoryPolicy;
+  personalization: {
+    applicationStyles: ApplicationWritingStyles;
+    learningEnabled: boolean;
+  };
   providers: readonly StoredProviderProfile[];
   updates: UpdatePolicy;
 }
@@ -149,7 +160,7 @@ const migrateDefaultHotkey = (accelerator: string): string =>
     : accelerator;
 
 const defaultConfig = (): StoredClientConfig => ({
-  version: 3,
+  version: 4,
   diagnostics: {
     automaticCollection: true,
     showErrorDialogs: false,
@@ -168,6 +179,10 @@ const defaultConfig = (): StoredClientConfig => ({
   history: {
     enabled: true,
     retentionDays: 30,
+  },
+  personalization: {
+    applicationStyles: structuredClone(DEFAULT_APPLICATION_WRITING_STYLES),
+    learningEnabled: false,
   },
   providers: [],
   updates: {
@@ -351,6 +366,46 @@ const parseDictionaryLearning = (
       ? { encryptedState: structuredClone(value.encryptedState) }
       : {}),
   };
+};
+
+const parsePersonalization = (
+  value: unknown,
+): StoredClientConfig['personalization'] => {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.applicationStyles) ||
+    typeof value.learningEnabled !== 'boolean'
+  ) {
+    throw new Error('Invalid personalization settings');
+  }
+  const rawApplicationStyles = value.applicationStyles;
+  assertOnlyKeys(
+    value,
+    ['applicationStyles', 'learningEnabled'],
+    'Personalization settings',
+  );
+  assertOnlyKeys(
+    rawApplicationStyles,
+    TARGET_APPLICATION_KINDS,
+    'Application writing styles',
+  );
+  const parseStyle = (application: string) => {
+    const valueForApplication = rawApplicationStyles[application];
+    const style = WRITING_STYLE_PRESETS.find(
+      (candidate) => candidate === valueForApplication,
+    );
+    if (!style) throw new Error('Invalid application writing style');
+    return style;
+  };
+  const applicationStyles: ApplicationWritingStyles = {
+    'ai-tool': parseStyle('ai-tool'),
+    browser: parseStyle('browser'),
+    'chat-app': parseStyle('chat-app'),
+    general: parseStyle('general'),
+    ide: parseStyle('ide'),
+    office: parseStyle('office'),
+  };
+  return { applicationStyles, learningEnabled: value.learningEnabled };
 };
 
 const emptyDictionaryLearningState = (): DictionaryLearningPrivateState => ({
@@ -571,7 +626,7 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
     throw new Error('Active text provider profile is invalid');
   }
   return {
-    version: 3,
+    version: 4,
     ...parseCommonData(value),
     dictionary: parseLegacyDictionary(value.dictionary),
     dictionaryLearning: { enabled: true },
@@ -603,6 +658,10 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
         ? { microphoneDeviceLabel: dictation.microphoneDeviceLabel }
         : {}),
     },
+    personalization: {
+      applicationStyles: structuredClone(DEFAULT_APPLICATION_WRITING_STYLES),
+      learningEnabled: false,
+    },
     providers,
   };
 };
@@ -619,11 +678,17 @@ const parseV3Config = (value: Record<string, unknown>): StoredClientConfig => {
   });
   return {
     ...base,
-    version: 3,
+    version: 4,
     dictionary: parseDictionary(value.dictionary),
     dictionaryLearning: parseDictionaryLearning(value.dictionaryLearning),
   };
 };
+
+const parseV4Config = (value: Record<string, unknown>): StoredClientConfig => ({
+  ...parseV3Config(value),
+  version: 4,
+  personalization: parsePersonalization(value.personalization),
+});
 
 const normalizeProfileId = (value: string, fallback: string): string => {
   const normalized = value
@@ -797,7 +862,7 @@ const migrateV1Config = (
         )
       : migratedIds[0];
   return {
-    version: 3,
+    version: 4,
     ...parseCommonData(value),
     dictionary: parseLegacyDictionary(value.dictionary),
     dictionaryLearning: { enabled: true },
@@ -815,6 +880,10 @@ const migrateV1Config = (
       hotkeyAccelerator: migrateDefaultHotkey(dictation.hotkeyAccelerator),
       language: assertLanguage(dictation.language, 'dictation language'),
     },
+    personalization: {
+      applicationStyles: structuredClone(DEFAULT_APPLICATION_WRITING_STYLES),
+      learningEnabled: false,
+    },
     providers,
   };
 };
@@ -822,8 +891,8 @@ const migrateV1Config = (
 const parseConfig = (source: string): ParsedConfig => {
   const value: unknown = JSON.parse(source);
   if (!isRecord(value)) throw new Error('Invalid configuration data');
-  if (value.version === 3) {
-    const config = parseV3Config(value);
+  if (value.version === 4) {
+    const config = parseV4Config(value);
     return {
       config,
       migrated:
@@ -834,6 +903,9 @@ const parseConfig = (source: string): ParsedConfig => {
             LEGACY_DEFAULT_HOTKEY_ACCELERATOR ||
             value.dictation.hotkeyMode !== undefined)),
     };
+  }
+  if (value.version === 3) {
+    return { config: parseV3Config(value), migrated: true };
   }
   if (value.version === 2) {
     return { config: parseV2Config(value), migrated: true };
@@ -920,6 +992,21 @@ export class ConfigurationService {
     return this.update((config) => ({
       ...config,
       dictionaryLearning: { enabled },
+    }));
+  }
+
+  async setApplicationWritingStyle(
+    update: ClientApplicationWritingStyleUpdate,
+  ): Promise<StoredClientConfig> {
+    return this.update((config) => ({
+      ...config,
+      personalization: {
+        ...config.personalization,
+        applicationStyles: {
+          ...config.personalization.applicationStyles,
+          [update.application]: update.style,
+        },
+      },
     }));
   }
 

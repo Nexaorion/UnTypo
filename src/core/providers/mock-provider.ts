@@ -116,6 +116,7 @@ export class MockDictationProvider implements DictationProvider {
       ...(options.windowContext
         ? { windowContext: options.windowContext }
         : {}),
+      ...(options.writingStyle ? { writingStyle: options.writingStyle } : {}),
     });
 
     return {

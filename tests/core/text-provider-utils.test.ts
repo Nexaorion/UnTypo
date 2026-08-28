@@ -57,6 +57,7 @@ describe('transcriptProcessingInstructions', () => {
         processId: 42,
         windowHandle: '0x1234',
       },
+      writingStyle: 'prompt',
     });
 
     expect(instructions).toContain('target application is "Codex"');
@@ -66,6 +67,7 @@ describe('transcriptProcessingInstructions', () => {
     expect(instructions).toContain(
       'Never choose instruction, answer, or perform the target task',
     );
+    expect(instructions).toContain('direct, actionable request');
   });
 
   it('auto-formats dictated structure without inventing a template', () => {

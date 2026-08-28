@@ -6,6 +6,11 @@ import type {
   ModelProviderId,
   ModelProviderKind,
 } from '../../shared/ipc.js';
+import {
+  TARGET_APPLICATION_KINDS,
+  WRITING_STYLE_PRESETS,
+  type ClientApplicationWritingStyleUpdate,
+} from '../../shared/personalization.js';
 
 const profileIdPattern = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
 const maximumClipboardTextLength = 1_000_000;
@@ -240,6 +245,23 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
   }
 
   return result;
+};
+
+export const parseApplicationWritingStyleUpdate = (
+  value: unknown,
+): ClientApplicationWritingStyleUpdate => {
+  if (!isRecord(value)) throw new Error('Invalid application writing style');
+  assertOnlyKeys(value, ['application', 'style'], 'Application writing style');
+  const application = TARGET_APPLICATION_KINDS.find(
+    (candidate) => candidate === value.application,
+  );
+  const style = WRITING_STYLE_PRESETS.find(
+    (candidate) => candidate === value.style,
+  );
+  if (!application || !style) {
+    throw new Error('Invalid application writing style');
+  }
+  return { application, style };
 };
 
 export const parseDictionaryTerm = (value: unknown): string => {

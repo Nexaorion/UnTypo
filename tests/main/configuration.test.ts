@@ -24,7 +24,7 @@ afterEach(async () => {
 describe('ConfigurationService', () => {
   it('returns the bilingual Windows defaults before the first write', async () => {
     await expect(service.load()).resolves.toMatchObject({
-      version: 3,
+      version: 4,
       diagnostics: {
         automaticCollection: true,
         showErrorDialogs: false,
@@ -37,7 +37,34 @@ describe('ConfigurationService', () => {
         language: 'zh-CN',
       },
       history: { enabled: true, retentionDays: 30 },
+      personalization: {
+        applicationStyles: {
+          'ai-tool': 'prompt',
+          browser: 'auto',
+          'chat-app': 'casual',
+          general: 'auto',
+          ide: 'concise',
+          office: 'formal',
+        },
+        learningEnabled: false,
+      },
       updates: { autoCheck: true, autoDownload: true },
+    });
+  });
+
+  it('persists one application style without changing the other defaults', async () => {
+    const config = await service.setApplicationWritingStyle({
+      application: 'office',
+      style: 'casual',
+    });
+
+    expect(config.personalization.applicationStyles).toMatchObject({
+      'ai-tool': 'prompt',
+      'chat-app': 'casual',
+      office: 'casual',
+    });
+    await expect(service.load()).resolves.toMatchObject({
+      personalization: { applicationStyles: { office: 'casual' } },
     });
   });
 
@@ -66,7 +93,11 @@ describe('ConfigurationService', () => {
         automaticCollection: true,
         showErrorDialogs: false,
       },
-      version: 3,
+      version: 4,
+      personalization: {
+        applicationStyles: { 'chat-app': 'casual', office: 'formal' },
+        learningEnabled: false,
+      },
       updates: { autoCheck: true, autoDownload: true },
     });
     await expect(readFile(configPath, 'utf8')).resolves.toContain(
@@ -76,7 +107,7 @@ describe('ConfigurationService', () => {
       '"showErrorDialogs": false',
     );
     await expect(readFile(configPath, 'utf8')).resolves.toContain(
-      '"version": 3',
+      '"version": 4',
     );
   });
 
@@ -432,7 +463,7 @@ describe('ConfigurationService', () => {
     const migrated = await service.load();
     const speech = migrated.providers.find(({ kind }) => kind === 'speech');
     const text = migrated.providers.find(({ kind }) => kind === 'text');
-    expect(migrated.version).toBe(3);
+    expect(migrated.version).toBe(4);
     expect(speech).toMatchObject({
       id: longId,
       providerId: 'openai-compatible-speech',
@@ -466,7 +497,7 @@ describe('ConfigurationService', () => {
     const persisted = JSON.parse(await readFile(configPath, 'utf8')) as {
       version: number;
     };
-    expect(persisted.version).toBe(3);
+    expect(persisted.version).toBe(4);
   });
 
   it('activates the first migrated pair when v1 had no explicit active profile', async () => {

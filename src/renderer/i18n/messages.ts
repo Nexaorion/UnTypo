@@ -136,6 +136,28 @@ export const messages = {
     'nav.problems': '问题与反馈',
     'nav.sections': '主导航',
     'nav.settings': '设置',
+    'personalization.application.aiTool': 'AI 工具',
+    'personalization.application.browser': '浏览器',
+    'personalization.application.chatApp': '社交与聊天',
+    'personalization.application.general': '其他软件',
+    'personalization.application.ide': '代码与开发工具',
+    'personalization.application.office': '办公软件',
+    'personalization.applicationStyles': '应用风格',
+    'personalization.applicationStylesDescription':
+      'UnTypo 会根据当前目标软件选择转写方式；你的选择优先于内置默认值。',
+    'personalization.style.auto': '自动判断',
+    'personalization.style.autoDescription': '根据本次口述内容自然整理',
+    'personalization.style.casual': '轻松自然',
+    'personalization.style.casualDescription':
+      '短句、轻标点，保留有意表达的口语感',
+    'personalization.style.concise': '简洁直接',
+    'personalization.style.conciseDescription':
+      '删除多余铺垫，保留事实、要求和约束',
+    'personalization.style.formal': '正式专业',
+    'personalization.style.formalDescription': '完整句、清晰段落和中性专业表达',
+    'personalization.style.prompt': 'AI 请求',
+    'personalization.style.promptDescription':
+      '整理成目标明确、可直接执行的提示词',
     'update.availableDescription':
       'v{version} 已可用，可以立即下载并在准备好后重启。',
     'update.availableTitle': '发现新版本',
@@ -430,6 +452,30 @@ export const messages = {
     'nav.problems': 'Issues & feedback',
     'nav.sections': 'Main navigation',
     'nav.settings': 'Settings',
+    'personalization.application.aiTool': 'AI tools',
+    'personalization.application.browser': 'Browsers',
+    'personalization.application.chatApp': 'Social and chat',
+    'personalization.application.general': 'Other apps',
+    'personalization.application.ide': 'Code and developer tools',
+    'personalization.application.office': 'Office apps',
+    'personalization.applicationStyles': 'App styles',
+    'personalization.applicationStylesDescription':
+      'UnTypo adapts writing to the target app. Your selections take priority over built-in defaults.',
+    'personalization.style.auto': 'Automatic',
+    'personalization.style.autoDescription':
+      'Organize each dictation naturally from its content.',
+    'personalization.style.casual': 'Casual',
+    'personalization.style.casualDescription':
+      'Use short sentences, light punctuation, and deliberate conversational phrasing.',
+    'personalization.style.concise': 'Concise',
+    'personalization.style.conciseDescription':
+      'Remove framing while preserving facts, requirements, and constraints.',
+    'personalization.style.formal': 'Formal',
+    'personalization.style.formalDescription':
+      'Use complete sentences, clear paragraphs, and a neutral professional tone.',
+    'personalization.style.prompt': 'AI request',
+    'personalization.style.promptDescription':
+      'Turn speech into a clear prompt that is ready to run.',
     'update.availableDescription':
       'v{version} is available. Download it now and restart when ready.',
     'update.availableTitle': 'Update available',
