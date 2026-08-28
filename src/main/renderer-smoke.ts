@@ -335,7 +335,8 @@ const responsiveSmokeTestSource = `
     const wait = (milliseconds) =>
       new Promise((resolve) => setTimeout(resolve, milliseconds));
     const viewportWidth = document.documentElement.clientWidth;
-    if (viewportWidth !== 375) return 'viewport:' + viewportWidth;
+    if (viewportWidth !== 375 && viewportWidth !== 860)
+      return 'viewport:' + viewportWidth;
 
     const modelsTrigger = document.querySelector('[data-testid="models-open"]');
     if (!modelsTrigger) return 'models-trigger';
@@ -391,6 +392,8 @@ const responsiveSmokeTestSource = `
 
     const addText = modelsPanel.querySelector('[data-testid="provider-add-text"]');
     if (!addText) return 'provider-trigger';
+    if (addText.getBoundingClientRect().height > 50)
+      return 'provider-trigger-wrapped:' + addText.getBoundingClientRect().height;
     addText.click();
     await wait(300);
 
@@ -443,6 +446,7 @@ const responsiveSmokeTestSource = `
 
 const runResponsiveSmokeTest = async (
   webContents: WebContents,
+  viewport: { height: number; mobile: boolean; width: number },
 ): Promise<string> => {
   const attachedHere = !webContents.debugger.isAttached();
   if (attachedHere) webContents.debugger.attach('1.3');
@@ -451,11 +455,11 @@ const runResponsiveSmokeTest = async (
       'Emulation.setDeviceMetricsOverride',
       {
         deviceScaleFactor: 1,
-        height: 812,
-        mobile: true,
-        screenHeight: 812,
-        screenWidth: 375,
-        width: 375,
+        height: viewport.height,
+        mobile: viewport.mobile,
+        screenHeight: viewport.height,
+        screenWidth: viewport.width,
+        width: viewport.width,
       },
     );
     return (await webContents.executeJavaScript(
@@ -476,6 +480,16 @@ export const runRendererSmokeTest = async (
     smokeTestSource,
   )) as string;
   if (desktopResult !== 'ok') return desktopResult;
-  const responsiveResult = await runResponsiveSmokeTest(webContents);
-  return responsiveResult === 'ok' ? 'ok' : `responsive-${responsiveResult}`;
+  const compactResult = await runResponsiveSmokeTest(webContents, {
+    height: 600,
+    mobile: false,
+    width: 860,
+  });
+  if (compactResult !== 'ok') return `compact-${compactResult}`;
+  const mobileResult = await runResponsiveSmokeTest(webContents, {
+    height: 812,
+    mobile: true,
+    width: 375,
+  });
+  return mobileResult === 'ok' ? 'ok' : `responsive-${mobileResult}`;
 };

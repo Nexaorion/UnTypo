@@ -23,6 +23,8 @@ import { SettingsSection } from './settings.js';
 export type SettingsTab =
   'settings' | 'models' | 'personalization' | 'problems';
 
+const expandedNavigationQuery = '@media (min-width: 1000px)';
+
 const SettingsPanel = ({
   children,
   tab,
@@ -90,8 +92,12 @@ const SettingsNavigation = ({
         borderRightColor: 'divider',
         flexShrink: 0,
         minHeight: 0,
-        p: { xs: 1, sm: 3 },
-        width: { xs: 72, sm: 224, md: 248 },
+        p: 1,
+        width: 72,
+        [expandedNavigationQuery]: {
+          p: 3,
+          width: 248,
+        },
         ...currentTheme.applyStyles('dark', {
           backgroundColor: '#1a1a1a',
         }),
@@ -119,9 +125,13 @@ const SettingsNavigation = ({
                 direction="row"
                 sx={{
                   alignItems: 'center',
-                  gap: { xs: 0, sm: 1.5 },
-                  justifyContent: { xs: 'center', sm: 'flex-start' },
+                  gap: 0,
+                  justifyContent: 'center',
                   width: '100%',
+                  [expandedNavigationQuery]: {
+                    gap: 1.5,
+                    justifyContent: 'flex-start',
+                  },
                 }}
               >
                 <Box
@@ -141,8 +151,11 @@ const SettingsNavigation = ({
                 <Box
                   component="span"
                   sx={{
-                    display: { xs: 'none', sm: 'inline' },
+                    display: 'none',
                     lineHeight: '24px',
+                    [expandedNavigationQuery]: {
+                      display: 'inline',
+                    },
                   }}
                 >
                   {tab.label}
@@ -152,14 +165,18 @@ const SettingsNavigation = ({
             sx={(currentTheme) => ({
               alignItems: 'stretch',
               color: 'text.secondary',
-              justifyContent: { xs: 'center', sm: 'flex-start' },
+              justifyContent: 'center',
               minWidth: 0,
-              px: { xs: 0, sm: 1.75 },
+              px: 0,
               position: 'relative',
               transition: currentTheme.transitions.create(
                 ['background-color', 'color'],
                 { duration: currentTheme.transitions.duration.shorter },
               ),
+              [expandedNavigationQuery]: {
+                justifyContent: 'flex-start',
+                px: 1.75,
+              },
               '&:hover': {
                 backgroundColor: 'action.hover',
                 color: 'text.primary',

@@ -164,7 +164,10 @@ const ProviderKindSection = ({
         justifyContent: 'space-between',
       }}
     >
-      <Stack direction="row" sx={{ alignItems: 'flex-start', gap: 1.5 }}>
+      <Stack
+        direction="row"
+        sx={{ alignItems: 'flex-start', flex: 1, gap: 1.5, minWidth: 0 }}
+      >
         <Stack
           sx={{
             alignItems: 'center',
@@ -178,7 +181,7 @@ const ProviderKindSection = ({
         >
           {icon}
         </Stack>
-        <Stack sx={{ gap: 0.4 }}>
+        <Stack sx={{ flex: 1, gap: 0.4, minWidth: 0 }}>
           <Typography component="h2" variant="h2">
             {title}
           </Typography>
@@ -190,6 +193,7 @@ const ProviderKindSection = ({
       <Button
         data-testid={`provider-add-${kind}`}
         onClick={onAdd}
+        sx={{ flex: 'none', whiteSpace: 'nowrap' }}
         variant="contained"
       >
         {addLabel}
