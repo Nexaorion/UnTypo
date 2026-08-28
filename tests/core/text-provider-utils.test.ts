@@ -94,14 +94,27 @@ describe('transcriptProcessingInstructions', () => {
     ).toContain('intent is forced to "transcription"');
   });
 
-  it('requests dictionary candidates only when automatic learning is enabled', () => {
+  it('requests only enabled learning candidates and applies confirmed memory', () => {
     const instructions = transcriptProcessingInstructions({
       ...context,
       dictionaryLearningEnabled: true,
+      learnedPreferences: [
+        {
+          application: 'chat-app',
+          confirmedAt: 1,
+          id: '1234567890abcdef12345678',
+          kind: 'expression',
+          value: '诶',
+        },
+      ],
+      preferenceLearningEnabled: true,
     });
 
     expect(instructions).toContain('up to 3 high-confidence proper terms');
     expect(instructions).toContain('dictionaryCandidates');
+    expect(instructions).toContain('preferenceCandidates');
+    expect(instructions).toContain('User-confirmed preferences');
+    expect(instructions).toContain('preserve "诶"');
   });
 });
 
@@ -161,6 +174,10 @@ describe('parseTranscriptProcessing', () => {
           ],
           intent: 'transcription',
           outputText: 'Use UnTypo',
+          preferenceCandidates: [
+            { confidence: 0.96, kind: 'tone', value: 'polite' },
+            { confidence: 0.99, kind: 'tone', value: 'invented' },
+          ],
         }),
       ),
     ).toEqual({
@@ -169,18 +186,22 @@ describe('parseTranscriptProcessing', () => {
       ],
       intent: 'transcription',
       outputText: 'Use UnTypo',
+      preferenceCandidates: [
+        { confidence: 0.96, kind: 'tone', value: 'polite' },
+      ],
     });
   });
 
   it('does not fail transcript processing when candidates are malformed', () => {
     expect(
       parseTranscriptProcessing(
-        '{"intent":"transcription","outputText":"Hello","dictionaryCandidates":"ignore me"}',
+        '{"intent":"transcription","outputText":"Hello","dictionaryCandidates":"ignore me","preferenceCandidates":"ignore me"}',
       ),
     ).toEqual({
       dictionaryCandidates: [],
       intent: 'transcription',
       outputText: 'Hello',
+      preferenceCandidates: [],
     });
   });
 });

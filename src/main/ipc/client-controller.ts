@@ -30,19 +30,23 @@ import {
   parseDictionaryLearningEnabled,
   parseDictionaryTerm,
   parseHistoryQuery,
+  parsePersonalizationLearningEnabled,
   parseProfile,
   parseProfileId,
   parseProviderInput,
   parseSettingsUpdate,
+  parseWritingPreferenceId,
 } from './validation.js';
 
 export interface ClientBackendPort {
+  acceptWritingPreference: (id: string) => Promise<ClientSnapshot>;
   addDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   acknowledgeDiagnostics: (
     issueIds: readonly string[],
   ) => ClientDiagnosticSnapshot;
   clearDiagnostics: () => ClientDiagnosticSnapshot;
   clearHistory: () => number;
+  clearPersonalizationMemory: () => Promise<ClientSnapshot>;
   checkForUpdates: () => Promise<ClientUpdateSnapshot>;
   downloadUpdate: () => Promise<ClientUpdateSnapshot>;
   exportDiagnostics: (
@@ -56,12 +60,17 @@ export interface ClientBackendPort {
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
   removeDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
+  removeWritingPreference: (id: string) => Promise<ClientSnapshot>;
+  rejectWritingPreference: (id: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => void;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
   setApplicationWritingStyle: (
     update: ClientApplicationWritingStyleUpdate,
   ) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
+  setPersonalizationLearningEnabled: (
+    enabled: boolean,
+  ) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<ClientSnapshot>;
   upsertProvider: (profile: ClientProviderInput) => Promise<ClientSnapshot>;
@@ -74,12 +83,20 @@ export class ClientIpcController {
 
   constructor(backend: ClientBackendPort) {
     this.#backend = backend;
+    ipcMain.handle(
+      IPC_CHANNELS.acceptWritingPreference,
+      this.acceptWritingPreference,
+    );
     ipcMain.handle(IPC_CHANNELS.addDictionaryEntry, this.addDictionaryEntry);
     ipcMain.handle(
       IPC_CHANNELS.acknowledgeDiagnostics,
       this.acknowledgeDiagnostics,
     );
     ipcMain.handle(IPC_CHANNELS.clearDiagnostics, this.clearDiagnostics);
+    ipcMain.handle(
+      IPC_CHANNELS.clearPersonalizationMemory,
+      this.clearPersonalizationMemory,
+    );
     ipcMain.handle(IPC_CHANNELS.exportDiagnostics, this.exportDiagnostics);
     ipcMain.handle(IPC_CHANNELS.getDiagnostics, this.getDiagnostics);
     ipcMain.handle(IPC_CHANNELS.getSnapshot, this.getSnapshot);
@@ -91,12 +108,24 @@ export class ClientIpcController {
       this.removeDictionaryEntry,
     );
     ipcMain.handle(
+      IPC_CHANNELS.removeWritingPreference,
+      this.removeWritingPreference,
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.rejectWritingPreference,
+      this.rejectWritingPreference,
+    );
+    ipcMain.handle(
       IPC_CHANNELS.setDictionaryLearningEnabled,
       this.setDictionaryLearningEnabled,
     );
     ipcMain.handle(
       IPC_CHANNELS.setApplicationWritingStyle,
       this.setApplicationWritingStyle,
+    );
+    ipcMain.handle(
+      IPC_CHANNELS.setPersonalizationLearningEnabled,
+      this.setPersonalizationLearningEnabled,
     );
     ipcMain.handle(IPC_CHANNELS.setProfile, this.setProfile);
     ipcMain.handle(IPC_CHANNELS.upsertProvider, this.upsertProvider);
@@ -113,9 +142,11 @@ export class ClientIpcController {
 
   destroy(): void {
     for (const channel of [
+      IPC_CHANNELS.acceptWritingPreference,
       IPC_CHANNELS.addDictionaryEntry,
       IPC_CHANNELS.acknowledgeDiagnostics,
       IPC_CHANNELS.clearDiagnostics,
+      IPC_CHANNELS.clearPersonalizationMemory,
       IPC_CHANNELS.exportDiagnostics,
       IPC_CHANNELS.getDiagnostics,
       IPC_CHANNELS.getSnapshot,
@@ -123,8 +154,11 @@ export class ClientIpcController {
       IPC_CHANNELS.listMicrophones,
       IPC_CHANNELS.updateSettings,
       IPC_CHANNELS.removeDictionaryEntry,
+      IPC_CHANNELS.removeWritingPreference,
+      IPC_CHANNELS.rejectWritingPreference,
       IPC_CHANNELS.setDictionaryLearningEnabled,
       IPC_CHANNELS.setApplicationWritingStyle,
+      IPC_CHANNELS.setPersonalizationLearningEnabled,
       IPC_CHANNELS.setProfile,
       IPC_CHANNELS.upsertProvider,
       IPC_CHANNELS.removeProvider,
@@ -149,6 +183,16 @@ export class ClientIpcController {
     return this.#backend.addDictionaryEntry(parseDictionaryTerm(value));
   };
 
+  private readonly acceptWritingPreference = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.acceptWritingPreference(
+      parseWritingPreferenceId(value),
+    );
+  };
+
   private readonly acknowledgeDiagnostics = (
     event: IpcMainInvokeEvent,
     value: unknown,
@@ -162,6 +206,13 @@ export class ClientIpcController {
   ): ClientDiagnosticSnapshot => {
     trust(event);
     return this.#backend.clearDiagnostics();
+  };
+
+  private readonly clearPersonalizationMemory = (
+    event: IpcMainInvokeEvent,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.clearPersonalizationMemory();
   };
 
   private readonly getSnapshot = (
@@ -201,6 +252,26 @@ export class ClientIpcController {
     return this.#backend.removeDictionaryEntry(parseDictionaryTerm(value));
   };
 
+  private readonly removeWritingPreference = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.removeWritingPreference(
+      parseWritingPreferenceId(value),
+    );
+  };
+
+  private readonly rejectWritingPreference = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.rejectWritingPreference(
+      parseWritingPreferenceId(value),
+    );
+  };
+
   private readonly setDictionaryLearningEnabled = (
     event: IpcMainInvokeEvent,
     value: unknown,
@@ -218,6 +289,16 @@ export class ClientIpcController {
     trust(event);
     return this.#backend.setApplicationWritingStyle(
       parseApplicationWritingStyleUpdate(value),
+    );
+  };
+
+  private readonly setPersonalizationLearningEnabled = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.setPersonalizationLearningEnabled(
+      parsePersonalizationLearningEnabled(value),
     );
   };
 

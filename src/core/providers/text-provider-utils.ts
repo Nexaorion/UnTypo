@@ -11,6 +11,12 @@ import {
   normalizeDictionaryTerm,
   type DictionaryCandidate,
 } from '../../shared/dictionary.js';
+import {
+  PERSONALIZATION_LIMITS,
+  normalizeWritingPreferenceCandidate,
+  type LearnedWritingPreference,
+  type WritingPreferenceCandidate,
+} from '../../shared/personalization.js';
 
 export const textProviderCapabilities: Readonly<ProviderCapabilities> = {
   speechToText: false,
@@ -37,6 +43,42 @@ const writingStyleInstructions = {
     'Write a direct, actionable request for an AI assistant. Put the requested action first and organize supplied constraints only when it improves clarity.',
 } as const;
 
+const learnedPreferenceInstruction = (
+  preference: LearnedWritingPreference,
+): string => {
+  if (preference.kind === 'expression') {
+    return `preserve ${JSON.stringify(preference.value)} when the speaker deliberately uses it`;
+  }
+  const instructions = {
+    emoji: {
+      allow: 'allow occasional emojis when natural for the target app',
+      avoid: 'avoid emojis unless explicitly dictated',
+    },
+    punctuation: {
+      minimal: 'prefer light punctuation in conversational writing',
+      standard: 'use standard punctuation',
+    },
+    structure: {
+      lists: 'prefer lists for enumerations and requirements',
+      paragraphs:
+        'prefer short paragraphs over lists unless a list is explicit',
+    },
+    tone: {
+      casual: 'prefer a casual tone',
+      formal: 'prefer a formal tone',
+      polite: 'prefer a polite, considerate tone',
+    },
+    verbosity: {
+      concise: 'prefer concise output',
+      detailed: 'retain useful detail and explanatory context',
+    },
+  } as const;
+  const values = instructions[preference.kind];
+  return preference.value in values
+    ? values[preference.value as keyof typeof values]
+    : '';
+};
+
 export const transcriptProcessingInstructions = (
   context: TextProcessContext,
 ): string => {
@@ -59,15 +101,27 @@ export const transcriptProcessingInstructions = (
   const writingStyle = context.writingStyle
     ? writingStyleInstructions[context.writingStyle]
     : '';
+  const learnedPreferences = (context.learnedPreferences ?? [])
+    .map(learnedPreferenceInstruction)
+    .filter(Boolean);
   const profile = context.profile
     ? ` User profile context, to use only when directly relevant: ${JSON.stringify(context.profile)}.`
     : '';
   const dictionaryLearning = context.dictionaryLearningEnabled
     ? `\nAlso identify up to 3 high-confidence proper terms explicitly used by the speaker. Eligible categories are person names, place names, organizations, products, acronyms, and specialized technical terms. Exclude common words, generic phrases, and anything inferred only from generated output. Use the most likely canonical spelling. Each candidate must include a confidence from 0 to 1 and one category from "person", "place", "organization", "product", or "technical".`
     : '';
-  const responseShape = context.dictionaryLearningEnabled
-    ? '{"outputText":"final text","intent":"transcription|translation|instruction","dictionaryCandidates":[{"term":"canonical term","category":"person|place|organization|product|technical","confidence":0.95}]}'
-    : '{"outputText":"final text","intent":"transcription|translation|instruction"}';
+  const preferenceLearning = context.preferenceLearningEnabled
+    ? `\nAlso identify up to ${String(PERSONALIZATION_LIMITS.modelCandidates)} high-confidence, repeatable writing-preference candidates observable from how the speaker expresses themself. Never include task subjects, personal facts, names, contact details, URLs, secrets, or inferred identity. Use kind "expression" only for a short deliberate discourse phrase; otherwise use exactly one supported kind/value pair: "emoji" with "allow|avoid", "punctuation" with "minimal|standard", "structure" with "lists|paragraphs", "tone" with "casual|formal|polite", or "verbosity" with "concise|detailed". Each candidate must include confidence from 0 to 1.`
+    : '';
+  const responseShape = `{"outputText":"final text","intent":"transcription|translation|instruction"${
+    context.dictionaryLearningEnabled
+      ? ',"dictionaryCandidates":[{"term":"canonical term","category":"person|place|organization|product|technical","confidence":0.95}]'
+      : ''
+  }${
+    context.preferenceLearningEnabled
+      ? ',"preferenceCandidates":[{"kind":"tone","value":"polite","confidence":0.95}]'
+      : ''
+  }}`;
 
   return `You are UnTypo's single-pass transcript processor. Decide the intent and produce the final text in this one response.
 
@@ -85,9 +139,10 @@ Apply the selected intent:
 - For translation, omit the spoken translation command and translate the requested content. An explicitly spoken target language wins; otherwise use ${languageName(targetLanguage)}.
 - For instruction, omit the spoken command wrapper and return only the completed content. Use the speaker's language (${languageName(context.locale)}) unless they explicitly request another language.
 ${writingStyle ? `Writing style: ${writingStyle}` : ''}
-${terms ? `Preserve these terms exactly when applicable: ${terms}.` : ''}${profile}${dictionaryLearning}
+${learnedPreferences.length ? `User-confirmed preferences for this target app: ${learnedPreferences.join('; ')}.` : ''}
+${terms ? `Preserve these terms exactly when applicable: ${terms}.` : ''}${profile}${dictionaryLearning}${preferenceLearning}
 
-Return only one JSON object in this exact property order: ${responseShape}. Start with outputText so its value can be shown while the response is still streaming. Add intent and dictionaryCandidates only after outputText. Markdown may appear only inside outputText when useful. Do not wrap the JSON in a Markdown code fence or add commentary outside it.`;
+Return only one JSON object in this exact property order: ${responseShape}. Start with outputText so its value can be shown while the response is still streaming. Add intent and candidate metadata only after outputText. Markdown may appear only inside outputText when useful. Do not wrap the JSON in a Markdown code fence or add commentary outside it.`;
 };
 
 const decodeOutputTextPrefix = (source: string): string | undefined => {
@@ -206,6 +261,18 @@ const parseDictionaryCandidates = (
   return candidates;
 };
 
+const parsePreferenceCandidates = (
+  value: unknown,
+): readonly WritingPreferenceCandidate[] => {
+  if (!Array.isArray(value)) return [];
+  const candidates: WritingPreferenceCandidate[] = [];
+  for (const entry of value.slice(0, PERSONALIZATION_LIMITS.modelCandidates)) {
+    const candidate = normalizeWritingPreferenceCandidate(entry);
+    if (candidate && candidate.confidence >= 0.75) candidates.push(candidate);
+  }
+  return candidates;
+};
+
 export const parseTranscriptProcessing = (
   source: string,
 ): TextProcessResult => {
@@ -255,5 +322,12 @@ export const parseTranscriptProcessing = (
       : {}),
     intent: value.intent,
     outputText: value.outputText.trim(),
+    ...('preferenceCandidates' in value
+      ? {
+          preferenceCandidates: parsePreferenceCandidates(
+            value.preferenceCandidates,
+          ),
+        }
+      : {}),
   };
 };

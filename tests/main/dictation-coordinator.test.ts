@@ -19,6 +19,7 @@ import type { CapsuleErrorReason } from '../../src/shared/capsule-ipc';
 import type { DiagnosticIssueInput } from '../../src/main/diagnostics/collector';
 import type { DictionaryCandidate } from '../../src/shared/dictionary';
 import { DEFAULT_APPLICATION_WRITING_STYLES } from '../../src/shared/personalization';
+import type { WritingPreferenceCandidate } from '../../src/shared/personalization';
 
 const target: NativeTargetSnapshot = {
   editable: true,
@@ -41,6 +42,7 @@ interface RuntimeOptions {
   microphoneDeviceId?: string;
   microphoneDeviceLabel?: string;
   preferredAudioFormat?: ProviderAudioFormat;
+  preferenceCandidates?: readonly WritingPreferenceCandidate[];
   signal?: AbortSignal;
   speechProviderId?: string;
   targetSnapshot?: NativeTargetSnapshot;
@@ -55,6 +57,7 @@ const createCoordinator = ({
   microphoneDeviceId,
   microphoneDeviceLabel,
   preferredAudioFormat,
+  preferenceCandidates,
   signal,
   speechProviderId = 'mock',
   targetSnapshot = target,
@@ -68,6 +71,7 @@ const createCoordinator = ({
     ...(dictionaryCandidates ? { dictionaryCandidates } : {}),
     ...(intent ? { intent } : {}),
     polishedText: 'Final mock result',
+    ...(preferenceCandidates ? { preferenceCandidates } : {}),
     transcript,
   });
   if (preferredAudioFormat) {
@@ -91,6 +95,7 @@ const createCoordinator = ({
   );
   const updateProcessing = vi.fn();
   const handleCandidates = vi.fn();
+  const handlePreferenceCandidates = vi.fn();
   const record = vi.fn<HistoryPort['record']>();
   const start = vi.fn(() => Promise.resolve('recording-session'));
   const stop = vi.fn(() =>
@@ -107,6 +112,7 @@ const createCoordinator = ({
   const getContext = vi.fn(() => ({
     applicationStyles: DEFAULT_APPLICATION_WRITING_STYLES,
     history: { enabled: true, retentionDays: 30 },
+    learnedPreferences: [],
     modelName: 'whisper-1',
     ...(microphoneDeviceId
       ? {
@@ -123,6 +129,7 @@ const createCoordinator = ({
       language: 'en-US' as const,
       ...(signal ? { signal } : {}),
     },
+    preferenceLearningEnabled: true,
     speechProviderId,
     speechProviderDetails: {
       modelName: 'whisper-1',
@@ -165,6 +172,7 @@ const createCoordinator = ({
       showSuccess,
       updateProcessing,
     },
+    preferenceLearning: { handleCandidates: handlePreferenceCandidates },
     recorder: { start, stop },
     speechProviders,
     textProviders,
@@ -175,6 +183,7 @@ const createCoordinator = ({
     events,
     getContext,
     handleCandidates,
+    handlePreferenceCandidates,
     inject,
     provider,
     record,
@@ -273,12 +282,24 @@ describe('DictationCoordinator', () => {
       confidence: 0.95,
       term: 'UnTypo',
     };
-    const runtime = createCoordinator({ dictionaryCandidates: [candidate] });
+    const preferenceCandidate: WritingPreferenceCandidate = {
+      confidence: 0.95,
+      kind: 'tone',
+      value: 'polite',
+    };
+    const runtime = createCoordinator({
+      dictionaryCandidates: [candidate],
+      preferenceCandidates: [preferenceCandidate],
+    });
 
     await runtime.coordinator.start();
     await runtime.coordinator.stop();
 
     expect(runtime.handleCandidates).toHaveBeenCalledWith([candidate], 7);
+    expect(runtime.handlePreferenceCandidates).toHaveBeenCalledWith(
+      [preferenceCandidate],
+      { kind: 'general' },
+    );
     expect(runtime.events.at(-1)).toBe('success:inserted');
   });
 

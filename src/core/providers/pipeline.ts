@@ -125,6 +125,7 @@ export class DictationPipeline {
         : {}),
       ...(forcedIntent ? { forcedIntent } : {}),
       locale: options.language,
+      preferenceLearningEnabled: options.preferenceLearningEnabled === true,
       text: rawTranscript,
       ...(options.tone ? { tone: options.tone } : {}),
       ...(options.writingStyle ? { writingStyle: options.writingStyle } : {}),
@@ -146,6 +147,9 @@ export class DictationPipeline {
             ? { explicitTargetLanguage: options.explicitTargetLanguage }
             : {}),
           ...(forcedIntent ? { forcedIntent } : {}),
+          ...(options.learnedPreferences
+            ? { learnedPreferences: options.learnedPreferences }
+            : {}),
           locale: options.language,
           onOutputTextUpdate: (outputText) => {
             firstOutputMs ??= elapsedSince(textStartedAt);
@@ -153,6 +157,11 @@ export class DictationPipeline {
           },
           ...(this.textProvider.kind === 'official-cloud' && options.profile
             ? { profile: options.profile }
+            : {}),
+          ...(options.preferenceLearningEnabled !== undefined
+            ? {
+                preferenceLearningEnabled: options.preferenceLearningEnabled,
+              }
             : {}),
           signal: options.signal,
           ...(options.tone ? { tone: options.tone } : {}),
@@ -188,6 +197,9 @@ export class DictationPipeline {
           },
         ],
         outputText: processed.outputText,
+        ...(processed.preferenceCandidates
+          ? { preferenceCandidates: processed.preferenceCandidates }
+          : {}),
         rawTranscript,
         usage: transcript.usage,
       };

@@ -22,7 +22,12 @@ import type {
   ModelProviderId,
 } from '../../shared/ipc.js';
 import type { MicrophoneSelection } from '../../shared/microphone.js';
-import type { ApplicationWritingStyles } from '../../shared/personalization.js';
+import type {
+  ApplicationWritingStyles,
+  LearnedWritingPreference,
+  TargetApplicationContext,
+  WritingPreferenceCandidate,
+} from '../../shared/personalization.js';
 import type { HistoryPolicy } from '../storage/configuration.js';
 import type { NewHistoryRecord } from '../storage/history.js';
 import type {
@@ -84,6 +89,13 @@ export interface DictionaryLearningPort {
   ) => unknown;
 }
 
+export interface PreferenceLearningPort {
+  handleCandidates: (
+    candidates: readonly WritingPreferenceCandidate[],
+    application: TargetApplicationContext,
+  ) => unknown;
+}
+
 export interface HistoryPort {
   record: (input: NewHistoryRecord, policy: HistoryPolicy) => unknown;
 }
@@ -92,9 +104,11 @@ export interface DictationContext {
   applicationStyles: ApplicationWritingStyles;
   fastMode?: boolean;
   history: HistoryPolicy;
+  learnedPreferences: readonly LearnedWritingPreference[];
   modelName?: string;
   microphoneSelection?: MicrophoneSelection;
   options: ProcessOptions;
+  preferenceLearningEnabled: boolean;
   speechProviderId: string;
   speechProviderDetails?: DictationProviderTraceDetails;
   textProviderId?: string;
@@ -122,6 +136,7 @@ export interface DictationCoordinatorDependencies {
   history: HistoryPort;
   injection: InjectionPort;
   native: NativeTargetPort;
+  preferenceLearning?: PreferenceLearningPort;
   presenter: DictationPresenter;
   recorder: RecorderPort;
   speechProviders: SpeechProviderRegistry;
@@ -382,6 +397,9 @@ export class DictationCoordinator {
       let modelProcessingMs = 0;
       const modelProcessingStartedAt = Date.now();
       const application = contextDetector.detectApplicationContext(target);
+      const learnedPreferences = context.learnedPreferences.filter(
+        (preference) => preference.application === application.kind,
+      );
       const forcePromptTranscription =
         contextDetector.shouldForceTranscription(application);
       try {
@@ -394,11 +412,13 @@ export class DictationCoordinator {
               ...(context.fastMode || forcePromptTranscription
                 ? { forcedIntent: 'transcription' }
                 : {}),
+              learnedPreferences,
               onOutputTextUpdate: (outputText) => {
                 context.options.onOutputTextUpdate?.(outputText);
                 this.#dependencies.presenter.updateProcessing(outputText);
               },
               signal: processingSignal,
+              preferenceLearningEnabled: context.preferenceLearningEnabled,
               windowContext: target
                 ? {
                     application,
@@ -483,6 +503,7 @@ export class DictationCoordinator {
                     dictionary: context.options.dictionary,
                     forcedIntent: 'transcription',
                     locale: context.options.language,
+                    preferenceLearningEnabled: false,
                     signal: processingSignal,
                   })
                 : undefined;
@@ -499,6 +520,7 @@ export class DictationCoordinator {
                         dictionaryTermCount: context.options.dictionary.length,
                         forcedIntent: 'transcription',
                         locale: context.options.language,
+                        preferenceLearningEnabled: false,
                         text: result.rawTranscript,
                       },
                       kind: 'text-generation',
@@ -511,6 +533,9 @@ export class DictationCoordinator {
               finalResult = {
                 ...(result.dictionaryCandidates
                   ? { dictionaryCandidates: result.dictionaryCandidates }
+                  : {}),
+                ...(result.preferenceCandidates
+                  ? { preferenceCandidates: result.preferenceCandidates }
                   : {}),
                 intent: 'transcription',
                 modelCalls: [
@@ -541,6 +566,7 @@ export class DictationCoordinator {
                         dictionaryTermCount: context.options.dictionary.length,
                         forcedIntent: 'transcription',
                         locale: context.options.language,
+                        preferenceLearningEnabled: false,
                         text: result.rawTranscript,
                       },
                       kind: 'text-generation',
@@ -551,6 +577,9 @@ export class DictationCoordinator {
               finalResult = {
                 ...(result.dictionaryCandidates
                   ? { dictionaryCandidates: result.dictionaryCandidates }
+                  : {}),
+                ...(result.preferenceCandidates
+                  ? { preferenceCandidates: result.preferenceCandidates }
                   : {}),
                 intent: 'transcription',
                 modelCalls: [
@@ -639,6 +668,16 @@ export class DictationCoordinator {
           );
         } catch (error) {
           console.error('Dictionary learning dispatch failed', error);
+        }
+      }
+      if (finalResult.preferenceCandidates?.length) {
+        try {
+          this.#dependencies.preferenceLearning?.handleCandidates(
+            finalResult.preferenceCandidates,
+            application,
+          );
+        } catch (error) {
+          console.error('Writing preference learning dispatch failed', error);
         }
       }
       this.log({

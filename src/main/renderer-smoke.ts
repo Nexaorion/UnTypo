@@ -146,6 +146,27 @@ const smokeTestSource = `
     ) {
       return 'writing-style-restore';
     }
+    const personalizationLearning = personalizationPanel.querySelector(
+      '[data-testid="personalization-learning-switch"] input',
+    );
+    if (!(personalizationLearning instanceof HTMLInputElement))
+      return 'personalization-learning-switch';
+    if (
+      personalizationLearning.checked !==
+      snapshot.personalization.learningEnabled
+    ) {
+      return 'personalization-learning-state';
+    }
+    if (!personalizationLearning.checked) {
+      personalizationLearning.click();
+      await wait(120);
+      if (!personalizationLearning.checked)
+        return 'personalization-learning-toggle';
+      personalizationLearning.click();
+      await wait(120);
+      if (personalizationLearning.checked)
+        return 'personalization-learning-restore';
+    }
     const dictionaryLearning = personalizationPanel.querySelector(
       '[data-testid="dictionary-learning-switch"] input',
     );

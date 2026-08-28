@@ -31,11 +31,13 @@ import {
 } from '../../src/main/ipc/client-controller';
 
 const createBackend = (): ClientBackendPort => ({
+  acceptWritingPreference: vi.fn(),
   addDictionaryEntry: vi.fn(),
   acknowledgeDiagnostics: vi.fn(),
   checkForUpdates: vi.fn(),
   clearDiagnostics: vi.fn(),
   clearHistory: vi.fn(),
+  clearPersonalizationMemory: vi.fn(),
   downloadUpdate: vi.fn(),
   exportDiagnostics: vi.fn(),
   getClientSnapshot: vi.fn(() => Promise.resolve({} as ClientSnapshot)),
@@ -46,10 +48,13 @@ const createBackend = (): ClientBackendPort => ({
   listMicrophones: vi.fn(),
   removeProvider: vi.fn(),
   removeDictionaryEntry: vi.fn(),
+  removeWritingPreference: vi.fn(),
+  rejectWritingPreference: vi.fn(),
   reportRendererIssue: vi.fn(),
   setDictionaryLearningEnabled: vi.fn(),
   setApplicationWritingStyle: vi.fn(),
   setProfile: vi.fn(),
+  setPersonalizationLearningEnabled: vi.fn(),
   testProvider: vi.fn(),
   updateSettings: vi.fn(),
   upsertProvider: vi.fn(),
@@ -94,6 +99,23 @@ describe('ClientIpcController', () => {
       {},
       { application: 'office', style: 'formal' },
     );
+    electronMocks.handlers.get(
+      IPC_CHANNELS.setPersonalizationLearningEnabled,
+    )?.({}, true);
+    const preferenceId = '1234567890abcdef12345678';
+    electronMocks.handlers.get(IPC_CHANNELS.acceptWritingPreference)?.(
+      {},
+      preferenceId,
+    );
+    electronMocks.handlers.get(IPC_CHANNELS.rejectWritingPreference)?.(
+      {},
+      preferenceId,
+    );
+    electronMocks.handlers.get(IPC_CHANNELS.removeWritingPreference)?.(
+      {},
+      preferenceId,
+    );
+    electronMocks.handlers.get(IPC_CHANNELS.clearPersonalizationMemory)?.({});
 
     expect(backend.addDictionaryEntry).toHaveBeenCalledWith('UnTypo');
     expect(backend.removeDictionaryEntry).toHaveBeenCalledWith('UnTypo');
@@ -102,6 +124,13 @@ describe('ClientIpcController', () => {
       application: 'office',
       style: 'formal',
     });
+    expect(backend.setPersonalizationLearningEnabled).toHaveBeenCalledWith(
+      true,
+    );
+    expect(backend.acceptWritingPreference).toHaveBeenCalledWith(preferenceId);
+    expect(backend.rejectWritingPreference).toHaveBeenCalledWith(preferenceId);
+    expect(backend.removeWritingPreference).toHaveBeenCalledWith(preferenceId);
+    expect(backend.clearPersonalizationMemory).toHaveBeenCalledOnce();
     controller.destroy();
   });
 

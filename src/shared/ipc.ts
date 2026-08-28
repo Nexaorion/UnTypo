@@ -15,14 +15,18 @@ import type { MicrophoneDeviceInfo } from './microphone.js';
 import type {
   ApplicationWritingStyles,
   ClientApplicationWritingStyleUpdate,
+  LearnedWritingPreference,
+  ClientWritingPreferenceSuggestion,
 } from './personalization.js';
 
 export const IPC_CHANNELS = {
+  acceptWritingPreference: 'client:accept-writing-preference',
   addDictionaryEntry: 'client:add-dictionary-entry',
   acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
   checkForUpdates: 'client:check-for-updates',
   clearDiagnostics: 'client:clear-diagnostics',
   clearHistory: 'client:clear-history',
+  clearPersonalizationMemory: 'client:clear-personalization-memory',
   copyText: 'client:copy-text',
   downloadUpdate: 'client:download-update',
   exportDiagnostics: 'client:export-diagnostics',
@@ -35,8 +39,12 @@ export const IPC_CHANNELS = {
   reportRendererIssue: 'client:report-renderer-issue',
   removeProvider: 'client:remove-provider',
   removeDictionaryEntry: 'client:remove-dictionary-entry',
+  removeWritingPreference: 'client:remove-writing-preference',
+  rejectWritingPreference: 'client:reject-writing-preference',
   setDictionaryLearningEnabled: 'client:set-dictionary-learning-enabled',
   setApplicationWritingStyle: 'client:set-application-writing-style',
+  setPersonalizationLearningEnabled:
+    'client:set-personalization-learning-enabled',
   setProfile: 'client:set-profile',
   snapshotChanged: 'client:snapshot-changed',
   testProvider: 'client:test-provider',
@@ -171,6 +179,8 @@ export interface ClientSnapshot {
   personalization: {
     applicationStyles: ApplicationWritingStyles;
     learningEnabled: boolean;
+    preferences: readonly LearnedWritingPreference[];
+    suggestions: readonly ClientWritingPreferenceSuggestion[];
   };
   profile?: UserProfileContext;
   providers: readonly ClientProviderSummary[];
@@ -230,12 +240,14 @@ export interface PingResponse {
 }
 
 export interface UntypoApi {
+  acceptWritingPreference: (id: string) => Promise<ClientSnapshot>;
   addDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   acknowledgeDiagnostics: (
     issueIds: readonly string[],
   ) => Promise<ClientDiagnosticSnapshot>;
   clearDiagnostics: () => Promise<ClientDiagnosticSnapshot>;
   clearHistory: () => Promise<number>;
+  clearPersonalizationMemory: () => Promise<ClientSnapshot>;
   checkForUpdates: () => Promise<ClientUpdateSnapshot>;
   copyText: (text: string) => Promise<void>;
   downloadUpdate: () => Promise<ClientUpdateSnapshot>;
@@ -259,10 +271,15 @@ export interface UntypoApi {
   ping: () => Promise<PingResponse>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
   removeDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
+  removeWritingPreference: (id: string) => Promise<ClientSnapshot>;
+  rejectWritingPreference: (id: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => Promise<void>;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
   setApplicationWritingStyle: (
     update: ClientApplicationWritingStyleUpdate,
+  ) => Promise<ClientSnapshot>;
+  setPersonalizationLearningEnabled: (
+    enabled: boolean,
   ) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;

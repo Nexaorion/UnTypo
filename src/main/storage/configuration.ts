@@ -12,10 +12,15 @@ import type {
 } from '../../shared/ipc.js';
 import {
   DEFAULT_APPLICATION_WRITING_STYLES,
+  PERSONALIZATION_LIMITS,
   TARGET_APPLICATION_KINDS,
   WRITING_STYLE_PRESETS,
+  normalizeWritingPreferenceCandidate,
   type ApplicationWritingStyles,
   type ClientApplicationWritingStyleUpdate,
+  type LearnedWritingPreference,
+  type TargetApplicationKind,
+  type WritingPreferenceCandidate,
 } from '../../shared/personalization.js';
 import {
   dictionaryTermKey,
@@ -77,6 +82,7 @@ export interface StoredClientConfig {
   history: HistoryPolicy;
   personalization: {
     applicationStyles: ApplicationWritingStyles;
+    encryptedState?: EncryptedValue;
     learningEnabled: boolean;
   };
   providers: readonly StoredProviderProfile[];
@@ -98,6 +104,25 @@ export interface StoredDictionaryRejection {
 export interface DictionaryLearningPrivateState {
   candidates: readonly StoredDictionaryCandidate[];
   rejections: readonly StoredDictionaryRejection[];
+}
+
+export interface StoredWritingPreferenceCandidate {
+  application: TargetApplicationKind;
+  candidate: WritingPreferenceCandidate;
+  firstSeenAt: number;
+  lastSeenAt: number;
+  occurrences: number;
+}
+
+export interface StoredWritingPreferenceRejection {
+  fingerprint: string;
+  until: number;
+}
+
+export interface PersonalizationPrivateState {
+  candidates: readonly StoredWritingPreferenceCandidate[];
+  preferences: readonly LearnedWritingPreference[];
+  rejections: readonly StoredWritingPreferenceRejection[];
 }
 
 export type DictionaryEntryErrorCode =
@@ -381,9 +406,15 @@ const parsePersonalization = (
   const rawApplicationStyles = value.applicationStyles;
   assertOnlyKeys(
     value,
-    ['applicationStyles', 'learningEnabled'],
+    ['applicationStyles', 'encryptedState', 'learningEnabled'],
     'Personalization settings',
   );
+  if (
+    value.encryptedState !== undefined &&
+    !isEncryptedValue(value.encryptedState)
+  ) {
+    throw new Error('Invalid personalization learning state');
+  }
   assertOnlyKeys(
     rawApplicationStyles,
     TARGET_APPLICATION_KINDS,
@@ -405,7 +436,106 @@ const parsePersonalization = (
     ide: parseStyle('ide'),
     office: parseStyle('office'),
   };
-  return { applicationStyles, learningEnabled: value.learningEnabled };
+  return {
+    applicationStyles,
+    ...(isEncryptedValue(value.encryptedState)
+      ? { encryptedState: structuredClone(value.encryptedState) }
+      : {}),
+    learningEnabled: value.learningEnabled,
+  };
+};
+
+const emptyPersonalizationState = (): PersonalizationPrivateState => ({
+  candidates: [],
+  preferences: [],
+  rejections: [],
+});
+
+const parsePersonalizationState = (
+  value: unknown,
+): PersonalizationPrivateState => {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.candidates) ||
+    !Array.isArray(value.preferences) ||
+    !Array.isArray(value.rejections) ||
+    value.candidates.length > PERSONALIZATION_LIMITS.candidates ||
+    value.preferences.length > PERSONALIZATION_LIMITS.preferences ||
+    value.rejections.length > PERSONALIZATION_LIMITS.candidates
+  ) {
+    throw new Error('Invalid encrypted personalization state');
+  }
+  const parseApplication = (entry: unknown): TargetApplicationKind => {
+    const application = TARGET_APPLICATION_KINDS.find(
+      (candidate) => candidate === entry,
+    );
+    if (!application)
+      throw new Error('Invalid encrypted personalization state');
+    return application;
+  };
+  const parseTimestamp = (entry: unknown): number => {
+    if (typeof entry !== 'number' || !Number.isFinite(entry) || entry < 0) {
+      throw new Error('Invalid encrypted personalization state');
+    }
+    return entry;
+  };
+  const candidates: StoredWritingPreferenceCandidate[] = value.candidates.map(
+    (entry) => {
+      if (
+        !isRecord(entry) ||
+        !Number.isInteger(entry.occurrences) ||
+        typeof entry.occurrences !== 'number' ||
+        entry.occurrences < 1
+      ) {
+        throw new Error('Invalid encrypted personalization state');
+      }
+      const candidate = normalizeWritingPreferenceCandidate(entry.candidate);
+      if (!candidate) {
+        throw new Error('Invalid encrypted personalization state');
+      }
+      return {
+        application: parseApplication(entry.application),
+        candidate,
+        firstSeenAt: parseTimestamp(entry.firstSeenAt),
+        lastSeenAt: parseTimestamp(entry.lastSeenAt),
+        occurrences: entry.occurrences,
+      };
+    },
+  );
+  const preferences: LearnedWritingPreference[] = value.preferences.map(
+    (entry) => {
+      if (!isRecord(entry) || !isNonEmptyString(entry.id, 64)) {
+        throw new Error('Invalid encrypted personalization state');
+      }
+      const candidate = normalizeWritingPreferenceCandidate({
+        confidence: 1,
+        kind: entry.kind,
+        value: entry.value,
+      });
+      if (!candidate) {
+        throw new Error('Invalid encrypted personalization state');
+      }
+      return {
+        application: parseApplication(entry.application),
+        confirmedAt: parseTimestamp(entry.confirmedAt),
+        id: entry.id,
+        kind: candidate.kind,
+        value: candidate.value,
+      };
+    },
+  );
+  const rejections: StoredWritingPreferenceRejection[] = value.rejections.map(
+    (entry) => {
+      if (!isRecord(entry) || !isNonEmptyString(entry.fingerprint, 64)) {
+        throw new Error('Invalid encrypted personalization state');
+      }
+      return {
+        fingerprint: entry.fingerprint,
+        until: parseTimestamp(entry.until),
+      };
+    },
+  );
+  return { candidates, preferences, rejections };
 };
 
 const emptyDictionaryLearningState = (): DictionaryLearningPrivateState => ({
@@ -1006,6 +1136,92 @@ export class ConfigurationService {
           ...config.personalization.applicationStyles,
           [update.application]: update.style,
         },
+      },
+    }));
+  }
+
+  async getPersonalizationState(): Promise<PersonalizationPrivateState> {
+    const config = await this.load();
+    if (!config.personalization.encryptedState) {
+      return emptyPersonalizationState();
+    }
+    return parsePersonalizationState(
+      JSON.parse(
+        this.#protector.reveal(config.personalization.encryptedState),
+      ) as unknown,
+    );
+  }
+
+  async updatePersonalizationState(
+    mutate: (
+      state: PersonalizationPrivateState,
+      config: StoredClientConfig,
+    ) => PersonalizationPrivateState,
+  ): Promise<PersonalizationPrivateState> {
+    return this.runExclusive(async () => {
+      const current = (await this.readFromDisk()).config;
+      const stored = current.personalization.encryptedState;
+      const state = stored
+        ? parsePersonalizationState(
+            JSON.parse(this.#protector.reveal(stored)) as unknown,
+          )
+        : emptyPersonalizationState();
+      const nextState = parsePersonalizationState(
+        structuredClone(mutate(structuredClone(state), current)),
+      );
+      const next: StoredClientConfig = {
+        ...current,
+        personalization: {
+          ...current.personalization,
+          encryptedState: this.#protector.protect(JSON.stringify(nextState)),
+        },
+      };
+      await this.writeAtomically(next);
+      return structuredClone(nextState);
+    });
+  }
+
+  async setPersonalizationLearningEnabled(
+    enabled: boolean,
+  ): Promise<StoredClientConfig> {
+    return this.runExclusive(async () => {
+      const current = (await this.readFromDisk()).config;
+      const stored = current.personalization.encryptedState;
+      const state = stored
+        ? parsePersonalizationState(
+            JSON.parse(this.#protector.reveal(stored)) as unknown,
+          )
+        : emptyPersonalizationState();
+      const retainedState: PersonalizationPrivateState = {
+        candidates: enabled ? state.candidates : [],
+        preferences: state.preferences,
+        rejections: enabled ? state.rejections : [],
+      };
+      const personalization: StoredClientConfig['personalization'] = {
+        applicationStyles: current.personalization.applicationStyles,
+        learningEnabled: enabled,
+        ...(retainedState.candidates.length > 0 ||
+        retainedState.preferences.length > 0 ||
+        retainedState.rejections.length > 0
+          ? {
+              encryptedState: this.#protector.protect(
+                JSON.stringify(retainedState),
+              ),
+            }
+          : {}),
+      };
+      const next = { ...current, personalization };
+      await this.writeAtomically(next);
+      return structuredClone(next);
+    });
+  }
+
+  async clearPersonalizationMemory(): Promise<StoredClientConfig> {
+    return this.update((config) => ({
+      ...config,
+      personalization: {
+        applicationStyles: config.personalization.applicationStyles,
+        learningEnabled: config.personalization.learningEnabled,
       },
     }));
   }

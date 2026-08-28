@@ -23,11 +23,13 @@ const DIAGNOSTIC_CHANGED_CHANNEL = 'client:diagnostics-changed';
 const UPDATE_CHANGED_CHANNEL = 'client:update-changed';
 const SNAPSHOT_CHANGED_CHANNEL = 'client:snapshot-changed';
 const channels = {
+  acceptWritingPreference: 'client:accept-writing-preference',
   addDictionaryEntry: 'client:add-dictionary-entry',
   acknowledgeDiagnostics: 'client:acknowledge-diagnostics',
   checkForUpdates: 'client:check-for-updates',
   clearDiagnostics: 'client:clear-diagnostics',
   clearHistory: 'client:clear-history',
+  clearPersonalizationMemory: 'client:clear-personalization-memory',
   copyText: 'client:copy-text',
   downloadUpdate: 'client:download-update',
   exportDiagnostics: 'client:export-diagnostics',
@@ -39,9 +41,13 @@ const channels = {
   listMicrophones: 'client:list-microphones',
   removeProvider: 'client:remove-provider',
   removeDictionaryEntry: 'client:remove-dictionary-entry',
+  removeWritingPreference: 'client:remove-writing-preference',
+  rejectWritingPreference: 'client:reject-writing-preference',
   reportRendererIssue: 'client:report-renderer-issue',
   setDictionaryLearningEnabled: 'client:set-dictionary-learning-enabled',
   setApplicationWritingStyle: 'client:set-application-writing-style',
+  setPersonalizationLearningEnabled:
+    'client:set-personalization-learning-enabled',
   setProfile: 'client:set-profile',
   testProvider: 'client:test-provider',
   updateSettings: 'client:update-settings',
@@ -49,6 +55,11 @@ const channels = {
 } as const;
 
 const api: UntypoApi = {
+  acceptWritingPreference: (id: string) =>
+    ipcRenderer.invoke(
+      channels.acceptWritingPreference,
+      id,
+    ) as Promise<ClientSnapshot>,
   addDictionaryEntry: (term: string) =>
     ipcRenderer.invoke(
       channels.addDictionaryEntry,
@@ -65,6 +76,10 @@ const api: UntypoApi = {
     ) as Promise<ClientDiagnosticSnapshot>,
   clearHistory: () =>
     ipcRenderer.invoke(channels.clearHistory) as Promise<number>,
+  clearPersonalizationMemory: () =>
+    ipcRenderer.invoke(
+      channels.clearPersonalizationMemory,
+    ) as Promise<ClientSnapshot>,
   checkForUpdates: () =>
     ipcRenderer.invoke(
       channels.checkForUpdates,
@@ -133,6 +148,16 @@ const api: UntypoApi = {
       channels.removeDictionaryEntry,
       term,
     ) as Promise<ClientSnapshot>,
+  removeWritingPreference: (id: string) =>
+    ipcRenderer.invoke(
+      channels.removeWritingPreference,
+      id,
+    ) as Promise<ClientSnapshot>,
+  rejectWritingPreference: (id: string) =>
+    ipcRenderer.invoke(
+      channels.rejectWritingPreference,
+      id,
+    ) as Promise<ClientSnapshot>,
   reportRendererIssue: (issue: ClientRendererIssueInput) =>
     ipcRenderer.invoke(channels.reportRendererIssue, issue) as Promise<void>,
   setDictionaryLearningEnabled: (enabled: boolean) =>
@@ -144,6 +169,11 @@ const api: UntypoApi = {
     ipcRenderer.invoke(
       channels.setApplicationWritingStyle,
       update,
+    ) as Promise<ClientSnapshot>,
+  setPersonalizationLearningEnabled: (enabled: boolean) =>
+    ipcRenderer.invoke(
+      channels.setPersonalizationLearningEnabled,
+      enabled,
     ) as Promise<ClientSnapshot>,
   setProfile: (profile) =>
     ipcRenderer.invoke(channels.setProfile, profile) as Promise<ClientSnapshot>,

@@ -127,7 +127,7 @@ describe('DictationPipeline', () => {
     ).resolves.toMatchObject({ intent: 'translation', outputText: 'Hello' });
   });
 
-  it('returns dictionary candidates from the same text-model call when enabled', async () => {
+  it('returns enabled learning candidates from the same text-model call', async () => {
     const dictionaryCandidate = {
       category: 'product' as const,
       confidence: 0.95,
@@ -135,6 +135,9 @@ describe('DictationPipeline', () => {
     };
     const provider = new MockDictationProvider({
       dictionaryCandidates: [dictionaryCandidate],
+      preferenceCandidates: [
+        { confidence: 0.95, kind: 'tone', value: 'polite' },
+      ],
       transcript: 'Use UnTypo',
     });
 
@@ -142,10 +145,14 @@ describe('DictationPipeline', () => {
       new DictationPipeline(provider, provider).process(audio, {
         ...options,
         dictionaryLearningEnabled: true,
+        preferenceLearningEnabled: true,
       }),
     ).resolves.toMatchObject({
       dictionaryCandidates: [dictionaryCandidate],
       outputText: 'Use UnTypo',
+      preferenceCandidates: [
+        { confidence: 0.95, kind: 'tone', value: 'polite' },
+      ],
     });
   });
 

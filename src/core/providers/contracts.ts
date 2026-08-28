@@ -1,6 +1,8 @@
 import type { DictionaryCandidate } from '../../shared/dictionary.js';
 import type {
+  LearnedWritingPreference,
   TargetApplicationContext,
+  WritingPreferenceCandidate,
   WritingStylePreset,
 } from '../../shared/personalization.js';
 
@@ -66,9 +68,11 @@ export interface TextProcessContext {
   dictionaryLearningEnabled?: boolean;
   explicitTargetLanguage?: SupportedLanguage;
   forcedIntent?: DictationIntent;
+  learnedPreferences?: readonly LearnedWritingPreference[];
   locale: SupportedLanguage;
   onOutputTextUpdate?: (outputText: string) => void;
   profile?: UserProfileContext;
+  preferenceLearningEnabled?: boolean;
   signal?: AbortSignal;
   tone?: string;
   windowContext?: WindowContext;
@@ -86,6 +90,7 @@ export interface TextProcessResult {
   dictionaryCandidates?: readonly DictionaryCandidate[];
   intent: DictationIntent;
   outputText: string;
+  preferenceCandidates?: readonly WritingPreferenceCandidate[];
 }
 
 export interface ProcessOptions {
@@ -96,8 +101,10 @@ export interface ProcessOptions {
   fastMode?: boolean;
   forcedIntent?: DictationIntent;
   language: SupportedLanguage;
+  learnedPreferences?: readonly LearnedWritingPreference[];
   onOutputTextUpdate?: (outputText: string) => void;
   preferIntegratedProcess?: boolean;
+  preferenceLearningEnabled?: boolean;
   profile?: UserProfileContext;
   signal?: AbortSignal;
   tone?: string;
@@ -122,6 +129,7 @@ export interface TextGenerationCallInput {
   explicitTargetLanguage?: SupportedLanguage;
   forcedIntent?: DictationIntent;
   locale: SupportedLanguage;
+  preferenceLearningEnabled: boolean;
   text: string;
   tone?: string;
   writingStyle?: WritingStylePreset;
@@ -154,6 +162,7 @@ export interface ProcessResult {
   intent: DictationIntent;
   modelCalls?: readonly ModelCallTrace[];
   outputText: string;
+  preferenceCandidates?: readonly WritingPreferenceCandidate[];
   rawTranscript?: string;
   usage?: ProviderUsage;
 }

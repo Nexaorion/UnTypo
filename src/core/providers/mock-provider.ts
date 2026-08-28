@@ -11,6 +11,7 @@ import {
   type TranscriptResult,
 } from './contracts.js';
 import type { DictionaryCandidate } from '../../shared/dictionary.js';
+import type { WritingPreferenceCandidate } from '../../shared/personalization.js';
 
 export interface MockProviderScenario {
   dictionaryCandidates?: readonly DictionaryCandidate[];
@@ -18,6 +19,7 @@ export interface MockProviderScenario {
   explicitTargetLanguage?: 'zh-CN' | 'en-US';
   intent?: DictationIntent;
   polishedText?: string;
+  preferenceCandidates?: readonly WritingPreferenceCandidate[];
   transcript?: string;
   translatedText?: Partial<Record<'zh-CN' | 'en-US', string>>;
 }
@@ -89,6 +91,10 @@ export class MockDictationProvider implements DictationProvider {
         : {}),
       intent,
       outputText,
+      ...(context.preferenceLearningEnabled &&
+      this.#scenario.preferenceCandidates
+        ? { preferenceCandidates: this.#scenario.preferenceCandidates }
+        : {}),
     });
   }
 
@@ -107,11 +113,17 @@ export class MockDictationProvider implements DictationProvider {
         ? { explicitTargetLanguage: options.explicitTargetLanguage }
         : {}),
       ...(options.forcedIntent ? { forcedIntent: options.forcedIntent } : {}),
+      ...(options.learnedPreferences
+        ? { learnedPreferences: options.learnedPreferences }
+        : {}),
       locale: options.language,
       ...(options.onOutputTextUpdate
         ? { onOutputTextUpdate: options.onOutputTextUpdate }
         : {}),
       signal: options.signal,
+      ...(options.preferenceLearningEnabled !== undefined
+        ? { preferenceLearningEnabled: options.preferenceLearningEnabled }
+        : {}),
       ...(options.tone ? { tone: options.tone } : {}),
       ...(options.windowContext
         ? { windowContext: options.windowContext }
@@ -125,6 +137,9 @@ export class MockDictationProvider implements DictationProvider {
         : {}),
       intent: processed.intent,
       outputText: processed.outputText,
+      ...(processed.preferenceCandidates
+        ? { preferenceCandidates: processed.preferenceCandidates }
+        : {}),
       rawTranscript: transcript.text,
       usage: transcript.usage,
     };

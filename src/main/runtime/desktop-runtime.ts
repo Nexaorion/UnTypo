@@ -48,13 +48,18 @@ import {
   type MicrophoneSelection,
 } from '../../shared/microphone.js';
 import type { DictionaryCandidate } from '../../shared/dictionary.js';
-import type { ClientApplicationWritingStyleUpdate } from '../../shared/personalization.js';
+import type {
+  ClientApplicationWritingStyleUpdate,
+  TargetApplicationKind,
+  WritingPreferenceCandidate,
+} from '../../shared/personalization.js';
 import type { DictionarySuggestionError } from '../../shared/capsule-ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
 import type { DiagnosticCollector } from '../diagnostics/collector.js';
 import { ClipboardInjectionService } from '../dictation/clipboard.js';
 import { DictationCoordinator } from '../dictation/coordinator.js';
 import { DictionaryLearningService } from '../dictionary/learning.js';
+import { WritingPreferenceLearningService } from '../personalization/learning.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
 import {
   NativeHelperClient,
@@ -197,6 +202,7 @@ export class DesktopRuntime {
   readonly #history: HistoryService;
   readonly #native = new NativeHelperClient(resolveNativeHelperPath());
   readonly #options: DesktopRuntimeOptions;
+  readonly #preferenceLearning: WritingPreferenceLearningService;
   readonly #recorder = new RecorderWindowController(
     undefined,
     (level) => this.#capsule.updateLevel(level),
@@ -224,6 +230,9 @@ export class DesktopRuntime {
       new ElectronSecretProtector(),
     );
     this.#dictionaryLearning = new DictionaryLearningService(
+      this.#configuration,
+    );
+    this.#preferenceLearning = new WritingPreferenceLearningService(
       this.#configuration,
     );
     this.#historyRepository = new HistoryRepository(
@@ -254,6 +263,10 @@ export class DesktopRuntime {
             successPresentationGeneration,
           ),
       },
+      preferenceLearning: {
+        handleCandidates: (candidates, application) =>
+          this.handleWritingPreferenceCandidates(candidates, application.kind),
+      },
       getContext: async () => {
         const current = await this.#configuration.load();
         const speechProviderId = this.#speechProviderId;
@@ -266,9 +279,14 @@ export class DesktopRuntime {
         const activeTextProfile = current.providers.find(
           ({ id, kind }) => id === this.#textProviderId && kind === 'text',
         );
+        const [profile, learnedPreferences] = await Promise.all([
+          this.#configuration.getProfile(),
+          this.#preferenceLearning.getPreferences(),
+        ]);
         return {
           applicationStyles: current.personalization.applicationStyles,
           history: current.history,
+          learnedPreferences,
           ...(current.dictation.fastMode !== undefined
             ? { fastMode: current.dictation.fastMode }
             : {}),
@@ -294,8 +312,11 @@ export class DesktopRuntime {
               : {}),
             language: current.dictation.language,
             preferIntegratedProcess: false,
-            profile: await this.#configuration.getProfile(),
+            profile,
           },
+          preferenceLearningEnabled:
+            current.personalization.learningEnabled &&
+            this.#textProviderId !== undefined,
           speechProviderId,
           ...(activeSpeechProfile
             ? {
@@ -411,14 +432,22 @@ export class DesktopRuntime {
   }
 
   async getClientSnapshot(): Promise<ClientSnapshot> {
-    const [config, profile] = await Promise.all([
+    const [config, profile, memory] = await Promise.all([
       this.#configuration.load(),
       this.#configuration.getProfile(),
+      this.#preferenceLearning.snapshot(),
     ]);
     return {
       dictionary: config.dictionary,
       dictionaryLearning: { enabled: config.dictionaryLearning.enabled },
-      personalization: structuredClone(config.personalization),
+      personalization: {
+        applicationStyles: structuredClone(
+          config.personalization.applicationStyles,
+        ),
+        learningEnabled: config.personalization.learningEnabled,
+        preferences: memory.preferences,
+        suggestions: memory.suggestions,
+      },
       ...(profile ? { profile } : {}),
       providers: config.providers.map((provider) => ({
         configuredSecretKeys: Object.keys(provider.secrets),
@@ -621,6 +650,33 @@ export class DesktopRuntime {
     update: ClientApplicationWritingStyleUpdate,
   ): Promise<ClientSnapshot> {
     await this.#configuration.setApplicationWritingStyle(update);
+    return this.getClientSnapshot();
+  }
+
+  async setPersonalizationLearningEnabled(
+    enabled: boolean,
+  ): Promise<ClientSnapshot> {
+    await this.#configuration.setPersonalizationLearningEnabled(enabled);
+    return this.getClientSnapshot();
+  }
+
+  async acceptWritingPreference(id: string): Promise<ClientSnapshot> {
+    await this.#preferenceLearning.accept(id);
+    return this.getClientSnapshot();
+  }
+
+  async rejectWritingPreference(id: string): Promise<ClientSnapshot> {
+    await this.#preferenceLearning.reject(id);
+    return this.getClientSnapshot();
+  }
+
+  async removeWritingPreference(id: string): Promise<ClientSnapshot> {
+    await this.#preferenceLearning.remove(id);
+    return this.getClientSnapshot();
+  }
+
+  async clearPersonalizationMemory(): Promise<ClientSnapshot> {
+    await this.#preferenceLearning.clear();
     return this.getClientSnapshot();
   }
 
@@ -937,6 +993,30 @@ export class DesktopRuntime {
         source: 'dictionary.learning',
       });
     });
+  }
+
+  private handleWritingPreferenceCandidates(
+    candidates: readonly WritingPreferenceCandidate[],
+    application: TargetApplicationKind,
+  ): void {
+    void this.#preferenceLearning
+      .observe(candidates, application)
+      .then(async (changed) => {
+        if (!changed) return;
+        this.#options.onSnapshotChanged(await this.getClientSnapshot());
+        this.#diagnostics.log({
+          context: { candidateCount: candidates.length },
+          message: 'Writing preference candidates updated',
+          scope: 'personalization.learning',
+        });
+      })
+      .catch((error: unknown) => {
+        this.#diagnostics.recordIssue({
+          error,
+          kind: 'internal',
+          source: 'personalization.learning',
+        });
+      });
   }
 
   private reconcileMicrophoneSelection(

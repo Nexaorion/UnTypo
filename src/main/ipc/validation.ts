@@ -13,6 +13,7 @@ import {
 } from '../../shared/personalization.js';
 
 const profileIdPattern = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
+const writingPreferenceIdPattern = /^[a-f0-9]{24}$/u;
 const maximumClipboardTextLength = 1_000_000;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -262,6 +263,22 @@ export const parseApplicationWritingStyleUpdate = (
     throw new Error('Invalid application writing style');
   }
   return { application, style };
+};
+
+export const parsePersonalizationLearningEnabled = (
+  value: unknown,
+): boolean => {
+  if (typeof value !== 'boolean') {
+    throw new Error('Invalid personalization learning setting');
+  }
+  return value;
+};
+
+export const parseWritingPreferenceId = (value: unknown): string => {
+  if (typeof value !== 'string' || !writingPreferenceIdPattern.test(value)) {
+    throw new Error('Invalid writing preference id');
+  }
+  return value;
 };
 
 export const parseDictionaryTerm = (value: unknown): string => {

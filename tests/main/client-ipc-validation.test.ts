@@ -4,9 +4,11 @@ import {
   parseClipboardText,
   parseDictionaryTerm,
   parseHistoryQuery,
+  parsePersonalizationLearningEnabled,
   parseProfile,
   parseProviderInput,
   parseSettingsUpdate,
+  parseWritingPreferenceId,
 } from '../../src/main/ipc/validation';
 import {
   parseDiagnosticExportRequest,
@@ -78,6 +80,10 @@ describe('client IPC validation', () => {
         style: 'casual',
       }),
     ).toEqual({ application: 'chat-app', style: 'casual' });
+    expect(parsePersonalizationLearningEnabled(true)).toBe(true);
+    expect(parseWritingPreferenceId('1234567890abcdef12345678')).toBe(
+      '1234567890abcdef12345678',
+    );
   });
 
   it('rejects unknown fields and unbounded values', () => {
@@ -117,6 +123,12 @@ describe('client IPC validation', () => {
         style: 'unbounded-freeform',
       }),
     ).toThrow('Invalid application writing style');
+    expect(() => parsePersonalizationLearningEnabled('yes')).toThrow(
+      'Invalid personalization learning setting',
+    );
+    expect(() => parseWritingPreferenceId('../memory')).toThrow(
+      'Invalid writing preference id',
+    );
     expect(() =>
       parseSettingsUpdate({
         diagnostics: { showErrorDialogs: 'yes' },

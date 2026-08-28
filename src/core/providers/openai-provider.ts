@@ -261,12 +261,51 @@ export class OpenAIProvider implements DictationProvider {
                     },
                   }
                 : {}),
+              ...(context.preferenceLearningEnabled
+                ? {
+                    preferenceCandidates: {
+                      items: {
+                        additionalProperties: false,
+                        properties: {
+                          confidence: {
+                            maximum: 1,
+                            minimum: 0,
+                            type: 'number',
+                          },
+                          kind: {
+                            enum: [
+                              'emoji',
+                              'expression',
+                              'punctuation',
+                              'structure',
+                              'tone',
+                              'verbosity',
+                            ],
+                            type: 'string',
+                          },
+                          value: {
+                            maxLength: 40,
+                            minLength: 1,
+                            type: 'string',
+                          },
+                        },
+                        required: ['kind', 'value', 'confidence'],
+                        type: 'object',
+                      },
+                      maxItems: 2,
+                      type: 'array',
+                    },
+                  }
+                : {}),
             },
             required: [
               'outputText',
               'intent',
               ...(context.dictionaryLearningEnabled
                 ? ['dictionaryCandidates']
+                : []),
+              ...(context.preferenceLearningEnabled
+                ? ['preferenceCandidates']
                 : []),
             ],
             type: 'object',

@@ -220,6 +220,20 @@ const ModelCallCard = ({
                     : t('history.trace.disabled')
                 }
               />
+              <DetailRow
+                label={t('history.trace.personalizationLearning')}
+                value={
+                  call.input.preferenceLearningEnabled
+                    ? t('history.trace.enabled')
+                    : t('history.trace.disabled')
+                }
+              />
+              {call.input.writingStyle ? (
+                <DetailRow
+                  label={t('history.trace.writingStyle')}
+                  value={t(`personalization.style.${call.input.writingStyle}`)}
+                />
+              ) : null}
               {call.input.tone ? (
                 <DetailRow
                   label={t('history.trace.tone')}

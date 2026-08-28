@@ -82,6 +82,9 @@ describe('OpenAIProvider', () => {
                       ],
                       intent: 'translation',
                       outputText: 'Hello',
+                      preferenceCandidates: [
+                        { confidence: 0.96, kind: 'tone', value: 'polite' },
+                      ],
                     }),
                     type: 'output_text',
                   },
@@ -101,6 +104,7 @@ describe('OpenAIProvider', () => {
         dictionary: [],
         dictionaryLearningEnabled: true,
         locale: 'en-US',
+        preferenceLearningEnabled: true,
       }),
     ).resolves.toEqual({
       dictionaryCandidates: [
@@ -108,6 +112,9 @@ describe('OpenAIProvider', () => {
       ],
       intent: 'translation',
       outputText: 'Hello',
+      preferenceCandidates: [
+        { confidence: 0.96, kind: 'tone', value: 'polite' },
+      ],
     });
     const [, init] = request.mock.calls[0] ?? [];
     if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
@@ -141,6 +148,18 @@ describe('OpenAIProvider', () => {
       type: 'array',
     });
     expect(body.text.format.schema.required).toContain('dictionaryCandidates');
+    expect(
+      body.text.format.schema.properties.preferenceCandidates,
+    ).toMatchObject({
+      items: {
+        properties: { confidence: {}, kind: {}, value: {} },
+        required: ['kind', 'value', 'confidence'],
+        type: 'object',
+      },
+      maxItems: 2,
+      type: 'array',
+    });
+    expect(body.text.format.schema.required).toContain('preferenceCandidates');
     expect(Object.keys(body.text.format.schema.properties).slice(0, 2)).toEqual(
       ['outputText', 'intent'],
     );

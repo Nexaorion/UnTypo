@@ -98,6 +98,7 @@ export const messages = {
     'history.trace.operationId': '操作 ID：{id}',
     'history.trace.output': '输出',
     'history.trace.payloadSize': '请求音频大小',
+    'history.trace.personalizationLearning': '表达习惯学习',
     'history.trace.privacy':
       '详情仅随本地历史记录保存，不包含 API 密钥或录音二进制内容。',
     'history.trace.profileId': '配置 ID',
@@ -110,6 +111,7 @@ export const messages = {
     'history.trace.title': '模型调用详情',
     'history.trace.tone': '语气',
     'history.trace.total': '总用时',
+    'history.trace.writingStyle': '写作风格',
     'history.trace.unavailable':
       '这是一条旧记录，当时还没有保存模型调用详情。更新后的新转写会显示完整数据。',
     'home.history.empty': '完成一次转写后，最近记录会显示在这里。',
@@ -145,6 +147,34 @@ export const messages = {
     'personalization.applicationStyles': '应用风格',
     'personalization.applicationStylesDescription':
       'UnTypo 会根据当前目标软件选择转写方式；你的选择优先于内置默认值。',
+    'personalization.clearMemory': '清空表达记忆',
+    'personalization.clearMemoryConfirm': '清空全部表达记忆？',
+    'personalization.clearMemoryDescription':
+      '这会删除所有待确认候选和已经确认的表达偏好；应用风格设置不会改变。',
+    'personalization.ignoreSuggestion': '忽略',
+    'personalization.keepSuggestion': '保留',
+    'personalization.learnedPreferences': '已经学会',
+    'personalization.learning': '学习我的表达习惯',
+    'personalization.learningDescription':
+      '由当前文字模型在转写时提取少量候选，再在本机加密聚合；确认后才会影响后续转写。',
+    'personalization.learningTitle': '自学习',
+    'personalization.learningUnavailable': '配置文字模型后开始观察',
+    'personalization.memory.emoji.allow': '在自然的场景中允许少量 Emoji',
+    'personalization.memory.emoji.avoid': '除非明确口述，否则不添加 Emoji',
+    'personalization.memory.expression': '有意说出“{value}”时保留这个表达',
+    'personalization.memory.punctuation.minimal': '聊天时使用更轻的标点',
+    'personalization.memory.punctuation.standard': '使用标准标点',
+    'personalization.memory.structure.lists': '列举要求时优先使用列表',
+    'personalization.memory.structure.paragraphs': '优先使用短段落',
+    'personalization.memory.tone.casual': '偏好轻松语气',
+    'personalization.memory.tone.formal': '偏好正式语气',
+    'personalization.memory.tone.polite': '偏好礼貌、体谅的语气',
+    'personalization.memory.verbosity.concise': '偏好简洁表达',
+    'personalization.memory.verbosity.detailed': '保留有用细节和说明',
+    'personalization.noLearnedPreferences': '还没有确认过的表达偏好',
+    'personalization.noSuggestions': '暂时没有需要确认的新习惯',
+    'personalization.suggestionMeta': '{application} · 已观察 {count} 次',
+    'personalization.suggestions': '待你确认',
     'personalization.style.auto': '自动判断',
     'personalization.style.autoDescription': '根据本次口述内容自然整理',
     'personalization.style.casual': '轻松自然',
@@ -414,6 +444,7 @@ export const messages = {
     'history.trace.operationId': 'Operation ID: {id}',
     'history.trace.output': 'Output',
     'history.trace.payloadSize': 'Audio request size',
+    'history.trace.personalizationLearning': 'Writing preference learning',
     'history.trace.privacy':
       'Details are stored only with local history and exclude API keys and audio binary data.',
     'history.trace.profileId': 'Profile ID',
@@ -426,6 +457,7 @@ export const messages = {
     'history.trace.title': 'Model call details',
     'history.trace.tone': 'Tone',
     'history.trace.total': 'Total time',
+    'history.trace.writingStyle': 'Writing style',
     'history.trace.unavailable':
       'This older record predates model call details. New dictations will include the full trace.',
     'home.history.empty': 'Your latest dictations will appear here.',
@@ -461,6 +493,43 @@ export const messages = {
     'personalization.applicationStyles': 'App styles',
     'personalization.applicationStylesDescription':
       'UnTypo adapts writing to the target app. Your selections take priority over built-in defaults.',
+    'personalization.clearMemory': 'Clear writing memory',
+    'personalization.clearMemoryConfirm': 'Clear all writing memory?',
+    'personalization.clearMemoryDescription':
+      'This removes every pending suggestion and confirmed writing preference. App style selections stay unchanged.',
+    'personalization.ignoreSuggestion': 'Ignore',
+    'personalization.keepSuggestion': 'Keep',
+    'personalization.learnedPreferences': 'Learned preferences',
+    'personalization.learning': 'Learn how I write',
+    'personalization.learningDescription':
+      'Your current text model extracts a few candidates during transcription, then UnTypo aggregates them locally in encrypted storage. Only confirmed preferences affect future writing.',
+    'personalization.learningTitle': 'Self-learning',
+    'personalization.learningUnavailable':
+      'Observation starts after a text model is configured.',
+    'personalization.memory.emoji.allow':
+      'Allow occasional emojis when they fit naturally',
+    'personalization.memory.emoji.avoid':
+      'Do not add emojis unless explicitly dictated',
+    'personalization.memory.expression':
+      'Preserve “{value}” when it is deliberately spoken',
+    'personalization.memory.punctuation.minimal':
+      'Use lighter punctuation in conversational writing',
+    'personalization.memory.punctuation.standard': 'Use standard punctuation',
+    'personalization.memory.structure.lists':
+      'Prefer lists for enumerations and requirements',
+    'personalization.memory.structure.paragraphs': 'Prefer short paragraphs',
+    'personalization.memory.tone.casual': 'Prefer a casual tone',
+    'personalization.memory.tone.formal': 'Prefer a formal tone',
+    'personalization.memory.tone.polite':
+      'Prefer a polite and considerate tone',
+    'personalization.memory.verbosity.concise': 'Prefer concise writing',
+    'personalization.memory.verbosity.detailed':
+      'Keep useful detail and explanatory context',
+    'personalization.noLearnedPreferences':
+      'No writing preferences have been confirmed yet.',
+    'personalization.noSuggestions': 'No new habits need confirmation yet.',
+    'personalization.suggestionMeta': '{application} · observed {count} times',
+    'personalization.suggestions': 'Waiting for your confirmation',
     'personalization.style.auto': 'Automatic',
     'personalization.style.autoDescription':
       'Organize each dictation naturally from its content.',

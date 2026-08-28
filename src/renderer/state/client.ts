@@ -30,11 +30,13 @@ const requireApi = (): UntypoApi => {
 };
 
 export interface ClientStore {
+  acceptWritingPreference: (id: string) => Promise<void>;
   addDictionaryEntry: (term: string) => Promise<void>;
   acknowledgeDiagnostics: (issueIds: readonly string[]) => Promise<void>;
   checkForUpdates: () => Promise<void>;
   clearDiagnostics: () => Promise<void>;
   clearHistory: () => Promise<void>;
+  clearPersonalizationMemory: () => Promise<void>;
   copyText: (text: string) => Promise<void>;
   diagnostics: ClientDiagnosticSnapshot | null;
   downloadUpdate: () => Promise<void>;
@@ -50,6 +52,8 @@ export interface ClientStore {
   reloadHistory: () => Promise<void>;
   removeProvider: (profileId: string) => Promise<void>;
   removeDictionaryEntry: (term: string) => Promise<void>;
+  removeWritingPreference: (id: string) => Promise<void>;
+  rejectWritingPreference: (id: string) => Promise<void>;
   runtime: PingResponse | null;
   usage: ClientUsageStats | null;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<void>;
@@ -57,6 +61,7 @@ export interface ClientStore {
     update: ClientApplicationWritingStyleUpdate,
   ) => Promise<void>;
   setProfile: (profile?: UserProfileContext) => Promise<void>;
+  setPersonalizationLearningEnabled: (enabled: boolean) => Promise<void>;
   snapshot: ClientSnapshot | null;
   testProvider: (profileId: string) => Promise<void>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<void>;
@@ -144,6 +149,17 @@ export const useClientStore = (): ClientStore => {
   const applySnapshot = useCallback((next: ClientSnapshot) => {
     if (mounted.current) setSnapshot(next);
   }, []);
+
+  const acceptWritingPreference = useCallback(
+    async (id: string) => {
+      applySnapshot(await requireApi().acceptWritingPreference(id));
+    },
+    [applySnapshot],
+  );
+
+  const clearPersonalizationMemory = useCallback(async () => {
+    applySnapshot(await requireApi().clearPersonalizationMemory());
+  }, [applySnapshot]);
 
   const reloadHistory = useCallback(async () => {
     const [page, nextUsage] = await Promise.all([
@@ -257,6 +273,20 @@ export const useClientStore = (): ClientStore => {
     [applySnapshot],
   );
 
+  const removeWritingPreference = useCallback(
+    async (id: string) => {
+      applySnapshot(await requireApi().removeWritingPreference(id));
+    },
+    [applySnapshot],
+  );
+
+  const rejectWritingPreference = useCallback(
+    async (id: string) => {
+      applySnapshot(await requireApi().rejectWritingPreference(id));
+    },
+    [applySnapshot],
+  );
+
   const setDictionaryLearningEnabled = useCallback(
     async (enabled: boolean) => {
       applySnapshot(await requireApi().setDictionaryLearningEnabled(enabled));
@@ -267,6 +297,15 @@ export const useClientStore = (): ClientStore => {
   const setApplicationWritingStyle = useCallback(
     async (update: ClientApplicationWritingStyleUpdate) => {
       applySnapshot(await requireApi().setApplicationWritingStyle(update));
+    },
+    [applySnapshot],
+  );
+
+  const setPersonalizationLearningEnabled = useCallback(
+    async (enabled: boolean) => {
+      applySnapshot(
+        await requireApi().setPersonalizationLearningEnabled(enabled),
+      );
     },
     [applySnapshot],
   );
@@ -283,11 +322,13 @@ export const useClientStore = (): ClientStore => {
   }, []);
 
   return {
+    acceptWritingPreference,
     addDictionaryEntry,
     acknowledgeDiagnostics,
     checkForUpdates,
     clearDiagnostics,
     clearHistory,
+    clearPersonalizationMemory,
     copyText,
     diagnostics,
     downloadUpdate,
@@ -301,11 +342,14 @@ export const useClientStore = (): ClientStore => {
     reloadHistory,
     removeProvider,
     removeDictionaryEntry,
+    removeWritingPreference,
+    rejectWritingPreference,
     runtime,
     usage,
     setDictionaryLearningEnabled,
     setApplicationWritingStyle,
     setProfile,
+    setPersonalizationLearningEnabled,
     snapshot,
     testProvider,
     updateSettings,
