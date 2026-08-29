@@ -100,7 +100,7 @@ export const messages = {
     'history.trace.payloadSize': '请求音频大小',
     'history.trace.personalizationLearning': '表达习惯学习',
     'history.trace.privacy':
-      '详情仅随本地历史记录保存，不包含 API 密钥或录音二进制内容。',
+      '以下信息基于使用时的日志生成，仅保存在本地。',
     'history.trace.profileId': '配置 ID',
     'history.trace.provider': '提供商',
     'history.trace.recorder': '录音收尾',
@@ -126,7 +126,7 @@ export const messages = {
     'home.stat.timeSaved': '估计节约时间',
     'home.stat.usageCount': '共 {count} 次转写',
     'home.subtitle': '让表达自然流动',
-    'home.welcome': '欢迎！{name}。',
+    'home.welcome': '欢迎！{name}',
     'intent.instruction': '指令',
     'intent.transcription': '转写',
     'intent.translation': '翻译',
@@ -146,17 +146,17 @@ export const messages = {
     'personalization.application.office': '办公软件',
     'personalization.applicationStyles': '应用风格',
     'personalization.applicationStylesDescription':
-      'UnTypo 会根据当前目标软件选择转写方式；你的选择优先于内置默认值。',
+      'UnTypo 会根据背景信息选择转写方式。',
     'personalization.clearMemory': '清空表达记忆',
     'personalization.clearMemoryConfirm': '清空全部表达记忆？',
     'personalization.clearMemoryDescription':
       '这会删除所有待确认候选和已经确认的表达偏好；应用风格设置不会改变。',
     'personalization.ignoreSuggestion': '忽略',
     'personalization.keepSuggestion': '保留',
-    'personalization.learnedPreferences': '已经学会',
+    'personalization.learnedPreferences': '已学习',
     'personalization.learning': '学习我的表达习惯',
     'personalization.learningDescription':
-      '由当前文字模型在转写时提取少量候选，再在本机加密聚合；确认后才会影响后续转写。',
+      '基于本地转写结果，后台不定期学习训练你的表达方式。',
     'personalization.learningTitle': '自学习',
     'personalization.learningUnavailable': '配置文字模型后开始观察',
     'personalization.memory.emoji.allow': '在自然的场景中允许少量 Emoji',
@@ -174,7 +174,7 @@ export const messages = {
     'personalization.noLearnedPreferences': '还没有确认过的表达偏好',
     'personalization.noSuggestions': '暂时没有需要确认的新习惯',
     'personalization.suggestionMeta': '{application} · 已观察 {count} 次',
-    'personalization.suggestions': '待你确认',
+    'personalization.suggestions': '待确认',
     'personalization.style.auto': '自动判断',
     'personalization.style.autoDescription': '根据本次口述内容自然整理',
     'personalization.style.casual': '轻松自然',
@@ -318,7 +318,7 @@ export const messages = {
     'settings.diagnosticsPending': '有 {count} 个问题等待处理',
     'settings.diagnosticsReady': '错误收集器正在运行，暂时没有待处理问题',
     'settings.hotkey': '快捷键',
-    'settings.hotkeyHint': '聚焦后按下新快捷键；短按一次开始，再短按一次停止',
+    'settings.hotkeyHint': '正在记录新的快捷键',
     'settings.launchAtLogin': '开机启动',
     'settings.lastUpdateCheck': '上次检查：{time}',
     'settings.locale': '界面语言',
@@ -446,7 +446,7 @@ export const messages = {
     'history.trace.payloadSize': 'Audio request size',
     'history.trace.personalizationLearning': 'Writing preference learning',
     'history.trace.privacy':
-      'Details are stored only with local history and exclude API keys and audio binary data.',
+      'The following information is generated from usage logs and is stored only locally.',
     'history.trace.profileId': 'Profile ID',
     'history.trace.provider': 'Provider',
     'history.trace.recorder': 'Recorder finalization',
@@ -492,7 +492,7 @@ export const messages = {
     'personalization.application.office': 'Office apps',
     'personalization.applicationStyles': 'App styles',
     'personalization.applicationStylesDescription':
-      'UnTypo adapts writing to the target app. Your selections take priority over built-in defaults.',
+      'UnTypo selects the transcription method based on the context.',
     'personalization.clearMemory': 'Clear writing memory',
     'personalization.clearMemoryConfirm': 'Clear all writing memory?',
     'personalization.clearMemoryDescription':
@@ -502,7 +502,7 @@ export const messages = {
     'personalization.learnedPreferences': 'Learned preferences',
     'personalization.learning': 'Learn how I write',
     'personalization.learningDescription':
-      'Your current text model extracts a few candidates during transcription, then UnTypo aggregates them locally in encrypted storage. Only confirmed preferences affect future writing.',
+      'Based on local transcription results, the system periodically learns and trains to adapt to your way of speaking.',
     'personalization.learningTitle': 'Self-learning',
     'personalization.learningUnavailable':
       'Observation starts after a text model is configured.',
@@ -682,7 +682,7 @@ export const messages = {
       'The error collector is running with no pending issues',
     'settings.hotkey': 'Shortcut',
     'settings.hotkeyHint':
-      'Focus and press a new shortcut; press once to start and again to stop',
+      'Recording a new keyboard shortcut',
     'settings.launchAtLogin': 'Launch at login',
     'settings.lastUpdateCheck': 'Last checked: {time}',
     'settings.locale': 'Interface language',
