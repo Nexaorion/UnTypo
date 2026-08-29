@@ -63,6 +63,23 @@ describe('diagnostic redaction', () => {
     ).toBe('https://example.test/v1');
   });
 
+  it('redacts audio data URLs without ambiguous separators', () => {
+    expect(
+      redactDiagnosticText(
+        'data:audio/ogg;codecs=opus;base64,AQID ' +
+          'data:audio/mp4;charset=utf-8;base64,AQID ' +
+          'data:audio/wav,%52%49%46%46 ' +
+          'data:audio/ogg,AAAA,secret',
+      ),
+    ).toBe(
+      'data:audio/[redacted] data:audio/[redacted] ' +
+        'data:audio/[redacted] data:audio/[redacted]',
+    );
+
+    const malformed = `data:audio/webm${';!'.repeat(500)}`;
+    expect(redactDiagnosticText(malformed)).toBe(malformed);
+  });
+
   it('redacts sensitive fields while keeping safe request metadata', () => {
     expect(
       sanitizeDiagnosticContext({

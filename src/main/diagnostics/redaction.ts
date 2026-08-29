@@ -4,7 +4,7 @@ const sensitiveKeyPattern =
   /^(?:api.?key|authorization|body|bytes|cookie|credential|password|request.?body|response.?body|secret|signature|token|transcript|output.?text|clipboard|audio.?data|recording.?data)$/iu;
 const bearerPattern = /\bBearer\s+[A-Za-z0-9._~+/=-]+/giu;
 const apiKeyPattern = /\b(?:sk|rk|pk)-[A-Za-z0-9_-]{8,}\b/gu;
-const dataUrlPattern = /data:audio\/[^;,\s]+(?:;[^,\s]+)*,[A-Za-z0-9+/=_-]+/giu;
+const dataUrlPattern = /data:audio\/[^,\s]+,[^\s]*/giu;
 const jsonSecretPattern =
   /("(?:api.?key|authorization|cookie|password|secret|token)"\s*:\s*")[^"]*(")/giu;
 const urlSecretPattern =
