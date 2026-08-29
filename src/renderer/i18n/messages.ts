@@ -99,8 +99,7 @@ export const messages = {
     'history.trace.output': '输出',
     'history.trace.payloadSize': '请求音频大小',
     'history.trace.personalizationLearning': '表达习惯学习',
-    'history.trace.privacy':
-      '以下信息基于使用时的日志生成，仅保存在本地。',
+    'history.trace.privacy': '以下信息基于使用时的日志生成，仅保存在本地。',
     'history.trace.profileId': '配置 ID',
     'history.trace.provider': '提供商',
     'history.trace.recorder': '录音收尾',
@@ -681,8 +680,7 @@ export const messages = {
     'settings.diagnosticsReady':
       'The error collector is running with no pending issues',
     'settings.hotkey': 'Shortcut',
-    'settings.hotkeyHint':
-      'Recording a new keyboard shortcut',
+    'settings.hotkeyHint': 'Recording a new keyboard shortcut',
     'settings.launchAtLogin': 'Launch at login',
     'settings.lastUpdateCheck': 'Last checked: {time}',
     'settings.locale': 'Interface language',
