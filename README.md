@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-0.1.6%20early-f4f4f5?style=flat-square&labelColor=18181b" alt="0.1.6 early">
+  <img src="https://img.shields.io/badge/status-0.1.7%20early-f4f4f5?style=flat-square&labelColor=18181b" alt="0.1.7 early">
   <img src="https://img.shields.io/badge/platform-Windows%20x64-f4f4f5?style=flat-square&labelColor=18181b" alt="Windows x64">
   <img src="https://img.shields.io/badge/desktop-Electron%20%2B%20TypeScript-f4f4f5?style=flat-square&labelColor=18181b" alt="Electron and TypeScript">
 </p>
