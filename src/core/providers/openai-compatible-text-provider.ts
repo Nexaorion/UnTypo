@@ -20,6 +20,7 @@ import {
   textProviderCapabilities,
   transcriptProcessingInstructions,
 } from './text-provider-utils.js';
+import { chatCompletionsNoThinking } from './text-reasoning-policy.js';
 
 export type OpenAICompatibleTextProviderConfiguration =
   ProviderConnectionConfiguration;
@@ -123,6 +124,7 @@ export class OpenAICompatibleTextProvider implements TextGenerationProvider {
       providerUrl(this.#baseUrl, '/chat/completions'),
       {
         body: JSON.stringify({
+          ...chatCompletionsNoThinking(this.#baseUrl, this.#model),
           messages: [
             { content: instructions, role: 'system' },
             { content: input, role: 'user' },

@@ -105,6 +105,43 @@ describe('AnthropicTextProvider', () => {
     expect(updates).toEqual(['Hel', 'Hello']);
   });
 
+  it('disables default thinking for Claude 5 models', async () => {
+    const request = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            content: [
+              {
+                text: JSON.stringify({
+                  intent: 'transcription',
+                  outputText: 'Hello',
+                }),
+                type: 'text',
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const provider = new AnthropicTextProvider(
+      { ...configuration, model: 'claude-sonnet-5' },
+      request,
+    );
+
+    await provider.processTranscript('hello', {
+      defaultTargetLanguage: 'en-US',
+      dictionary: [],
+      locale: 'en-US',
+    });
+
+    const [, init] = request.mock.calls[0] ?? [];
+    if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
+    expect(JSON.parse(init.body)).toMatchObject({
+      thinking: { type: 'disabled' },
+    });
+  });
+
   it('surfaces a provider error message', async () => {
     const provider = new AnthropicTextProvider(
       configuration,

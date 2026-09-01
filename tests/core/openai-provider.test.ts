@@ -170,7 +170,7 @@ describe('OpenAIProvider', () => {
   });
 
   it('streams outputText before parsing intent metadata', async () => {
-    const request = vi.fn(() =>
+    const request = vi.fn<typeof fetch>(() =>
       Promise.resolve(
         eventStreamResponse([
           {
@@ -197,6 +197,38 @@ describe('OpenAIProvider', () => {
     ).resolves.toEqual({ intent: 'transcription', outputText: 'Hello' });
     expect(updates).toEqual(['Hel', 'Hello']);
     expect(provider.capabilities.streamingPartial).toBe(true);
+  });
+
+  it('disables reasoning for OpenAI reasoning models', async () => {
+    const request = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            output_text: JSON.stringify({
+              intent: 'transcription',
+              outputText: 'Hello',
+            }),
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const provider = new OpenAIProvider(
+      { ...configuration, textModel: 'gpt-5.5' },
+      request,
+    );
+
+    await provider.processTranscript('hello', {
+      defaultTargetLanguage: 'en-US',
+      dictionary: [],
+      locale: 'en-US',
+    });
+
+    const [, init] = request.mock.calls[0] ?? [];
+    if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
+    expect(JSON.parse(init.body)).toMatchObject({
+      reasoning: { effort: 'none' },
+    });
   });
 
   it('blocks plaintext public endpoints', () => {

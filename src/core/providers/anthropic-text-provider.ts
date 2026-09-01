@@ -20,6 +20,7 @@ import {
   textProviderCapabilities,
   transcriptProcessingInstructions,
 } from './text-provider-utils.js';
+import { anthropicNoThinking } from './text-reasoning-policy.js';
 
 export type AnthropicTextProviderConfiguration =
   ProviderConnectionConfiguration;
@@ -111,6 +112,7 @@ export class AnthropicTextProvider implements TextGenerationProvider {
           model: this.#model,
           stream: true,
           system: instructions,
+          ...anthropicNoThinking(this.#model),
         }),
         headers: {
           'anthropic-version': '2023-06-01',

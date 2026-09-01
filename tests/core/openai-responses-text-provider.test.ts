@@ -99,6 +99,38 @@ describe('OpenAIResponsesTextProvider', () => {
     expect(updates).toEqual(['Hel', 'Hello']);
   });
 
+  it('disables reasoning for supported Responses models', async () => {
+    const request = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            output_text: JSON.stringify({
+              intent: 'transcription',
+              outputText: 'Hello',
+            }),
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const provider = new OpenAIResponsesTextProvider(
+      { ...configuration, model: 'gpt-5.5' },
+      request,
+    );
+
+    await provider.processTranscript('hello', {
+      defaultTargetLanguage: 'en-US',
+      dictionary: [],
+      locale: 'en-US',
+    });
+
+    const [, init] = request.mock.calls[0] ?? [];
+    if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
+    expect(JSON.parse(init.body)).toMatchObject({
+      reasoning: { effort: 'none' },
+    });
+  });
+
   it('accepts an output_text convenience field', async () => {
     const provider = new OpenAIResponsesTextProvider(
       configuration,

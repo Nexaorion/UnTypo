@@ -98,6 +98,73 @@ describe('OpenAICompatibleTextProvider', () => {
     expect(updates).toEqual(['Hel', 'Hello']);
   });
 
+  it.each([
+    [
+      'Bailian',
+      'https://workspace.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
+      'qwen3.7-flash',
+      { enable_thinking: false },
+    ],
+    [
+      'DeepSeek',
+      'https://api.deepseek.com',
+      'deepseek-v4-flash',
+      { thinking: { type: 'disabled' } },
+    ],
+    [
+      'Claude-compatible relays',
+      'https://relay.example.com/v1',
+      'claude-sonnet-5',
+      { thinking: { type: 'disabled' } },
+    ],
+    [
+      'OpenRouter',
+      'https://openrouter.ai/api/v1',
+      'anthropic/claude-sonnet-5',
+      { reasoning: { effort: 'none' } },
+    ],
+    [
+      'OpenAI Chat Completions',
+      'https://api.openai.com/v1',
+      'gpt-5.5',
+      { reasoning_effort: 'none' },
+    ],
+  ])('disables thinking for %s', async (_name, baseUrl, model, expected) => {
+    const request = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    intent: 'transcription',
+                    outputText: 'Hello',
+                  }),
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      ),
+    );
+    const provider = new OpenAICompatibleTextProvider(
+      { ...configuration, baseUrl, model },
+      request,
+    );
+
+    await provider.processTranscript('hello', {
+      defaultTargetLanguage: 'en-US',
+      dictionary: [],
+      locale: 'en-US',
+    });
+
+    const [, init] = request.mock.calls[0] ?? [];
+    if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
+    expect(JSON.parse(init.body)).toMatchObject(expected);
+  });
+
   it('surfaces a provider error message', async () => {
     const provider = new OpenAICompatibleTextProvider(
       configuration,

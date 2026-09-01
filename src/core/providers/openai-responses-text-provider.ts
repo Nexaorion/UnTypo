@@ -20,6 +20,7 @@ import {
   textProviderCapabilities,
   transcriptProcessingInstructions,
 } from './text-provider-utils.js';
+import { responsesNoThinking } from './text-reasoning-policy.js';
 
 export type OpenAIResponsesTextProviderConfiguration =
   ProviderConnectionConfiguration;
@@ -116,6 +117,7 @@ export class OpenAIResponsesTextProvider implements TextGenerationProvider {
           input,
           instructions,
           model: this.#model,
+          ...responsesNoThinking(this.#baseUrl, this.#model),
           store: false,
           stream: true,
         }),

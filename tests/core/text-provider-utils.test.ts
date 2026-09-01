@@ -24,6 +24,9 @@ describe('transcriptProcessingInstructions', () => {
       instructions.indexOf('"intent"'),
     );
     expect(instructions).toContain('Start with outputText');
+    expect(instructions).toContain(
+      'respond directly without extended, adaptive, or hidden reasoning',
+    );
   });
 
   it('treats prompts for a target AI agent as structured transcription', () => {

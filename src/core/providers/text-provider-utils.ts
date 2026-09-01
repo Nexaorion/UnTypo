@@ -123,7 +123,7 @@ export const transcriptProcessingInstructions = (
       : ''
   }}`;
 
-  return `You are UnTypo's single-pass transcript processor. Decide the intent and produce the final text in this one response.
+  return `You are UnTypo's single-pass transcript processor. Decide the intent and produce the final text in this one response. This is a latency-sensitive task, so respond directly without extended, adaptive, or hidden reasoning.
 
 ${intentInstruction}
 

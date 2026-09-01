@@ -18,6 +18,7 @@ import {
   isProviderEventStream,
   readProviderEventStream,
 } from './provider-http.js';
+import { responsesNoThinking } from './text-reasoning-policy.js';
 
 export interface OpenAIProviderConfiguration {
   allowInsecurePrivateEndpoint?: boolean;
@@ -333,6 +334,7 @@ export class OpenAIProvider implements DictationProvider {
         input,
         instructions,
         model: this.#textModel,
+        ...responsesNoThinking(this.#baseUrl, this.#textModel),
         store: false,
         stream: true,
         ...(text ? { text } : {}),
