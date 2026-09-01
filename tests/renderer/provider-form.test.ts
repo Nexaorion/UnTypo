@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { getProviderPreset } from '../../src/renderer/logic/provider-catalog';
 import {
+  ALIYUN_REALTIME_MODEL,
+  ALIYUN_SYNCHRONOUS_MODEL,
   emptyProviderForm,
   selectProviderPreset,
   selectTextEndpointType,
+  setAliyunRealtimeSpeechEnabled,
   toProviderInput,
   validateBaseUrlInput,
   validateProviderForm,
@@ -196,6 +199,44 @@ describe('selectTextEndpointType', () => {
   });
 });
 
+describe('setAliyunRealtimeSpeechEnabled', () => {
+  it('switches the known Bailian model between synchronous and realtime modes', () => {
+    const preset = getProviderPreset('aliyun-bailian-speech');
+    expect(preset).toBeDefined();
+    if (!preset) return;
+    const form = selectProviderPreset(validForm(), preset, new Set(), false);
+
+    const enabled = setAliyunRealtimeSpeechEnabled(
+      { ...form, model: ALIYUN_SYNCHRONOUS_MODEL },
+      true,
+    );
+    expect(enabled).toMatchObject({
+      model: ALIYUN_REALTIME_MODEL,
+      realtimeSpeechEnabled: true,
+    });
+    expect(setAliyunRealtimeSpeechEnabled(enabled, false)).toMatchObject({
+      model: ALIYUN_SYNCHRONOUS_MODEL,
+      realtimeSpeechEnabled: false,
+    });
+  });
+
+  it('rejects an unsupported model while realtime speech is enabled', () => {
+    const preset = getProviderPreset('aliyun-bailian-speech');
+    expect(preset).toBeDefined();
+    if (!preset) return;
+    const form = selectProviderPreset(validForm(), preset, new Set(), false);
+
+    expect(
+      validateProviderForm({
+        ...form,
+        apiKey: 'sk-test',
+        model: 'qwen3-asr-flash-realtime',
+        realtimeSpeechEnabled: true,
+      }).model,
+    ).toBe('invalidRealtimeModel');
+  });
+});
+
 describe('toProviderInput', () => {
   it('trims values and serializes the selected adapter', () => {
     const input = toProviderInput({
@@ -229,5 +270,24 @@ describe('toProviderInput', () => {
       hasStoredApiKey: true,
     });
     expect(input.secrets).toEqual({});
+  });
+
+  it('serializes the Bailian realtime speech switch', () => {
+    const preset = getProviderPreset('aliyun-bailian-speech');
+    expect(preset).toBeDefined();
+    if (!preset) return;
+    const form = selectProviderPreset(validForm(), preset, new Set(), false);
+
+    expect(
+      toProviderInput({
+        ...form,
+        apiKey: 'sk-test',
+        model: ALIYUN_REALTIME_MODEL,
+        realtimeSpeechEnabled: true,
+      }).values,
+    ).toMatchObject({
+      model: ALIYUN_REALTIME_MODEL,
+      realtimeSpeechEnabled: true,
+    });
   });
 });

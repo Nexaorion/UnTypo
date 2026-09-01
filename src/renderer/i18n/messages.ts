@@ -213,7 +213,12 @@ export const messages = {
     'provider.allowInsecure': '允许 HTTP 私有端点',
     'provider.allowInsecureHint': '仅用于本机或内网地址。',
     'provider.aliyunHint':
-      '同步短音频识别：单次音频不超过 5 分钟，Base64 编码后的音频数据（data URL）仍不得超过 10 MB。',
+      '支持同步短音频识别，也可使用百炼 WebSocket 在录音过程中实时转写。',
+    'provider.aliyunRealtime': '模型支持实时语音',
+    'provider.aliyunRealtimeHint':
+      '开启后使用 qwen-audio-3.0-asr-flash-streaming，并在 ASR 请求中把词典作为即时热词发送；实时失败时会回退到同步识别。',
+    'provider.aliyunRealtimeModelRequired':
+      '实时语音需使用 qwen-audio-3.0-asr-flash-streaming',
     'provider.aliyunWorkspaceHint':
       '若百炼工作空间提供了专属 Endpoint，可在下方覆盖默认地址。',
     'provider.apiKey': 'API 密钥',
@@ -571,7 +576,12 @@ export const messages = {
     'provider.allowInsecure': 'Allow HTTP private endpoint',
     'provider.allowInsecureHint': 'Local or intranet addresses only.',
     'provider.aliyunHint':
-      'Synchronous short-audio recognition: up to 5 minutes; the Base64-encoded audio payload (data URL) must remain under 10 MB.',
+      'Supports synchronous short-audio recognition or live WebSocket transcription while recording.',
+    'provider.aliyunRealtime': 'Model supports realtime speech',
+    'provider.aliyunRealtimeHint':
+      'Uses qwen-audio-3.0-asr-flash-streaming and sends dictionary terms as instant ASR hotwords. Falls back to synchronous recognition if realtime fails.',
+    'provider.aliyunRealtimeModelRequired':
+      'Realtime speech requires qwen-audio-3.0-asr-flash-streaming',
     'provider.aliyunWorkspaceHint':
       'You can override the default URL below when your Model Studio workspace provides a dedicated endpoint.',
     'provider.apiKey': 'API key',

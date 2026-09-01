@@ -352,7 +352,14 @@ export const parseProviderInput = (value: unknown): ClientProviderInput => {
   assertOnlyKeys(value.secrets, ['apiKey'], 'Provider secrets');
   assertOnlyKeys(
     value.values,
-    ['allowInsecurePrivateEndpoint', 'baseUrl', 'model', 'name', 'presetId'],
+    [
+      'allowInsecurePrivateEndpoint',
+      'baseUrl',
+      'model',
+      'name',
+      'presetId',
+      'realtimeSpeechEnabled',
+    ],
     'Provider values',
   );
   if (
@@ -372,7 +379,9 @@ export const parseProviderInput = (value: unknown): ClientProviderInput => {
     value.values.baseUrl.trim().length === 0 ||
     value.values.baseUrl.length > 2_048 ||
     (value.values.allowInsecurePrivateEndpoint !== undefined &&
-      typeof value.values.allowInsecurePrivateEndpoint !== 'boolean')
+      typeof value.values.allowInsecurePrivateEndpoint !== 'boolean') ||
+    (value.values.realtimeSpeechEnabled !== undefined &&
+      typeof value.values.realtimeSpeechEnabled !== 'boolean')
   ) {
     throw new Error('Invalid provider configuration');
   }
@@ -396,6 +405,9 @@ export const parseProviderInput = (value: unknown): ClientProviderInput => {
             allowInsecurePrivateEndpoint:
               value.values.allowInsecurePrivateEndpoint,
           }
+        : {}),
+      ...(typeof value.values.realtimeSpeechEnabled === 'boolean'
+        ? { realtimeSpeechEnabled: value.values.realtimeSpeechEnabled }
         : {}),
     },
   };

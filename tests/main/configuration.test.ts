@@ -315,6 +315,31 @@ describe('ConfigurationService', () => {
     ).rejects.toThrow('requires an API key');
   });
 
+  it('persists the Bailian realtime speech setting with the provider profile', async () => {
+    await service.upsertProvider({
+      id: 'bailian-realtime',
+      kind: 'speech',
+      providerId: 'aliyun-bailian-speech',
+      secrets: { apiKey: 'bailian-secret' },
+      values: {
+        baseUrl: 'https://dashscope.aliyuncs.com/api/v1',
+        model: 'qwen-audio-3.0-asr-flash-streaming',
+        name: 'Aliyun Bailian realtime',
+        presetId: 'aliyun-bailian-speech',
+        realtimeSpeechEnabled: true,
+      },
+    });
+
+    await expect(
+      service.getProvider('bailian-realtime'),
+    ).resolves.toMatchObject({
+      values: {
+        model: 'qwen-audio-3.0-asr-flash-streaming',
+        realtimeSpeechEnabled: true,
+      },
+    });
+  });
+
   it('atomically clears only the matching active role when removed', async () => {
     await service.upsertProvider({
       id: 'active-speech',

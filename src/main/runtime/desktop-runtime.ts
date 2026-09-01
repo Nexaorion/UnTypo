@@ -4,11 +4,15 @@ import {
   app,
   dialog,
   nativeImage,
+  net,
   type MenuItemConstructorOptions,
 } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { AliyunBailianSpeechProvider } from '../../core/providers/aliyun-bailian-speech-provider.js';
+import {
+  AliyunBailianSpeechProvider,
+  type ProviderWebSocketFactory,
+} from '../../core/providers/aliyun-bailian-speech-provider.js';
 import { AnthropicTextProvider } from '../../core/providers/anthropic-text-provider.js';
 import {
   ProviderContractError,
@@ -88,6 +92,28 @@ export interface DesktopRuntimeOptions {
 const isString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
+const createProviderWebSocket: ProviderWebSocketFactory = (url, headers) => {
+  const socket = new net.WebSocket(url, { headers: { ...headers } });
+  return {
+    close: () => socket.close(),
+    onClose: (listener) => {
+      socket.addEventListener('close', () => listener());
+    },
+    onError: (listener) => {
+      socket.addEventListener('error', () => listener());
+    },
+    onMessage: (listener) => {
+      socket.addEventListener('message', (event) => {
+        if ('data' in event) listener(event.data);
+      });
+    },
+    onOpen: (listener) => {
+      socket.addEventListener('open', () => listener());
+    },
+    send: (data) => socket.send(data),
+  };
+};
+
 const toProviderConfiguration = (
   profile: ProviderProfile,
 ): OpenAICompatibleTextProviderConfiguration | undefined => {
@@ -147,7 +173,14 @@ const createSpeechProvider = (
     );
   }
   if (profile.providerId === 'aliyun-bailian-speech') {
-    return new AliyunBailianSpeechProvider(configuration, fetchImplementation);
+    return new AliyunBailianSpeechProvider(
+      {
+        ...configuration,
+        realtimeSpeechEnabled: profile.values.realtimeSpeechEnabled === true,
+      },
+      fetchImplementation,
+      createProviderWebSocket,
+    );
   }
   throw new Error('Speech provider profile has an unsupported provider id');
 };

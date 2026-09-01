@@ -12,6 +12,7 @@ export const RECORDER_CHANNELS = {
   devices: 'recorder:devices',
   error: 'recorder:error',
   level: 'recorder:level',
+  realtimeChunk: 'recorder:realtime-chunk',
   started: 'recorder:started',
   stopped: 'recorder:stopped',
 } as const;
@@ -40,6 +41,7 @@ export interface RecorderApi {
       sessionId: string,
       microphoneSelection?: MicrophoneSelection,
       outputFormat?: ProviderAudioFormat,
+      realtimePcmEnabled?: boolean,
     ) => void,
   ) => void;
   onStop: (listener: (sessionId: string) => void) => void;
@@ -51,6 +53,7 @@ export interface RecorderApi {
     error?: string,
   ) => void;
   sendLevel: (sessionId: string, level: number) => void;
+  sendRealtimeChunk: (sessionId: string, chunk: ArrayBuffer) => void;
   sendStarted: (
     sessionId: string,
     metadata: RecorderStartMetadata,

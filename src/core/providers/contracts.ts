@@ -62,6 +62,18 @@ export interface TranscribeOptions {
   signal?: AbortSignal;
 }
 
+export interface RealtimeAudioConfiguration {
+  channels: 1;
+  mimeType: 'audio/pcm';
+  sampleRateHz: number;
+}
+
+export interface RealtimeTranscriptionSession {
+  abort: () => void;
+  appendAudio: (chunk: Uint8Array) => void;
+  finish: (audioDurationMs: number) => Promise<TranscriptResult>;
+}
+
 export interface TextProcessContext {
   defaultTargetLanguage: SupportedLanguage;
   dictionary: readonly string[];
@@ -178,6 +190,10 @@ export interface ProviderIdentity {
 
 export interface SpeechRecognitionProvider extends ProviderIdentity {
   readonly preferredAudioFormat?: ProviderAudioFormat;
+  readonly realtimeAudioConfiguration?: RealtimeAudioConfiguration;
+  createRealtimeTranscriptionSession?: (
+    options: TranscribeOptions,
+  ) => RealtimeTranscriptionSession;
   transcribe: (
     audio: AudioPayload,
     options: TranscribeOptions,

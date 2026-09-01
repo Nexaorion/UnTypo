@@ -3,6 +3,7 @@ import type {
   AudioPayload,
   DictationIntent,
   ProviderAudioFormat,
+  RealtimeTranscriptionSession,
 } from '../../src/core/providers/contracts';
 import { MockDictationProvider } from '../../src/core/providers/mock-provider';
 import {
@@ -43,6 +44,8 @@ interface RuntimeOptions {
   microphoneDeviceLabel?: string;
   preferredAudioFormat?: ProviderAudioFormat;
   preferenceCandidates?: readonly WritingPreferenceCandidate[];
+  realtimeFailure?: Error;
+  realtimeTranscript?: string;
   signal?: AbortSignal;
   speechProviderId?: string;
   targetSnapshot?: NativeTargetSnapshot;
@@ -58,6 +61,8 @@ const createCoordinator = ({
   microphoneDeviceLabel,
   preferredAudioFormat,
   preferenceCandidates,
+  realtimeFailure,
+  realtimeTranscript,
   signal,
   speechProviderId = 'mock',
   targetSnapshot = target,
@@ -76,6 +81,32 @@ const createCoordinator = ({
   });
   if (preferredAudioFormat) {
     Object.assign(provider, { preferredAudioFormat });
+  }
+  const appendRealtimeAudio = vi.fn();
+  const abortRealtime = vi.fn();
+  const finishRealtime = vi.fn(() =>
+    realtimeFailure
+      ? Promise.reject(realtimeFailure)
+      : Promise.resolve({
+          language: 'en-US' as const,
+          text: realtimeTranscript ?? '',
+          usage: { audioDurationMs: audio.durationMs },
+        }),
+  );
+  if (realtimeTranscript !== undefined || realtimeFailure) {
+    const realtimeSession: RealtimeTranscriptionSession = {
+      abort: abortRealtime,
+      appendAudio: appendRealtimeAudio,
+      finish: finishRealtime,
+    };
+    Object.assign(provider, {
+      createRealtimeTranscriptionSession: () => realtimeSession,
+      realtimeAudioConfiguration: {
+        channels: 1,
+        mimeType: 'audio/pcm',
+        sampleRateHz: 16_000,
+      },
+    });
   }
   speechProviders.register(provider);
   textProviders.register(provider);
@@ -179,8 +210,11 @@ const createCoordinator = ({
   });
   return {
     coordinator,
+    abortRealtime,
+    appendRealtimeAudio,
     diagnosticLog,
     events,
+    finishRealtime,
     getContext,
     handleCandidates,
     handlePreferenceCandidates,
@@ -215,6 +249,48 @@ const textFailureCases: ReadonlyArray<readonly [string, TextFailureSetup]> = [
 ];
 
 describe('DictationCoordinator', () => {
+  it('uses realtime audio captured during recording without a second ASR call', async () => {
+    const runtime = createCoordinator({
+      realtimeTranscript: 'Realtime raw result',
+      withTextProvider: false,
+    });
+    const transcribe = vi.spyOn(runtime.provider, 'transcribe');
+
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+    const realtimeSink = runtime.start.mock.calls[0]?.[3];
+    expect(realtimeSink).toBeTypeOf('function');
+    realtimeSink?.(new Uint8Array([1, 2, 3, 4]));
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+
+    expect(runtime.appendRealtimeAudio).toHaveBeenCalledWith(
+      new Uint8Array([1, 2, 3, 4]),
+    );
+    expect(runtime.finishRealtime).toHaveBeenCalledWith(audio.durationMs);
+    expect(transcribe).not.toHaveBeenCalled();
+    expect(runtime.inject).toHaveBeenCalledWith('Realtime raw result', target);
+  });
+
+  it('falls back to synchronous ASR when realtime recognition fails', async () => {
+    const runtime = createCoordinator({
+      realtimeFailure: new Error('socket unavailable'),
+      withTextProvider: false,
+    });
+    const transcribe = vi.spyOn(runtime.provider, 'transcribe');
+
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+
+    expect(transcribe).toHaveBeenCalledOnce();
+    expect(runtime.inject).toHaveBeenCalledWith('raw mock result', target);
+    const realtimeIssue = runtime.recordIssue.mock.calls.find(
+      ([issue]) => issue.source === 'provider.realtime-speech',
+    )?.[0];
+    expect(realtimeIssue).toMatchObject({
+      context: { fallbackUsed: true },
+      source: 'provider.realtime-speech',
+    });
+  });
+
   it('runs recording, processing, insertion, and history end to end', async () => {
     const runtime = createCoordinator({
       microphoneDeviceId: 'microphone-1',

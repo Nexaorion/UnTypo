@@ -10,6 +10,7 @@ import {
   type ProcessResult,
   type SpeechRecognitionProvider,
   type TextGenerationProvider,
+  type TranscriptResult,
 } from './contracts.js';
 
 const throwIfAborted = (signal?: AbortSignal): void => {
@@ -37,6 +38,11 @@ export class RecoverablePostProcessingError extends Error {
   }
 }
 
+export interface PrefetchedTranscription {
+  durationMs: number;
+  result: TranscriptResult;
+}
+
 export class DictationPipeline {
   /** @deprecated Use speechProvider. */
   readonly provider: SpeechRecognitionProvider;
@@ -57,12 +63,17 @@ export class DictationPipeline {
   async process(
     audio: AudioPayload,
     options: ProcessOptions,
+    prefetchedTranscription?: PrefetchedTranscription,
   ): Promise<ProcessResult> {
     throwIfAborted(options.signal);
     this.assertAudio(audio);
 
     const integratedProvider = this.integratedProvider();
-    if (options.preferIntegratedProcess && integratedProvider?.process) {
+    if (
+      !prefetchedTranscription &&
+      options.preferIntegratedProcess &&
+      integratedProvider?.process
+    ) {
       const result = await integratedProvider.process(audio, options);
       assertProcessResult(result);
       return result;
@@ -70,11 +81,13 @@ export class DictationPipeline {
 
     const modelCalls: ModelCallTrace[] = [];
     const speechStartedAt = Date.now();
-    const transcript = await this.speechProvider.transcribe(audio, {
-      dictionary: options.dictionary,
-      language: options.language,
-      signal: options.signal,
-    });
+    const transcript =
+      prefetchedTranscription?.result ??
+      (await this.speechProvider.transcribe(audio, {
+        dictionary: options.dictionary,
+        language: options.language,
+        signal: options.signal,
+      }));
     throwIfAborted(options.signal);
 
     const rawTranscript = transcript.text.trim();
@@ -85,7 +98,8 @@ export class DictationPipeline {
       );
     }
     modelCalls.push({
-      durationMs: elapsedSince(speechStartedAt),
+      durationMs:
+        prefetchedTranscription?.durationMs ?? elapsedSince(speechStartedAt),
       input: {
         audioDurationMs: audio.durationMs,
         channels: audio.channels,

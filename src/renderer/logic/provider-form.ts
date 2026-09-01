@@ -16,6 +16,10 @@ import {
 
 export const PROFILE_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
 
+export const ALIYUN_REALTIME_MODEL =
+  'qwen-audio-3.0-asr-flash-streaming' as const;
+export const ALIYUN_SYNCHRONOUS_MODEL = 'qwen-audio-3.0-asr-flash' as const;
+
 export const PROVIDER_LIMITS = {
   apiKey: 16_384,
   baseUrl: 2_048,
@@ -37,6 +41,7 @@ export interface ProviderFormState {
   name: string;
   presetId: ProviderPresetId;
   providerId: ProviderAdapterId;
+  realtimeSpeechEnabled: boolean;
 }
 
 export type ProviderFormField =
@@ -46,6 +51,7 @@ export type ProviderFormErrorCode =
   | 'insecureUrl'
   | 'invalidId'
   | 'invalidPreset'
+  | 'invalidRealtimeModel'
   | 'invalidUrl'
   | 'required'
   | 'tooLong';
@@ -103,6 +109,7 @@ const formForPreset = (
   name: preset.name,
   presetId: preset.id,
   providerId: preset.providerId,
+  realtimeSpeechEnabled: false,
 });
 
 export const emptyProviderForm = (
@@ -128,7 +135,26 @@ export const selectProviderPreset = (
   name: preset.name,
   presetId: preset.id,
   providerId: preset.providerId,
+  realtimeSpeechEnabled: false,
 });
+
+export const setAliyunRealtimeSpeechEnabled = (
+  form: ProviderFormState,
+  enabled: boolean,
+): ProviderFormState => {
+  if (form.providerId !== 'aliyun-bailian-speech') return form;
+  const model = form.model.trim();
+  return {
+    ...form,
+    model:
+      enabled && (!model || model === ALIYUN_SYNCHRONOUS_MODEL)
+        ? ALIYUN_REALTIME_MODEL
+        : !enabled && model === ALIYUN_REALTIME_MODEL
+          ? ALIYUN_SYNCHRONOUS_MODEL
+          : form.model,
+    realtimeSpeechEnabled: enabled,
+  };
+};
 
 export const selectTextEndpointType = (
   form: ProviderFormState,
@@ -170,6 +196,7 @@ export const providerFormFromSummary = (
     name: asString(summary.values.name),
     presetId: preset.id,
     providerId: summary.providerId,
+    realtimeSpeechEnabled: summary.values.realtimeSpeechEnabled === true,
   };
 };
 
@@ -196,6 +223,13 @@ export const validateProviderForm = (
 
   const model = textError(form.model, PROVIDER_LIMITS.model);
   if (model) errors.model = model;
+  else if (
+    form.providerId === 'aliyun-bailian-speech' &&
+    form.realtimeSpeechEnabled &&
+    form.model.trim() !== ALIYUN_REALTIME_MODEL
+  ) {
+    errors.model = 'invalidRealtimeModel';
+  }
 
   const apiKey = form.apiKey.trim();
   if (apiKey.length === 0 && !form.hasStoredApiKey) errors.apiKey = 'required';
@@ -225,6 +259,9 @@ export const toProviderInput = (
       model: form.model.trim(),
       name: form.name.trim(),
       presetId: form.presetId,
+      ...(form.providerId === 'aliyun-bailian-speech'
+        ? { realtimeSpeechEnabled: form.realtimeSpeechEnabled }
+        : {}),
     },
   };
 };

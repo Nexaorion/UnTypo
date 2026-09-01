@@ -203,6 +203,24 @@ describe('client IPC validation', () => {
     ).toEqual({});
   });
 
+  it('accepts a boolean realtime speech provider setting', () => {
+    expect(
+      parseProviderInput({
+        id: 'bailian-realtime',
+        kind: 'speech',
+        providerId: 'aliyun-bailian-speech',
+        secrets: { apiKey: 'secret' },
+        values: {
+          baseUrl: 'https://dashscope.aliyuncs.com/api/v1',
+          model: 'qwen-audio-3.0-asr-flash-streaming',
+          name: 'Aliyun Bailian',
+          presetId: 'aliyun-bailian-speech',
+          realtimeSpeechEnabled: true,
+        },
+      }).values.realtimeSpeechEnabled,
+    ).toBe(true);
+  });
+
   it('rejects secret-like or unbounded provider values', () => {
     expect(() =>
       parseProviderInput({

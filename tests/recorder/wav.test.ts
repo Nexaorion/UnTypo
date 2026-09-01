@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   BAILIAN_WAV_SAMPLE_RATE_HZ,
+  encodePcm16,
   encodePcm16Wav,
+  encodePcm16WavChunks,
 } from '../../src/recorder/wav';
 
 const ascii = (view: DataView, offset: number, length: number): string =>
@@ -36,5 +38,17 @@ describe('encodePcm16Wav', () => {
     expect(view.getUint32(24, true)).toBe(8_000);
     expect(view.getInt16(44, true)).toBe(-32_768);
     expect(view.getInt16(46, true)).toBe(32_767);
+  });
+
+  it('wraps realtime PCM chunks in the same WAV format', () => {
+    const first = new Uint8Array(encodePcm16(new Float32Array([-1, 0])));
+    const second = new Uint8Array(encodePcm16(new Float32Array([0.5, 1])));
+    const view = new DataView(encodePcm16WavChunks([first, second]));
+
+    expect(view.getUint32(40, true)).toBe(8);
+    expect(view.getInt16(44, true)).toBe(-32_768);
+    expect(view.getInt16(46, true)).toBe(0);
+    expect(view.getInt16(48, true)).toBe(16_384);
+    expect(view.getInt16(50, true)).toBe(32_767);
   });
 });

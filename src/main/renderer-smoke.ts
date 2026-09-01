@@ -337,6 +337,51 @@ const smokeTestSource = `
     dialogs = [...document.querySelectorAll('[role="dialog"]')];
     if (dialogs.length !== 1) return 'provider-dialog-close:' + dialogs.length;
 
+    const addSpeech = settingsRoot.querySelector(
+      '[data-testid="provider-add-speech"]',
+    );
+    if (!addSpeech) return 'provider-speech-trigger';
+    addSpeech.click();
+    await wait(200);
+    dialogs = [...document.querySelectorAll('[role="dialog"]')];
+    if (dialogs.length !== 2)
+      return 'speech-provider-dialog-count:' + dialogs.length;
+    const speechProviderDialog = dialogs[dialogs.length - 1];
+    const aliyunPreset = speechProviderDialog.querySelector(
+      '[data-testid="provider-preset-aliyun-bailian-speech"]',
+    );
+    if (!aliyunPreset) return 'provider-aliyun-preset';
+    aliyunPreset.click();
+    await wait(200);
+    const realtimeRoot = speechProviderDialog.querySelector(
+      '[data-testid="aliyun-realtime-speech-switch"]',
+    );
+    const realtimeControl = realtimeRoot?.matches('[role="switch"]')
+      ? realtimeRoot
+      : realtimeRoot?.querySelector('[role="switch"]');
+    if (!realtimeControl) return 'provider-aliyun-realtime-switch';
+    if (realtimeControl.checked !== false)
+      return 'provider-aliyun-realtime-initial';
+    realtimeControl.click();
+    await wait(80);
+    if (realtimeControl.checked !== true)
+      return 'provider-aliyun-realtime-toggle';
+    const aliyunModel = speechProviderDialog.querySelector(
+      '[data-testid="provider-model-input"]',
+    );
+    if (
+      aliyunModel?.value !== 'qwen-audio-3.0-asr-flash-streaming'
+    ) {
+      return 'provider-aliyun-realtime-model';
+    }
+    speechProviderDialog.dispatchEvent(
+      new KeyboardEvent('keydown', { bubbles: true, key: 'Escape' }),
+    );
+    await wait(600);
+    dialogs = [...document.querySelectorAll('[role="dialog"]')];
+    if (dialogs.length !== 1)
+      return 'speech-provider-dialog-close:' + dialogs.length;
+
     settingsRoot = document.querySelector('[data-testid="settings-dialog"]');
     const modelsClose = settingsRoot?.querySelector('[data-testid="settings-close"]');
     if (!modelsClose) return 'models-close';

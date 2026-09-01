@@ -21,6 +21,7 @@ import {
 import {
   selectProviderPreset,
   selectTextEndpointType,
+  setAliyunRealtimeSpeechEnabled,
   toProviderInput,
   validateProviderForm,
   type ProviderFormErrorCode,
@@ -73,6 +74,9 @@ const ProviderDialogFlow = ({
     if (!code) return undefined;
     if (code === 'invalidId') return t('field.invalidProfileId');
     if (code === 'invalidPreset') return t('provider.preset.invalid');
+    if (code === 'invalidRealtimeModel') {
+      return t('provider.aliyunRealtimeModelRequired');
+    }
     if (code === 'invalidUrl') return t('field.invalidUrl');
     if (code === 'insecureUrl') return t('field.insecureUrl');
     if (code === 'tooLong') return t('field.tooLong');
@@ -303,10 +307,26 @@ const ProviderDialogFlow = ({
                 onChange={(event) =>
                   setDraft({ ...draft, model: event.target.value })
                 }
-                slotProps={{ htmlInput: { maxLength: 200 } }}
+                slotProps={{
+                  htmlInput: {
+                    'data-testid': 'provider-model-input',
+                    maxLength: 200,
+                  },
+                }}
                 value={draft.model}
               />
             </Stack>
+            {isAliyun ? (
+              <SwitchField
+                checked={draft.realtimeSpeechEnabled}
+                description={t('provider.aliyunRealtimeHint')}
+                label={t('provider.aliyunRealtime')}
+                onCheckedChange={(checked) =>
+                  setDraft(setAliyunRealtimeSpeechEnabled(draft, checked))
+                }
+                testId="aliyun-realtime-speech-switch"
+              />
+            ) : null}
             <Field
               autoComplete="new-password"
               error={errors.apiKey !== undefined}

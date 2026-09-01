@@ -15,6 +15,7 @@ const channels = {
   devices: 'recorder:devices',
   error: 'recorder:error',
   level: 'recorder:level',
+  realtimeChunk: 'recorder:realtime-chunk',
   started: 'recorder:started',
   stopped: 'recorder:stopped',
 } as const;
@@ -33,7 +34,14 @@ const api: RecorderApi = {
         sessionId: string,
         microphoneSelection?: MicrophoneSelection,
         outputFormat?: 'wav' | 'webm',
-      ) => listener(sessionId, microphoneSelection, outputFormat),
+        realtimePcmEnabled?: boolean,
+      ) =>
+        listener(
+          sessionId,
+          microphoneSelection,
+          outputFormat,
+          realtimePcmEnabled,
+        ),
     );
   },
   onStop: (listener) => {
@@ -56,6 +64,9 @@ const api: RecorderApi = {
   },
   sendLevel: (sessionId: string, level: number) => {
     ipcRenderer.send(channels.level, sessionId, level);
+  },
+  sendRealtimeChunk: (sessionId: string, chunk: ArrayBuffer) => {
+    ipcRenderer.send(channels.realtimeChunk, sessionId, chunk);
   },
   sendStarted: (
     sessionId: string,

@@ -39,6 +39,11 @@ interface PendingDeviceRequest {
   timer: NodeJS.Timeout;
 }
 
+interface RealtimeAudioSink {
+  listener: (chunk: Uint8Array) => void;
+  sessionId: string;
+}
+
 const isRecorderUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
@@ -120,6 +125,7 @@ export class RecorderWindowController {
   #initializing?: Promise<void>;
   #pendingStart?: PendingStart;
   #pendingStop?: PendingStop;
+  #realtimeAudioSink?: RealtimeAudioSink;
   #window?: BrowserWindow;
 
   constructor(
@@ -136,6 +142,7 @@ export class RecorderWindowController {
     ipcMain.on(RECORDER_CHANNELS.started, this.handleStarted);
     ipcMain.on(RECORDER_CHANNELS.chunk, this.handleChunk);
     ipcMain.on(RECORDER_CHANNELS.level, this.handleLevel);
+    ipcMain.on(RECORDER_CHANNELS.realtimeChunk, this.handleRealtimeChunk);
     ipcMain.on(RECORDER_CHANNELS.stopped, this.handleStopped);
     ipcMain.on(RECORDER_CHANNELS.error, this.handleError);
     ipcMain.on(RECORDER_CHANNELS.devices, this.handleDevices);
@@ -151,10 +158,14 @@ export class RecorderWindowController {
     target: TargetSnapshot,
     microphoneSelection?: MicrophoneSelection,
     outputFormat: ProviderAudioFormat = 'webm',
+    onRealtimeAudioChunk?: (chunk: Uint8Array) => void,
   ): Promise<string> {
     await this.initialize();
     const sessionId = this.#sessions.begin(target);
     this.#activeSessionId = sessionId;
+    this.#realtimeAudioSink = onRealtimeAudioChunk
+      ? { listener: onRealtimeAudioChunk, sessionId }
+      : undefined;
     const started = new Promise<MicrophoneSelection | undefined>(
       (resolve, reject) => {
         const timer = setTimeout(() => {
@@ -171,6 +182,7 @@ export class RecorderWindowController {
       sessionId,
       microphoneSelection,
       outputFormat,
+      onRealtimeAudioChunk !== undefined,
     );
     const resolvedMicrophone = await started;
     if (microphoneSelection && resolvedMicrophone) {
@@ -224,6 +236,10 @@ export class RecorderWindowController {
     ipcMain.removeListener(RECORDER_CHANNELS.started, this.handleStarted);
     ipcMain.removeListener(RECORDER_CHANNELS.chunk, this.handleChunk);
     ipcMain.removeListener(RECORDER_CHANNELS.level, this.handleLevel);
+    ipcMain.removeListener(
+      RECORDER_CHANNELS.realtimeChunk,
+      this.handleRealtimeChunk,
+    );
     ipcMain.removeListener(RECORDER_CHANNELS.stopped, this.handleStopped);
     ipcMain.removeListener(RECORDER_CHANNELS.error, this.handleError);
     ipcMain.removeListener(RECORDER_CHANNELS.devices, this.handleDevices);
@@ -240,6 +256,7 @@ export class RecorderWindowController {
     this.#pendingStop?.reject(new Error('Recorder was destroyed'));
     this.#pendingStop = undefined;
     this.#activeSessionId = undefined;
+    this.#realtimeAudioSink = undefined;
     this.#window?.destroy();
     this.#window = undefined;
   }
@@ -307,6 +324,29 @@ export class RecorderWindowController {
     this.#onLevel?.(Math.min(1, Math.max(0, level)));
   };
 
+  private readonly handleRealtimeChunk = (
+    event: IpcMainEvent,
+    sessionId: unknown,
+    chunk: unknown,
+  ): void => {
+    const sink = this.#realtimeAudioSink;
+    if (
+      !this.isExpectedSender(event) ||
+      typeof sessionId !== 'string' ||
+      sink?.sessionId !== sessionId ||
+      !(chunk instanceof ArrayBuffer) ||
+      chunk.byteLength === 0 ||
+      chunk.byteLength > 256 * 1024
+    ) {
+      return;
+    }
+    try {
+      sink.listener(new Uint8Array(chunk));
+    } catch {
+      this.#realtimeAudioSink = undefined;
+    }
+  };
+
   private readonly handleStopped = (
     event: IpcMainEvent,
     sessionId: string,
@@ -317,6 +357,9 @@ export class RecorderWindowController {
       const completed = this.#sessions.complete(sessionId, metadata);
       if (this.#activeSessionId === sessionId) {
         this.#activeSessionId = undefined;
+      }
+      if (this.#realtimeAudioSink?.sessionId === sessionId) {
+        this.#realtimeAudioSink = undefined;
       }
       if (this.#pendingStop?.sessionId === sessionId) {
         this.#pendingStop.resolve(completed);
@@ -403,6 +446,9 @@ export class RecorderWindowController {
     }
     if (this.#activeSessionId === sessionId) {
       this.#activeSessionId = undefined;
+    }
+    if (this.#realtimeAudioSink?.sessionId === sessionId) {
+      this.#realtimeAudioSink = undefined;
     }
     if (this.#pendingStart?.sessionId === sessionId) {
       clearTimeout(this.#pendingStart.timer);

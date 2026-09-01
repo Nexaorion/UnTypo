@@ -7,6 +7,7 @@ import type {
   ProcessOptions,
   ProcessResult,
   ProviderAudioFormat,
+  RealtimeTranscriptionSession,
   SupportedLanguage,
   TextGenerationCallTrace,
 } from '../../core/providers/contracts.js';
@@ -52,6 +53,7 @@ export interface RecorderPort {
     target: TargetSnapshot,
     microphoneSelection?: MicrophoneSelection,
     outputFormat?: ProviderAudioFormat,
+    onRealtimeAudioChunk?: (chunk: Uint8Array) => void,
   ) => Promise<string>;
   stop: () => Promise<CompletedRecording>;
 }
@@ -177,6 +179,8 @@ export class DictationCoordinator {
   readonly #dependencies: DictationCoordinatorDependencies;
   #context?: DictationContext;
   #operationId?: string;
+  #realtimeSession?: RealtimeTranscriptionSession;
+  #realtimeSessionStartedAt?: number;
   #state: DictationRuntimeState = 'idle';
   #target?: NativeTargetSnapshot;
 
@@ -204,12 +208,39 @@ export class DictationCoordinator {
     });
     let context: DictationContext;
     let recordingFormat: ProviderAudioFormat;
+    let realtimeSession: RealtimeTranscriptionSession | undefined;
     try {
       context = await this.#dependencies.getContext();
       const speechProvider = this.#dependencies.speechProviders.require(
         context.speechProviderId,
       );
       recordingFormat = speechProvider.preferredAudioFormat ?? 'webm';
+      if (
+        speechProvider.realtimeAudioConfiguration?.channels === 1 &&
+        speechProvider.realtimeAudioConfiguration.mimeType === 'audio/pcm' &&
+        speechProvider.realtimeAudioConfiguration.sampleRateHz === 16_000 &&
+        speechProvider.createRealtimeTranscriptionSession
+      ) {
+        try {
+          realtimeSession = speechProvider.createRealtimeTranscriptionSession({
+            dictionary: context.options.dictionary,
+            language: context.options.language,
+            ...(context.options.signal
+              ? { signal: context.options.signal }
+              : {}),
+          });
+        } catch (error) {
+          this.recordIssue({
+            context: {
+              fallbackUsed: true,
+              speechProviderId: speechProvider.id,
+            },
+            error,
+            kind: 'provider',
+            source: 'provider.realtime-speech',
+          });
+        }
+      }
       if (context.textProviderId) {
         this.#dependencies.textProviders.require(context.textProviderId);
       }
@@ -246,12 +277,22 @@ export class DictationCoordinator {
     }
 
     try {
-      await this.#dependencies.recorder.start(
-        toRecordingTarget(target),
-        context.microphoneSelection,
-        recordingFormat,
-      );
+      if (realtimeSession) {
+        await this.#dependencies.recorder.start(
+          toRecordingTarget(target),
+          context.microphoneSelection,
+          recordingFormat,
+          (chunk) => realtimeSession?.appendAudio(chunk),
+        );
+      } else {
+        await this.#dependencies.recorder.start(
+          toRecordingTarget(target),
+          context.microphoneSelection,
+          recordingFormat,
+        );
+      }
     } catch (error) {
+      realtimeSession?.abort();
       this.recordIssue({
         context: {
           microphoneSelection: context.microphoneSelection
@@ -273,6 +314,8 @@ export class DictationCoordinator {
     }
 
     this.#context = context;
+    this.#realtimeSession = realtimeSession;
+    this.#realtimeSessionStartedAt = realtimeSession ? Date.now() : undefined;
     this.#target = target;
     this.#state = 'recording';
     this.log({
@@ -282,6 +325,7 @@ export class DictationCoordinator {
           : 'system-default',
         speechProviderId: context.speechProviderId,
         textProviderEnabled: context.textProviderId !== undefined,
+        realtimeSpeechEnabled: realtimeSession !== undefined,
       },
       message: 'Dictation recording started',
       scope: 'dictation.lifecycle',
@@ -294,6 +338,8 @@ export class DictationCoordinator {
     this.#state = 'processing';
     const target = this.#target;
     const context = this.#context;
+    const realtimeSession = this.#realtimeSession;
+    const realtimeSessionStartedAt = this.#realtimeSessionStartedAt;
     const operationId = this.#operationId ?? randomUUID();
     const processingStartedAt = Date.now();
     this.log({
@@ -403,6 +449,45 @@ export class DictationCoordinator {
       const forcePromptTranscription =
         contextDetector.shouldForceTranscription(application);
       try {
+        let prefetchedTranscription:
+          | {
+              durationMs: number;
+              result: Awaited<
+                ReturnType<RealtimeTranscriptionSession['finish']>
+              >;
+            }
+          | undefined;
+        if (realtimeSession) {
+          try {
+            const realtimeResult = await realtimeSession.finish(
+              recording.audio.durationMs,
+            );
+            prefetchedTranscription = {
+              durationMs: elapsedSince(
+                realtimeSessionStartedAt ?? modelProcessingStartedAt,
+              ),
+              result: realtimeResult,
+            };
+          } catch (error) {
+            this.recordIssue({
+              context: {
+                fallbackUsed: true,
+                speechProviderId: speechProvider.id,
+              },
+              error,
+              kind: 'provider',
+              operationId,
+              source: 'provider.realtime-speech',
+            });
+            this.log({
+              context: { speechProviderId: speechProvider.id },
+              message:
+                'Realtime speech recognition failed; using synchronous fallback',
+              operationId,
+              scope: 'provider.realtime-speech',
+            });
+          }
+        }
         const processRecording = () =>
           new DictationPipeline(speechProvider, textProvider).process(
             recording.audio,
@@ -429,6 +514,7 @@ export class DictationCoordinator {
                 : undefined,
               writingStyle: context.applicationStyles[application.kind],
             },
+            prefetchedTranscription,
           );
         result = this.#dependencies.diagnostics
           ? await this.#dependencies.diagnostics.runWithOperation(
@@ -691,8 +777,11 @@ export class DictationCoordinator {
         scope: 'dictation.lifecycle',
       });
     } finally {
+      realtimeSession?.abort();
       this.#context = undefined;
       this.#operationId = undefined;
+      this.#realtimeSession = undefined;
+      this.#realtimeSessionStartedAt = undefined;
       this.#target = undefined;
       this.#state = 'idle';
     }

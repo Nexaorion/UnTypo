@@ -75,6 +75,7 @@ export interface ClientProviderValues {
   model: string;
   name: string;
   presetId: string;
+  realtimeSpeechEnabled?: boolean;
 }
 
 export interface ClientProviderInput {

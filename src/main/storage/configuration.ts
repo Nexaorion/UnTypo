@@ -625,7 +625,14 @@ const parseProviderValues = (value: unknown): ClientProviderValues => {
   if (!isRecord(value)) throw new Error('Invalid provider values');
   assertOnlyKeys(
     value,
-    ['allowInsecurePrivateEndpoint', 'baseUrl', 'model', 'name', 'presetId'],
+    [
+      'allowInsecurePrivateEndpoint',
+      'baseUrl',
+      'model',
+      'name',
+      'presetId',
+      'realtimeSpeechEnabled',
+    ],
     'Provider values',
   );
   if (
@@ -634,7 +641,9 @@ const parseProviderValues = (value: unknown): ClientProviderValues => {
     !isNonEmptyString(value.model, 200) ||
     !isNonEmptyString(value.baseUrl, 2_048) ||
     (value.allowInsecurePrivateEndpoint !== undefined &&
-      typeof value.allowInsecurePrivateEndpoint !== 'boolean')
+      typeof value.allowInsecurePrivateEndpoint !== 'boolean') ||
+    (value.realtimeSpeechEnabled !== undefined &&
+      typeof value.realtimeSpeechEnabled !== 'boolean')
   ) {
     throw new Error('Invalid provider values');
   }
@@ -647,6 +656,9 @@ const parseProviderValues = (value: unknown): ClientProviderValues => {
       ? {
           allowInsecurePrivateEndpoint: value.allowInsecurePrivateEndpoint,
         }
+      : {}),
+    ...(typeof value.realtimeSpeechEnabled === 'boolean'
+      ? { realtimeSpeechEnabled: value.realtimeSpeechEnabled }
       : {}),
   };
 };

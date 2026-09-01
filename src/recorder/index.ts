@@ -13,7 +13,12 @@ import {
   recorderAudioConstraints,
 } from './device-selection.js';
 import { VoiceActivityDetector } from './voice-activity.js';
-import { BAILIAN_WAV_SAMPLE_RATE_HZ, encodePcm16Wav } from './wav.js';
+import {
+  BAILIAN_WAV_SAMPLE_RATE_HZ,
+  encodePcm16,
+  encodePcm16Wav,
+  encodePcm16WavChunks,
+} from './wav.js';
 
 interface ActiveRecorder {
   chunks: Blob[];
@@ -24,6 +29,7 @@ interface ActiveRecorder {
   pendingChunks: Set<Promise<void>>;
   peakLevel: number;
   outputFormat: ProviderAudioFormat;
+  realtimePcm?: RecorderRealtimePcm;
   sessionId: string;
   startedAt: number;
   stream: MediaStream;
@@ -37,6 +43,15 @@ interface RecorderLevelMeter {
   samples: Float32Array<ArrayBuffer>;
   source: MediaStreamAudioSourceNode;
   timer: number;
+}
+
+interface RecorderRealtimePcm {
+  active: boolean;
+  chunks: Uint8Array[];
+  context: AudioContext;
+  gain: GainNode;
+  processor: ScriptProcessorNode;
+  source: MediaStreamAudioSourceNode;
 }
 
 const LEVEL_INTERVAL_MILLISECONDS = 80;
@@ -152,6 +167,76 @@ const stopLevelMeter = (recorder: ActiveRecorder): void => {
   closeAudioContext(meter.context);
 };
 
+const stopRealtimePcm = (recorder: ActiveRecorder): void => {
+  const capture = recorder.realtimePcm;
+  if (!capture?.active) return;
+  capture.active = false;
+  capture.processor.onaudioprocess = null;
+  disconnectAudioNode(capture.source);
+  disconnectAudioNode(capture.processor);
+  disconnectAudioNode(capture.gain);
+  closeAudioContext(capture.context);
+};
+
+const startRealtimePcm = (
+  recorder: ActiveRecorder,
+): RecorderRealtimePcm | undefined => {
+  let context: AudioContext | undefined;
+  let source: MediaStreamAudioSourceNode | undefined;
+  let processor: ScriptProcessorNode | undefined;
+  let gain: GainNode | undefined;
+  try {
+    context = new AudioContext({ sampleRate: BAILIAN_WAV_SAMPLE_RATE_HZ });
+    if (context.sampleRate !== BAILIAN_WAV_SAMPLE_RATE_HZ) {
+      closeAudioContext(context);
+      return undefined;
+    }
+    source = context.createMediaStreamSource(recorder.stream);
+    processor = context.createScriptProcessor(512, 1, 1);
+    gain = context.createGain();
+    gain.gain.value = 0;
+    const capture: RecorderRealtimePcm = {
+      active: true,
+      chunks: [],
+      context,
+      gain,
+      processor,
+      source,
+    };
+    processor.onaudioprocess = (event) => {
+      if (!capture.active || activeRecorder !== recorder) return;
+      const input = event.inputBuffer;
+      const channels = Math.max(1, input.numberOfChannels);
+      const samples = new Float32Array(input.length);
+      for (let channel = 0; channel < channels; channel += 1) {
+        const channelSamples = input.getChannelData(channel);
+        for (let index = 0; index < samples.length; index += 1) {
+          samples[index] =
+            (samples[index] ?? 0) + (channelSamples[index] ?? 0) / channels;
+        }
+      }
+      const pcm = encodePcm16(samples);
+      capture.chunks.push(new Uint8Array(pcm));
+      window.recorder.sendRealtimeChunk(recorder.sessionId, pcm);
+    };
+    source.connect(processor);
+    processor.connect(gain);
+    gain.connect(context.destination);
+    if (context.state === 'suspended') {
+      void context.resume().catch(() => {
+        if (recorder.realtimePcm === capture) stopRealtimePcm(recorder);
+      });
+    }
+    return capture;
+  } catch {
+    disconnectAudioNode(source);
+    disconnectAudioNode(processor);
+    disconnectAudioNode(gain);
+    if (context) closeAudioContext(context);
+    return undefined;
+  }
+};
+
 const startLevelMeter = (recorder: ActiveRecorder): void => {
   let context: AudioContext | undefined;
   let source: MediaStreamAudioSourceNode | undefined;
@@ -219,6 +304,7 @@ const start = async (
   sessionId: string,
   microphoneSelection?: MicrophoneSelection,
   outputFormat: ProviderAudioFormat = 'webm',
+  realtimePcmEnabled = false,
 ): Promise<void> => {
   if (activeRecorder) {
     window.recorder.sendError(sessionId, 'Recorder is already active');
@@ -278,6 +364,8 @@ const start = async (
     recorder.failed = true;
     recorder.chunks.length = 0;
     stopLevelMeter(recorder);
+    stopRealtimePcm(recorder);
+    recorder.realtimePcm?.chunks.splice(0);
     stopTracks(recorder.stream);
     if (activeRecorder === recorder) activeRecorder = undefined;
     const message =
@@ -293,6 +381,7 @@ const start = async (
       Math.round(performance.now() - recorder.startedAt),
     );
     stopLevelMeter(recorder);
+    stopRealtimePcm(recorder);
     stopTracks(recorder.stream);
     if (activeRecorder === recorder) activeRecorder = undefined;
     if (recorder.failed) {
@@ -301,8 +390,13 @@ const start = async (
     void (async () => {
       await Promise.all([...recorder.pendingChunks]);
       if (recorder.outputFormat === 'wav') {
-        const wav = await transcodeToWav(recorder.chunks, encodedMimeType);
+        const realtimeChunks = recorder.realtimePcm?.chunks ?? [];
+        const wav =
+          realtimeChunks.length > 0
+            ? encodePcm16WavChunks(realtimeChunks, BAILIAN_WAV_SAMPLE_RATE_HZ)
+            : await transcodeToWav(recorder.chunks, encodedMimeType);
         recorder.chunks.length = 0;
+        realtimeChunks.splice(0);
         window.recorder.sendChunk(sessionId, wav);
       }
       const stopped: RecorderStopMetadata = {
@@ -314,6 +408,7 @@ const start = async (
       window.recorder.sendStopped(sessionId, stopped);
     })().catch((error: unknown) => {
       recorder.chunks.length = 0;
+      recorder.realtimePcm?.chunks.splice(0);
       const message =
         error instanceof Error
           ? `Audio conversion failed: ${error.message}`
@@ -322,6 +417,9 @@ const start = async (
     });
   });
 
+  if (realtimePcmEnabled) {
+    recorder.realtimePcm = startRealtimePcm(recorder);
+  }
   mediaRecorder.start(250);
   const microphoneLabel = microphoneTrack?.label.trim();
   const resolvedMicrophone = opened.selection
@@ -344,6 +442,7 @@ const stop = (sessionId: string): void => {
     return;
   }
   stopLevelMeter(activeRecorder);
+  stopRealtimePcm(activeRecorder);
   if (activeRecorder.mediaRecorder.state !== 'inactive') {
     activeRecorder.mediaRecorder.stop();
   }
@@ -359,19 +458,25 @@ window.recorder.onListDevices((requestId) => {
     });
 });
 
-window.recorder.onStart((sessionId, microphoneSelection, outputFormat) => {
-  void start(sessionId, microphoneSelection, outputFormat).catch(
-    (error: unknown) => {
+window.recorder.onStart(
+  (sessionId, microphoneSelection, outputFormat, realtimePcmEnabled) => {
+    void start(
+      sessionId,
+      microphoneSelection,
+      outputFormat,
+      realtimePcmEnabled,
+    ).catch((error: unknown) => {
       const message =
         error instanceof Error ? error.message : 'Microphone failed';
       window.recorder.sendError(sessionId, message);
       if (activeRecorder?.sessionId === sessionId) {
         stopLevelMeter(activeRecorder);
+        stopRealtimePcm(activeRecorder);
         stopTracks(activeRecorder.stream);
         activeRecorder = undefined;
       }
-    },
-  );
-});
+    });
+  },
+);
 
 window.recorder.onStop(stop);
