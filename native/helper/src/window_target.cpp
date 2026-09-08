@@ -164,6 +164,111 @@ PasteResultPayload WindowTargetService::Paste(
   return {sent == 4 ? PasteStatus::Success : PasteStatus::SendInputFailed};
 }
 
+void WindowTargetService::ClearSelection() {
+  selection_range_.Reset();
+  selection_element_.Reset();
+  selection_text_.clear();
+  selection_window_ = nullptr;
+  selection_process_ = 0;
+  selection_editable_ = false;
+}
+
+std::vector<std::uint8_t> WindowTargetService::CaptureSelection() {
+  ClearSelection();
+  const std::vector<std::uint8_t> empty(5, 0);
+  const HWND window = GetForegroundWindow();
+  DWORD process_id = 0;
+  if (window == nullptr) return empty;
+  GetWindowThreadProcessId(window, &process_id);
+  if (process_id == 0 || IsHigherIntegrity(process_id)) return empty;
+  ComPtr<IUIAutomation> automation;
+  ComPtr<IUIAutomationElement> element;
+  if (FAILED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER,
+                              IID_PPV_ARGS(&automation))) ||
+      FAILED(automation->GetFocusedElement(&element)) || !element) return empty;
+  ComPtr<IUIAutomationTreeWalker> walker;
+  if (FAILED(automation->get_ControlViewWalker(&walker)) || !walker) return empty;
+  const bool editable = IsEditable(window);
+  for (int depth = 0; depth < 8 && element; ++depth) {
+    BOOL password = TRUE;
+    int owner = 0;
+    if (FAILED(element->get_CurrentIsPassword(&password)) || password ||
+        FAILED(element->get_CurrentProcessId(&owner)) ||
+        static_cast<DWORD>(owner) != process_id) return empty;
+    ComPtr<IUIAutomationTextPattern> pattern;
+    ComPtr<IUIAutomationTextRangeArray> ranges;
+    int count = 0;
+    if (SUCCEEDED(element->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(&pattern))) &&
+        pattern && SUCCEEDED(pattern->GetSelection(&ranges)) && ranges &&
+        SUCCEEDED(ranges->get_Length(&count)) && count == 1) {
+      ComPtr<IUIAutomationTextRange> range;
+      BSTR text = nullptr;
+      if (SUCCEEDED(ranges->GetElement(0, &range)) && range &&
+          SUCCEEDED(range->GetText(20'001, &text))) {
+        const UINT length = SysStringLen(text);
+        if (length > 0 && length <= 20'000 && GetForegroundWindow() == window) {
+          selection_element_ = element;
+          selection_range_ = range;
+          selection_text_.assign(text, length);
+          selection_window_ = window;
+          selection_process_ = process_id;
+          selection_editable_ = editable;
+          std::vector<std::uint8_t> result(5 + length * sizeof(wchar_t));
+          result[0] = editable ? 1 : 0;
+          const std::uint32_t characters = length;
+          std::memcpy(result.data() + 1, &characters, sizeof(characters));
+          std::memcpy(result.data() + 5, text, length * sizeof(wchar_t));
+          SysFreeString(text);
+          return result;
+        }
+        SysFreeString(text);
+        if (length > 20'000) return empty;
+      }
+    }
+    ComPtr<IUIAutomationElement> parent;
+    if (FAILED(walker->GetParentElement(element.Get(), &parent))) break;
+    element = parent;
+  }
+  return empty;
+}
+
+PasteResultPayload WindowTargetService::ReplaceSelection() {
+  if (!selection_editable_ || !selection_element_ || !selection_range_)
+    return {PasteStatus::NotEditable};
+  DWORD process_id = 0;
+  if (!IsWindow(selection_window_) ||
+      !GetWindowThreadProcessId(selection_window_, &process_id) ||
+      process_id != selection_process_) return {PasteStatus::TargetChanged};
+  if (IsHigherIntegrity(process_id)) return {PasteStatus::HigherIntegrity};
+  BSTR text = nullptr;
+  if (FAILED(selection_range_->GetText(20'001, &text)))
+    return {PasteStatus::TargetChanged};
+  const bool unchanged = text != nullptr &&
+      std::wstring(text, SysStringLen(text)) == selection_text_;
+  SysFreeString(text);
+  if (!unchanged) return {PasteStatus::TargetChanged};
+  if (!SetForegroundWindow(selection_window_)) return {PasteStatus::TargetChanged};
+  if (FAILED(selection_element_->SetFocus())) return {PasteStatus::TargetChanged};
+  ComPtr<IUIAutomationTextPattern> pattern;
+  ComPtr<IUIAutomationTextRangeArray> ranges;
+  ComPtr<IUIAutomationTextRange> current;
+  int count = 0;
+  BOOL same = FALSE;
+  if (FAILED(selection_element_->GetCurrentPatternAs(UIA_TextPatternId, IID_PPV_ARGS(&pattern))) ||
+      !pattern || FAILED(pattern->GetSelection(&ranges)) || !ranges ||
+      FAILED(ranges->get_Length(&count)) || count != 1 ||
+      FAILED(ranges->GetElement(0, &current)) || !current ||
+      FAILED(selection_range_->Compare(current.Get(), &same)) || !same)
+    return {PasteStatus::TargetChanged};
+  // Held modifiers would turn the intended paste into a different command.
+  for (const int key : {VK_CONTROL, VK_MENU, VK_SHIFT, VK_LWIN, VK_RWIN}) {
+    if (GetAsyncKeyState(key) & 0x8000) return {PasteStatus::SendInputFailed};
+  }
+  const auto result = Paste({reinterpret_cast<std::uint64_t>(selection_window_), process_id});
+  if (result.status == PasteStatus::Success) ClearSelection();
+  return result;
+}
+
 bool WindowTargetService::IsEditable(void* window_handle) const {
   const auto target_window = static_cast<HWND>(window_handle);
   ComPtr<IUIAutomation> automation;

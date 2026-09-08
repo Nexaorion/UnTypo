@@ -6,6 +6,7 @@ import {
   NativeMessageType,
   decodeHotkeyConfigurationResult,
   decodeTargetSnapshot,
+  decodeSelection,
   encodeHotkeyConfiguration,
   encodeNativeFrame,
   encodePasteRequest,
@@ -19,7 +20,7 @@ const targetContextField = (value: string): Buffer => {
   return field;
 };
 
-describe('native helper protocol v3', () => {
+describe('native helper protocol v4', () => {
   it('encodes the packed C++ frame header', () => {
     const frame = encodeNativeFrame(
       NativeMessageType.Ping,
@@ -28,9 +29,29 @@ describe('native helper protocol v3', () => {
 
     expect(frame.byteLength).toBe(NATIVE_FRAME_HEADER_BYTES + 2);
     expect(frame.readUInt32LE(0)).toBe(NATIVE_PROTOCOL_MAGIC);
-    expect(frame.readUInt16LE(4)).toBe(3);
+    expect(frame.readUInt16LE(4)).toBe(4);
     expect(frame.readUInt16LE(6)).toBe(NativeMessageType.Ping);
     expect(frame.readUInt32LE(8)).toBe(2);
+  });
+
+  it('decodes bounded UTF-16 selections and rejects malformed payloads', () => {
+    const text = '选中文字 🖤';
+    const header = Buffer.alloc(5);
+    header[0] = 1;
+    header.writeUInt32LE(text.length, 1);
+    const payload = Buffer.concat([header, Buffer.from(text, 'utf16le')]);
+    expect(decodeSelection(payload)).toEqual({ editable: true, text });
+    expect(decodeSelection(Buffer.alloc(5))).toEqual({
+      editable: false,
+      text: '',
+    });
+    expect(() => decodeSelection(payload.subarray(0, -1))).toThrow();
+    expect(() => decodeSelection(Buffer.alloc(4))).toThrow();
+    payload[0] = 2;
+    expect(() => decodeSelection(payload)).toThrow();
+    payload[0] = 1;
+    payload.writeUInt32LE(20_001, 1);
+    expect(() => decodeSelection(payload)).toThrow();
   });
 
   it('decodes fragmented and coalesced pipe frames', () => {

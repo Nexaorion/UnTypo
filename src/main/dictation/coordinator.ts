@@ -125,6 +125,12 @@ export interface DictationProviderTraceDetails {
 }
 
 export interface DictationCoordinatorDependencies {
+  selection?: {
+    prepareVoice: (target: NativeTargetSnapshot) => Promise<boolean>;
+    processVoice: (instruction: string) => Promise<void>;
+    showResult: (result: ProcessResult) => Promise<void>;
+    close: () => void;
+  };
   diagnostics?: {
     log: (input: DiagnosticLogInput) => unknown;
     recordIssue: (input: DiagnosticIssueInput) => unknown;
@@ -183,6 +189,7 @@ export class DictationCoordinator {
   #realtimeSessionStartedAt?: number;
   #state: DictationRuntimeState = 'idle';
   #target?: NativeTargetSnapshot;
+  #hasSelection = false;
 
   constructor(dependencies: DictationCoordinatorDependencies) {
     this.#dependencies = dependencies;
@@ -277,6 +284,19 @@ export class DictationCoordinator {
     }
 
     try {
+      this.#hasSelection =
+        (await this.#dependencies.selection?.prepareVoice(target)) ?? false;
+    } catch (error) {
+      realtimeSession?.abort();
+      this.#dependencies.selection?.close();
+      this.#operationId = undefined;
+      await this.present(() =>
+        this.#dependencies.presenter.showError('unknown'),
+      );
+      throw error;
+    }
+
+    try {
       if (realtimeSession) {
         await this.#dependencies.recorder.start(
           toRecordingTarget(target),
@@ -293,6 +313,8 @@ export class DictationCoordinator {
       }
     } catch (error) {
       realtimeSession?.abort();
+      if (this.#hasSelection) this.#dependencies.selection?.close();
+      this.#hasSelection = false;
       this.recordIssue({
         context: {
           microphoneSelection: context.microphoneSelection
@@ -342,6 +364,7 @@ export class DictationCoordinator {
     const realtimeSessionStartedAt = this.#realtimeSessionStartedAt;
     const operationId = this.#operationId ?? randomUUID();
     const processingStartedAt = Date.now();
+    let selectionHandled = false;
     this.log({
       message: 'Dictation recording stop requested',
       operationId,
@@ -489,10 +512,14 @@ export class DictationCoordinator {
           }
         }
         const processRecording = () =>
-          new DictationPipeline(speechProvider, textProvider).process(
+          new DictationPipeline(
+            speechProvider,
+            this.#hasSelection ? undefined : textProvider,
+          ).process(
             recording.audio,
             {
               ...context.options,
+              ...(this.#hasSelection ? { preferIntegratedProcess: false } : {}),
               ...(context.fastMode ? { fastMode: true } : {}),
               ...(context.fastMode || forcePromptTranscription
                 ? { forcedIntent: 'transcription' }
@@ -572,8 +599,29 @@ export class DictationCoordinator {
       }
 
       let finalResult = result;
+      if (this.#hasSelection && this.#dependencies.selection) {
+        try {
+          await this.#dependencies.selection.processVoice(
+            result.rawTranscript ?? result.outputText,
+          );
+        } catch (error) {
+          await this.present(() =>
+            this.#dependencies.presenter.showError('unknown'),
+          );
+          throw error;
+        }
+        selectionHandled = true;
+        return;
+      }
+      const floatingResult =
+        result.intent !== 'transcription' &&
+        this.#dependencies.selection !== undefined;
       let confirmationMs: number | undefined;
-      if (result.intent !== 'transcription' && result.rawTranscript) {
+      if (
+        !floatingResult &&
+        result.intent !== 'transcription' &&
+        result.rawTranscript
+      ) {
         const confirmationStartedAt = Date.now();
         try {
           const useProcessed =
@@ -686,16 +734,21 @@ export class DictationCoordinator {
       }
 
       let injected = false;
+      let floatingPresented = false;
       const injectionStartedAt = Date.now();
       try {
-        injected = (
-          await this.#dependencies.injection.inject(
-            finalResult.outputText,
-            target,
-          )
-        ).injected;
+        if (floatingResult) {
+          await this.#dependencies.selection?.showResult(finalResult);
+          floatingPresented = true;
+        } else
+          injected = (
+            await this.#dependencies.injection.inject(
+              finalResult.outputText,
+              target,
+            )
+          ).injected;
       } catch (error) {
-        console.error('Dictation injection failed', error);
+        console.error('Dictation result delivery failed', error);
         this.recordIssue({
           error,
           kind: 'internal',
@@ -737,12 +790,14 @@ export class DictationCoordinator {
         });
       }
 
-      const successPresentationGeneration = await this.present(() =>
-        this.#dependencies.presenter.showSuccess(
-          finalResult,
-          injected ? 'inserted' : 'copy',
-        ),
-      );
+      const successPresentationGeneration = floatingPresented
+        ? undefined
+        : await this.present(() =>
+            this.#dependencies.presenter.showSuccess(
+              finalResult,
+              injected ? 'inserted' : 'copy',
+            ),
+          );
       if (
         successPresentationGeneration !== undefined &&
         finalResult.dictionaryCandidates?.length
@@ -777,6 +832,9 @@ export class DictationCoordinator {
         scope: 'dictation.lifecycle',
       });
     } finally {
+      if (this.#hasSelection && !selectionHandled)
+        this.#dependencies.selection?.close();
+      this.#hasSelection = false;
       realtimeSession?.abort();
       this.#context = undefined;
       this.#operationId = undefined;

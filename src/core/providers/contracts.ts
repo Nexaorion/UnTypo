@@ -75,6 +75,7 @@ export interface RealtimeTranscriptionSession {
 }
 
 export interface TextProcessContext {
+  selectionInstruction?: string;
   defaultTargetLanguage: SupportedLanguage;
   dictionary: readonly string[];
   dictionaryLearningEnabled?: boolean;

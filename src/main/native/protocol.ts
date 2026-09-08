@@ -1,5 +1,5 @@
 export const NATIVE_PROTOCOL_MAGIC = 0x50595455;
-export const NATIVE_PROTOCOL_VERSION = 3;
+export const NATIVE_PROTOCOL_VERSION = 4;
 export const NATIVE_MAXIMUM_PAYLOAD_BYTES = 1024 * 1024;
 export const NATIVE_FRAME_HEADER_BYTES = 12;
 const NATIVE_TARGET_FIXED_BYTES = 14;
@@ -12,6 +12,9 @@ export enum NativeMessageType {
   Paste = 4,
   Ping = 5,
   Shutdown = 6,
+  CaptureSelection = 7,
+  ReplaceSelection = 8,
+  ClearSelection = 9,
   HotkeyEvent = 100,
   Authenticated = 101,
   TargetCaptured = 102,
@@ -19,6 +22,9 @@ export enum NativeMessageType {
   Pong = 104,
   HotkeyConfigured = 105,
   Error = 106,
+  SelectionCaptured = 107,
+  SelectionReplaced = 108,
+  SelectionCleared = 109,
 }
 
 export enum NativeHotkeyAction {
@@ -51,6 +57,22 @@ export interface NativeTargetSnapshot {
   windowHandle: string;
   windowTitle?: string;
 }
+
+export interface NativeSelection {
+  editable: boolean;
+  text: string;
+}
+
+export const decodeSelection = (payload: Buffer): NativeSelection => {
+  if (payload.length < 5 || payload[0] === undefined || payload[0] > 1) {
+    throw new Error('Invalid native selection');
+  }
+  const length = payload.readUInt32LE(1);
+  if (length > 20_000 || payload.length !== 5 + length * 2) {
+    throw new Error('Invalid native selection length');
+  }
+  return { editable: payload[0] === 1, text: payload.toString('utf16le', 5) };
+};
 
 export const encodeNativeFrame = (
   type: NativeMessageType,

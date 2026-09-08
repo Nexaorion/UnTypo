@@ -8,6 +8,8 @@ import {
   NativeMessageType,
   decodeHotkeyConfigurationResult,
   decodeTargetSnapshot,
+  decodeSelection,
+  type NativeSelection,
   encodeHotkeyConfiguration,
   encodeNativeFrame,
   encodePasteRequest,
@@ -125,6 +127,40 @@ export class NativeHelperClient {
       NativeMessageType.TargetCaptured,
     );
     return decodeTargetSnapshot(frame.payload);
+  }
+
+  async captureSelection(): Promise<NativeSelection> {
+    const frame = await this.request(
+      NativeMessageType.CaptureSelection,
+      undefined,
+      NativeMessageType.SelectionCaptured,
+    );
+    return decodeSelection(frame.payload);
+  }
+
+  async replaceSelection(): Promise<NativePasteStatus> {
+    const frame = await this.request(
+      NativeMessageType.ReplaceSelection,
+      undefined,
+      NativeMessageType.SelectionReplaced,
+    );
+    if (
+      frame.payload.length !== 1 ||
+      frame.payload[0] === undefined ||
+      frame.payload[0] < 1 ||
+      frame.payload[0] > 5
+    ) {
+      throw new Error('Invalid native selection replacement response');
+    }
+    return frame.payload[0];
+  }
+
+  async clearSelection(): Promise<void> {
+    await this.request(
+      NativeMessageType.ClearSelection,
+      undefined,
+      NativeMessageType.SelectionCleared,
+    );
   }
 
   async paste(target: NativeTargetSnapshot): Promise<NativePasteStatus> {

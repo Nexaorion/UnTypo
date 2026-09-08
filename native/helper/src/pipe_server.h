@@ -18,6 +18,9 @@ struct PipeCallbacks {
       const HotkeyConfiguration&)>
       configure_hotkey;
   std::function<std::vector<std::uint8_t>()> capture_target;
+  std::function<std::vector<std::uint8_t>()> capture_selection;
+  std::function<PasteResultPayload()> replace_selection;
+  std::function<void()> clear_selection;
   std::function<PasteResultPayload(const PasteRequestPayload&)> paste;
   std::function<void()> shutdown;
   std::function<void()> disconnected;

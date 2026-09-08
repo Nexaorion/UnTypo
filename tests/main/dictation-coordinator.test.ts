@@ -52,6 +52,8 @@ interface RuntimeOptions {
   transcript?: string;
   intent?: DictationIntent;
   withTextProvider?: boolean;
+  selected?: boolean;
+  withSelection?: boolean;
 }
 
 const createCoordinator = ({
@@ -69,6 +71,8 @@ const createCoordinator = ({
   transcript = 'raw mock result',
   intent,
   withTextProvider = true,
+  selected = false,
+  withSelection = false,
 }: RuntimeOptions = {}) => {
   const speechProviders = new SpeechProviderRegistry();
   const textProviders = new TextProviderRegistry();
@@ -184,7 +188,14 @@ const createCoordinator = ({
   const runWithOperation = vi.fn(
     <T>(_operationId: string, action: () => Promise<T>) => action(),
   );
+  const selection = {
+    prepareVoice: vi.fn().mockResolvedValue(selected),
+    processVoice: vi.fn().mockResolvedValue(undefined),
+    showResult: vi.fn().mockResolvedValue(undefined),
+    close: vi.fn(),
+  };
   const coordinator = new DictationCoordinator({
+    ...(withSelection ? { selection } : {}),
     diagnostics: {
       log: diagnosticLog,
       recordIssue,
@@ -210,6 +221,7 @@ const createCoordinator = ({
   });
   return {
     coordinator,
+    selection,
     abortRealtime,
     appendRealtimeAudio,
     diagnosticLog,
@@ -249,6 +261,115 @@ const textFailureCases: ReadonlyArray<readonly [string, TextFailureSetup]> = [
 ];
 
 describe('DictationCoordinator', () => {
+  it.each([undefined, 'Translate to English'])(
+    'routes selected-text voice input directly from ASR (%s)',
+    async (realtimeTranscript) => {
+      const runtime = createCoordinator({
+        withSelection: true,
+        selected: true,
+        transcript: 'Rewrite for Twitter',
+        realtimeTranscript,
+      });
+      const process = vi.spyOn(runtime.provider, 'processTranscript');
+      await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+      expect(runtime.selection.prepareVoice).toHaveBeenCalledWith(target);
+      expect(
+        runtime.selection.prepareVoice.mock.invocationCallOrder[0],
+      ).toBeLessThan(runtime.start.mock.invocationCallOrder[0]!);
+      expect(runtime.selection.processVoice).not.toHaveBeenCalled();
+      await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+      expect(runtime.selection.processVoice).toHaveBeenCalledWith(
+        realtimeTranscript ?? 'Rewrite for Twitter',
+      );
+      expect(process).not.toHaveBeenCalled();
+      expect(runtime.inject).not.toHaveBeenCalled();
+      expect(runtime.record).not.toHaveBeenCalled();
+      expect(runtime.showConfirm).not.toHaveBeenCalled();
+      expect(runtime.handleCandidates).not.toHaveBeenCalled();
+      expect(runtime.selection.close).not.toHaveBeenCalled();
+      expect(runtime.coordinator.state).toBe('idle');
+    },
+  );
+
+  it.each(['translation', 'instruction'] as const)(
+    'automatically shows spoken input and %s output without selected text',
+    async (intent) => {
+      const runtime = createCoordinator({ withSelection: true, intent });
+      vi.spyOn(runtime.provider, 'processTranscript').mockResolvedValueOnce({
+        intent,
+        outputText: 'Final mock result',
+      });
+      await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+      await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+      expect(runtime.selection.showResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          intent,
+          rawTranscript: 'raw mock result',
+          outputText: 'Final mock result',
+        }),
+      );
+      expect(runtime.inject).not.toHaveBeenCalled();
+      expect(runtime.showConfirm).not.toHaveBeenCalled();
+      expect(runtime.record).toHaveBeenCalledOnce();
+    },
+  );
+
+  it('keeps ordinary dictation delivery when no selection or command is detected', async () => {
+    const runtime = createCoordinator({
+      withSelection: true,
+      intent: 'transcription',
+    });
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+    expect(runtime.inject).toHaveBeenCalledOnce();
+    expect(runtime.selection.showResult).not.toHaveBeenCalled();
+    expect(runtime.selection.processVoice).not.toHaveBeenCalled();
+  });
+
+  it('keeps a copyable result if the automatic popup cannot open', async () => {
+    const runtime = createCoordinator({
+      withSelection: true,
+      intent: 'translation',
+    });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    runtime.selection.showResult.mockRejectedValueOnce(
+      new Error('Window unavailable'),
+    );
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+    expect(runtime.showSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({ intent: 'translation' }),
+      'copy',
+    );
+    expect(runtime.inject).not.toHaveBeenCalled();
+    log.mockRestore();
+  });
+
+  it('clears captured text when voice recognition fails', async () => {
+    const runtime = createCoordinator({ withSelection: true, selected: true });
+    vi.spyOn(runtime.provider, 'transcribe').mockRejectedValueOnce(
+      new Error('ASR failed'),
+    );
+    await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
+    await expect(
+      runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle),
+    ).rejects.toThrow('ASR failed');
+    expect(runtime.selection.close).toHaveBeenCalledOnce();
+    expect(runtime.selection.processVoice).not.toHaveBeenCalled();
+    expect(runtime.inject).not.toHaveBeenCalled();
+    expect(runtime.coordinator.state).toBe('idle');
+  });
+
+  it('clears captured text when recording fails to start', async () => {
+    const runtime = createCoordinator({ withSelection: true, selected: true });
+    runtime.start.mockRejectedValueOnce(new Error('Microphone unavailable'));
+    await expect(
+      runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle),
+    ).rejects.toThrow('Microphone unavailable');
+    expect(runtime.selection.close).toHaveBeenCalledOnce();
+    expect(runtime.selection.processVoice).not.toHaveBeenCalled();
+  });
+
   it('uses realtime audio captured during recording without a second ASR call', async () => {
     const runtime = createCoordinator({
       realtimeTranscript: 'Realtime raw result',
@@ -455,7 +576,7 @@ describe('DictationCoordinator', () => {
     expect(runtime.events.at(-1)).toBe('success:copy');
     expect(runtime.record).toHaveBeenCalledOnce();
     expect(consoleError).toHaveBeenCalledWith(
-      'Dictation injection failed',
+      'Dictation result delivery failed',
       expect.any(Error),
     );
     consoleError.mockRestore();

@@ -8,10 +8,16 @@ const electronMocks = vi.hoisted(() => {
     write: vi.fn(),
     writeText: vi.fn(),
   };
-  return { clipboard };
+  const ClipboardItem = vi.fn(function (data: Record<string, unknown>) {
+    return { data };
+  });
+  return { clipboard, ClipboardItem };
 });
 
-vi.mock('electron', () => ({ clipboard: electronMocks.clipboard }));
+vi.mock('electron', () => ({
+  clipboard: electronMocks.clipboard,
+  ClipboardItem: electronMocks.ClipboardItem,
+}));
 
 import { ElectronClipboardAdapter } from '../../src/main/dictation/electron-clipboard';
 
@@ -21,7 +27,20 @@ describe('ElectronClipboardAdapter', () => {
   });
 
   it('restores every clipboard item captured through Electron 44', async () => {
-    const clipboardItems = [{ types: ['text/plain', 'text/html'] }];
+    const plain = new Blob(['plain']);
+    const html = new Blob(['<b>plain</b>']);
+    const bookmark = { title: 'Test', url: 'https://example.com' };
+    const getType = vi.fn((type: string) =>
+      Promise.resolve(
+        type === 'text/plain' ? plain : type === 'text/html' ? html : bookmark,
+      ),
+    );
+    const clipboardItems = [
+      {
+        types: ['text/plain', 'text/html', 'electron application/bookmark'],
+        getType,
+      },
+    ];
     electronMocks.clipboard.read.mockResolvedValue(clipboardItems);
     electronMocks.clipboard.write.mockResolvedValue(undefined);
     const adapter = new ElectronClipboardAdapter();
@@ -30,7 +49,14 @@ describe('ElectronClipboardAdapter', () => {
     await adapter.restore(snapshot);
 
     expect(electronMocks.clipboard.read).toHaveBeenCalledOnce();
-    expect(electronMocks.clipboard.write).toHaveBeenCalledWith(clipboardItems);
+    expect(electronMocks.ClipboardItem).toHaveBeenCalledWith({
+      'text/plain': plain,
+      'text/html': html,
+      'electron application/bookmark': bookmark,
+    });
+    expect(electronMocks.clipboard.write).toHaveBeenCalledWith(snapshot);
+    expect(snapshot[0]).not.toBe(clipboardItems[0]);
+    expect(getType).toHaveBeenCalledTimes(3);
   });
 
   it('clears the clipboard when the captured snapshot is empty', async () => {

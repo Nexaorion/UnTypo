@@ -15,6 +15,7 @@ export default defineConfig({
         capsule: path.resolve(rootDirectory, 'capsule.html'),
         main: path.resolve(rootDirectory, 'index.html'),
         recorder: path.resolve(rootDirectory, 'recorder.html'),
+        selection: path.resolve(rootDirectory, 'selection.html'),
       },
     },
   },

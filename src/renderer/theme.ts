@@ -129,6 +129,11 @@ export const theme = createTheme({
     },
     MuiCssBaseline: {
       styleOverrides: {
+        'body[data-surface="selection"]': {
+          background: 'transparent',
+          minWidth: 0,
+          overflow: 'hidden',
+        },
         '*': { boxSizing: 'border-box' },
         '*::-webkit-scrollbar': { height: 10, width: 10 },
         '*::-webkit-scrollbar-thumb': {

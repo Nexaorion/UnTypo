@@ -6,7 +6,7 @@
 namespace untypo {
 
 constexpr std::uint32_t kProtocolMagic = 0x50595455;
-constexpr std::uint16_t kProtocolVersion = 3;
+constexpr std::uint16_t kProtocolVersion = 4;
 constexpr std::uint32_t kMaximumPayloadBytes = 1024 * 1024;
 constexpr std::size_t kMaximumTargetContextCharacters = 512;
 
@@ -17,6 +17,9 @@ enum class MessageType : std::uint16_t {
   Paste = 4,
   Ping = 5,
   Shutdown = 6,
+  CaptureSelection = 7,
+  ReplaceSelection = 8,
+  ClearSelection = 9,
   HotkeyEvent = 100,
   Authenticated = 101,
   TargetCaptured = 102,
@@ -24,6 +27,9 @@ enum class MessageType : std::uint16_t {
   Pong = 104,
   HotkeyConfigured = 105,
   Error = 106,
+  SelectionCaptured = 107,
+  SelectionReplaced = 108,
+  SelectionCleared = 109,
 };
 
 enum class HotkeyAction : std::uint8_t {

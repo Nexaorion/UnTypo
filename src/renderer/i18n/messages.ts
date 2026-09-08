@@ -2,6 +2,31 @@ import type { SupportedLanguage } from '../../core/providers/contracts.js';
 
 export const messages = {
   'zh-CN': {
+    'selection.title': '助手',
+    'selection.count': '已选中 {count} 个字符',
+    'selection.spokenInput': '输入内容',
+    'selection.listening': '使用听写快捷键说出要求',
+    'selection.translation': '译文',
+    'selection.answer': '回答',
+    'selection.retry': '重新生成',
+    'selection.replace': '替换文本',
+    'selection.copied': '已复制',
+    'selection.preview': '确认结果后再替换原文',
+    'selection.readOnly': '可复制结果，原文保持不变',
+    'selection.empty': '使用听写快捷键说出新的要求。',
+    'selection.loading': '正在读取内容...',
+    'selection.processing': '正在处理…',
+    'selection.error.capture':
+      '未能读取选中的文本内容。',
+    'selection.error.provider':
+      '请先在 UnTypo 的模型设置中配置并启用文本处理模型，然后重试。',
+    'selection.error.processing':
+      '处理失败或请求超时，请检查模型配置和网络后重试。',
+    'selection.error.replace':
+      '原窗口或选区已变化，或应用不允许替换。结果已保留，可复制后手动粘贴。',
+    'selection.error.copy': '复制失败，请重试。',
+    'selection.error.busy': '请先完成当前听写，再关闭此窗口并重新选择文字。',
+    'selection.error.action': '操作未完成，请重试或关闭窗口后重新选择文字。',
     'action.add': '添加',
     'action.cancel': '取消',
     'action.clear': '清空',
@@ -344,6 +369,34 @@ export const messages = {
     'theme.system': '跟随系统主题',
   },
   'en-US': {
+    'selection.title': 'Voice assistant',
+    'selection.count': '{count} characters selected',
+    'selection.spokenInput': 'Your request',
+    'selection.listening': 'Use your dictation hotkey to speak a request',
+    'selection.translation': 'Translation',
+    'selection.answer': 'Answer',
+    'selection.retry': 'Generate again',
+    'selection.replace': 'Replace selection',
+    'selection.copied': 'Copied',
+    'selection.preview': 'Review before replacing the original',
+    'selection.readOnly': 'Copy the answer; the original stays unchanged',
+    'selection.empty':
+      'Add an instruction to translate, rewrite, or ask about this text.',
+    'selection.loading': 'Reading selection',
+    'selection.processing': 'Working…',
+    'selection.error.capture':
+      'Could not read the selection. Close this window, select 1–20,000 characters in a supported app, then use your dictation hotkey to speak a request. Password fields and administrator apps are unsupported.',
+    'selection.error.provider':
+      'Configure and activate a text processing model in UnTypo, then try again.',
+    'selection.error.processing':
+      'Processing failed or timed out. Check your model settings and connection, then retry.',
+    'selection.error.replace':
+      'The original window or selection changed, or the app blocked replacement. Your result is still here to copy and paste manually.',
+    'selection.error.copy': 'Could not copy the answer. Please try again.',
+    'selection.error.busy':
+      'Finish the current dictation, then close this window and select the text again.',
+    'selection.error.action':
+      'The action could not complete. Retry, or close this window and select the text again.',
     'action.add': 'Add',
     'action.cancel': 'Cancel',
     'action.clear': 'Clear',

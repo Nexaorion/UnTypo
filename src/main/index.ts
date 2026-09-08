@@ -187,6 +187,7 @@ void app
         throw new Error('Runtime smoke surfaces are unavailable');
       if (rendererReady !== 'ok')
         throw new Error(`Renderer interactions failed at ${rendererReady}`);
+      await runtime.selectionSmokeTest();
       console.log(
         `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder native ui`,
       );

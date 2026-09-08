@@ -66,7 +66,7 @@ int RunSelfTest() {
       sizeof(untypo::HotkeyConfiguration) != 8 ||
       sizeof(untypo::HotkeyConfigurationResultPayload) != 4 ||
       sizeof(untypo::TargetSnapshotHeader) != 14 ||
-      untypo::kProtocolVersion != 3) {
+      untypo::kProtocolVersion != 4) {
     return 1;
   }
   return 0;
@@ -96,6 +96,9 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
     return hotkey.Configure(value);
   };
   callbacks.capture_target = [&targets] { return targets.Capture(); };
+  callbacks.capture_selection = [&targets] { return targets.CaptureSelection(); };
+  callbacks.replace_selection = [&targets] { return targets.ReplaceSelection(); };
+  callbacks.clear_selection = [&targets] { targets.ClearSelection(); };
   callbacks.paste = [&targets](const untypo::PasteRequestPayload& request) {
     return targets.Paste(request);
   };

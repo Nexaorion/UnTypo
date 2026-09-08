@@ -80,6 +80,8 @@ import type { ProviderProfile } from '../storage/configuration.js';
 import { ElectronSecretProtector } from '../storage/electron-secret-protector.js';
 import { HistoryRepository, HistoryService } from '../storage/history.js';
 import { ApplicationUpdateService } from '../update/application-update-service.js';
+import { SelectionWindowController } from '../selection/selection-window.js';
+import { runSelectionSmokeTest } from '../selection/smoke.js';
 
 export interface DesktopRuntimeOptions {
   applicationIconPath: string;
@@ -253,6 +255,7 @@ export class DesktopRuntime {
   #started = false;
   #textProviderId?: string;
   #tray?: Tray;
+  #selection?: SelectionWindowController;
 
   constructor(options: DesktopRuntimeOptions) {
     this.#options = options;
@@ -394,6 +397,19 @@ export class DesktopRuntime {
           this.#capsule.updateProcessing(outputText),
       },
       recorder: this.#recorder,
+      selection: {
+        prepareVoice: (target) =>
+          this.#selection?.prepareVoice(target) ?? Promise.resolve(false),
+        processVoice: async (instruction) => {
+          this.#capsule.close();
+          await this.#selection?.processVoice(instruction);
+        },
+        showResult: async (result) => {
+          this.#capsule.close();
+          await this.#selection?.showResult(result);
+        },
+        close: () => this.#selection?.close(),
+      },
       speechProviders: this.#speechProviders,
       textProviders: this.#textProviders,
     });
@@ -430,6 +446,22 @@ export class DesktopRuntime {
       });
       app.setLoginItemSettings({ openAtLogin: config.general.launchAtLogin });
       this.createTray(config.general.locale);
+      if (!process.argv.includes('--smoke-test')) {
+        this.#selection = new SelectionWindowController({
+          native: this.#native,
+          context: async () => {
+            const current = await this.#configuration.load();
+            const provider = this.#textProviderId
+              ? this.#textProviders.get(this.#textProviderId)
+              : undefined;
+            return {
+              locale: current.general.locale,
+              defaultTargetLanguage: current.dictation.defaultTargetLanguage,
+              ...(provider ? { provider } : {}),
+            };
+          },
+        });
+      }
       this.#updates.start(config.updates);
       this.#started = true;
       this.#diagnostics.log({
@@ -447,6 +479,7 @@ export class DesktopRuntime {
         kind: 'internal',
         source: 'app.runtime.startup',
       });
+      this.#selection?.destroy();
       await this.#native.stop();
       this.#recorder.destroy();
       this.#capsule.destroy();
@@ -462,6 +495,10 @@ export class DesktopRuntime {
       this.#capsule.smokeTestDictionarySuggestion(),
     ]);
     return recorderReady && dictionaryCapsuleReady;
+  }
+
+  async selectionSmokeTest(): Promise<void> {
+    await runSelectionSmokeTest(this.#native);
   }
 
   async getClientSnapshot(): Promise<ClientSnapshot> {
@@ -924,6 +961,7 @@ export class DesktopRuntime {
   async stop(): Promise<void> {
     if (!this.#started) return;
     this.#started = false;
+    this.#selection?.destroy();
     this.#removeHotkeyListener?.();
     this.#removeHotkeyListener = undefined;
     this.#tray?.destroy();
@@ -1105,6 +1143,8 @@ export class DesktopRuntime {
   }
 
   private dispatchHotkey(action: NativeHotkeyAction): void {
+    if (this.#selection?.isBusy || this.#coordinator?.state === 'processing')
+      return;
     this.#hotkeyQueue = this.#hotkeyQueue
       .then(async () => {
         await this.#coordinator?.handleHotkey(action);

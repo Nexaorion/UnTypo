@@ -3,8 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { IPC_CHANNELS } from '../../src/shared/ipc';
 import { RECORDER_CHANNELS } from '../../src/shared/recorder-ipc';
 import { CAPSULE_CHANNELS } from '../../src/shared/capsule-ipc';
+import { SELECTION_CHANNELS } from '../../src/shared/selection-ipc';
 
 describe('sandboxed preload channels', () => {
+  it('keeps selection channels aligned without runtime shared imports', async () => {
+    const source = await readFile('src/preload/selection.ts', 'utf8');
+    for (const channel of Object.values(SELECTION_CHANNELS))
+      expect(source).toContain(`'${channel}'`);
+    expect(source).not.toMatch(/import \{.*\} from '\.\.\/shared/u);
+  });
   it('keeps the self-contained ping channel aligned with the main process', async () => {
     const source = await readFile('src/preload/index.ts', 'utf8');
 

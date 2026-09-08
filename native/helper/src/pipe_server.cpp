@@ -112,6 +112,7 @@ void PipeServer::Run() {
     CloseHandle(pipe_);
     pipe_ = INVALID_HANDLE_VALUE;
   }
+  callbacks_.clear_selection();
   if (SUCCEEDED(com_result)) CoUninitialize();
   callbacks_.disconnected();
 }
@@ -199,6 +200,19 @@ bool PipeServer::Dispatch(MessageType type,
     return WriteFrame(MessageType::TargetCaptured, target.data(),
                       static_cast<std::uint32_t>(target.size()));
   }
+  if (type == MessageType::CaptureSelection && payload.empty()) {
+    const auto selection = callbacks_.capture_selection();
+    return WriteFrame(MessageType::SelectionCaptured, selection.data(),
+                      static_cast<std::uint32_t>(selection.size()));
+  }
+  if (type == MessageType::ReplaceSelection && payload.empty()) {
+    const auto result = callbacks_.replace_selection();
+    return WriteFrame(MessageType::SelectionReplaced, &result, sizeof(result));
+  }
+  if (type == MessageType::ClearSelection && payload.empty()) {
+    callbacks_.clear_selection();
+    return WriteFrame(MessageType::SelectionCleared, nullptr, 0);
+  }
   if (type == MessageType::Paste) {
     PasteRequestPayload request{};
     if (!PayloadAs(payload, request)) return false;
@@ -209,6 +223,7 @@ bool PipeServer::Dispatch(MessageType type,
     return WriteFrame(MessageType::Pong, nullptr, 0);
   }
   if (type == MessageType::Shutdown && payload.empty()) {
+    callbacks_.clear_selection();
     callbacks_.shutdown();
     return false;
   }
