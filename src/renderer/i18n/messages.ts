@@ -16,8 +16,7 @@ export const messages = {
     'selection.empty': '使用听写快捷键说出新的要求。',
     'selection.loading': '正在读取内容...',
     'selection.processing': '正在处理…',
-    'selection.error.capture':
-      '未能读取选中的文本内容。',
+    'selection.error.capture': '未能读取选中的文本内容。',
     'selection.error.provider':
       '请先在 UnTypo 的模型设置中配置并启用文本处理模型，然后重试。',
     'selection.error.processing':
