@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           cache: npm
           node-version: 22
@@ -117,7 +117,7 @@ jobs:
 
       - name: Set up Node.js
         if: steps.branch.outputs.is_current == 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           cache: npm
           node-version: 22
