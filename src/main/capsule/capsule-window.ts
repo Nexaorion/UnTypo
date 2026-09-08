@@ -296,7 +296,7 @@ export class CapsuleWindowController {
   private readonly handleCopy = (event: IpcMainEvent): void => {
     if (!this.isExpectedSender(event) || this.#status?.type !== 'success')
       return;
-    clipboard.writeText(this.#status.outputText);
+    void clipboard.writeText(this.#status.outputText).catch(() => undefined);
     this.close();
   };
 

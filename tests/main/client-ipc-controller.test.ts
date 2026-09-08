@@ -4,7 +4,7 @@ import { IPC_CHANNELS } from '../../src/shared/ipc';
 
 const electronMocks = vi.hoisted(() => {
   const handlers = new Map<string, (...arguments_: unknown[]) => unknown>();
-  const clipboard = { writeText: vi.fn() };
+  const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
   const ipcMain = {
     handle: vi.fn(
       (channel: string, handler: (...arguments_: unknown[]) => unknown) => {
@@ -69,11 +69,11 @@ describe('ClientIpcController', () => {
     assertTrustedSender.mockClear();
   });
 
-  it('copies trusted renderer text through Electron clipboard', () => {
+  it('copies trusted renderer text through Electron clipboard', async () => {
     const controller = new ClientIpcController(createBackend());
     const handler = electronMocks.handlers.get(IPC_CHANNELS.copyText);
 
-    handler?.({}, 'Copied history record');
+    await handler?.({}, 'Copied history record');
 
     expect(assertTrustedSender).toHaveBeenCalledOnce();
     expect(electronMocks.clipboard.writeText).toHaveBeenCalledWith(

@@ -369,9 +369,9 @@ export class ClientIpcController {
   private readonly copyText = (
     event: IpcMainInvokeEvent,
     value: unknown,
-  ): void => {
+  ): Promise<void> => {
     trust(event);
-    clipboard.writeText(parseClipboardText(value));
+    return clipboard.writeText(parseClipboardText(value));
   };
 
   private readonly exportDiagnostics = (

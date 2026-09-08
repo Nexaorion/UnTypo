@@ -4,7 +4,7 @@ import { CAPSULE_CHANNELS } from '../../src/shared/capsule-ipc';
 const electronMocks = vi.hoisted(() => {
   const handlers = new Map<string, (...arguments_: unknown[]) => void>();
   const windows: Array<Record<string, unknown>> = [];
-  const clipboard = { writeText: vi.fn() };
+  const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
   const ipcMain = {
     on: vi.fn(
       (channel: string, handler: (...arguments_: unknown[]) => void) => {
