@@ -122,10 +122,7 @@ export const runSelectionSmokeTest = async (
             current.end !== capturedFixture.end
           )
             return NativePasteStatus.TargetChanged;
-          const output = await clipboard.readText();
-          await target.webContents.executeJavaScript(
-            `document.querySelector('textarea').setRangeText(${JSON.stringify(output)})`,
-          );
+          await target.webContents.insertText(await clipboard.readText());
           return NativePasteStatus.Success;
         },
       };
@@ -209,7 +206,12 @@ export const runSelectionSmokeTest = async (
       target.focus();
       if (verifyNative) await focusSelectionFixture(target);
       await target.webContents.executeJavaScript(
-        `(() => { const field = document.querySelector('textarea'); field.value = ${JSON.stringify(source)}; field.focus(); field.select(); })()`,
+        `(() => { const field = document.querySelector('textarea'); field.value = ''; field.focus(); })()`,
+      );
+      // insertText passes the fixture text as data instead of interpolated code.
+      await target.webContents.insertText(source);
+      await target.webContents.executeJavaScript(
+        `(() => { const field = document.querySelector('textarea'); field.select(); })()`,
       );
       await wait(350);
     };
