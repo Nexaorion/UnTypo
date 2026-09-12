@@ -1,6 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { parseHotkeyAccelerator } from '../../src/main/native/hotkey';
+import {
+  parseHotkeyAccelerator,
+  toElectronAccelerator,
+} from '../../src/main/native/hotkey';
 
 describe('parseHotkeyAccelerator', () => {
   it('maps the default Windows shortcut', () => {
@@ -35,6 +38,28 @@ describe('parseHotkeyAccelerator', () => {
   it('rejects ambiguous shortcut definitions', () => {
     expect(() => parseHotkeyAccelerator('Ctrl+A+B')).toThrow('multiple keys');
     expect(() => parseHotkeyAccelerator('Ctrl+Shift')).toThrow('has no key');
+  });
+
+  it('accepts macOS modifier names', () => {
+    expect(parseHotkeyAccelerator('Control+Option+Space')).toEqual({
+      modifiers: 0x0003,
+      virtualKey: 0x20,
+    });
+    expect(parseHotkeyAccelerator('Command+Shift+D')).toEqual({
+      modifiers: 0x000c,
+      virtualKey: 0x44,
+    });
+  });
+});
+
+describe('toElectronAccelerator', () => {
+  it('maps stored accelerators to Electron shortcut strings', () => {
+    expect(toElectronAccelerator('Ctrl+Alt+Space')).toBe('Control+Alt+Space');
+    expect(toElectronAccelerator('Control+Option+Space')).toBe(
+      'Control+Alt+Space',
+    );
+    expect(toElectronAccelerator('Win+K')).toBe('Command+K');
+    expect(toElectronAccelerator('F9')).toBe('F9');
   });
 });
 

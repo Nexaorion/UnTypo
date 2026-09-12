@@ -337,6 +337,7 @@ export const messages = {
     'settings.group.diagnostics': '诊断与错误报告',
     'settings.group.general': '通用',
     'settings.group.history': '历史',
+    'settings.group.permissions': '系统权限',
     'settings.group.profile': '身份',
     'settings.group.updates': '应用更新',
     'settings.historyEnabled': '记录历史',
@@ -346,13 +347,21 @@ export const messages = {
     'settings.diagnosticsPending': '有 {count} 个问题等待处理',
     'settings.diagnosticsReady': '错误收集器正在运行，暂时没有待处理问题',
     'settings.hotkey': '快捷键',
-    'settings.hotkeyHint': '正在记录新的快捷键',
+    'settings.hotkeyHint': '先按修饰键，再按空格、字母或 F 键',
     'settings.launchAtLogin': '开机启动',
     'settings.lastUpdateCheck': '上次检查：{time}',
     'settings.locale': '界面语言',
     'settings.microphone': '麦克风',
     'settings.microphoneAuto': '自动选择（系统默认）',
-    'settings.microphoneAutoHint': '录音时跟随 Windows 默认输入设备',
+    'settings.microphoneAutoHint': '录音时跟随系统默认输入设备',
+    'settings.microphoneAccessGranted': '已获得麦克风权限。',
+    'settings.microphoneAccessNeeded':
+      '听写需要麦克风权限。请在系统设置中允许 UnTypo 使用麦克风。',
+    'settings.accessibilityGranted':
+      '已获得辅助功能权限，可以把文字粘贴到其他应用。',
+    'settings.accessibilityNeeded':
+      '把文字插入其他应用需要辅助功能权限。请在系统设置中允许 UnTypo。',
+    'settings.openAccessibilitySettings': '打开辅助功能设置',
     'settings.microphoneEmpty': '没有发现可用的麦克风',
     'settings.microphoneMissing': '已选择的麦克风当前不可用，请重新选择',
     'settings.microphoneSelectedHint': '固定使用：{device}',
@@ -364,7 +373,7 @@ export const messages = {
     'settings.retentionForever': '0 表示永久保留',
     'settings.title': '设置',
     'settings.updateNeverChecked': '尚未检查',
-    'settings.updateUnsupported': '仅在已安装的 Windows 版本中可用',
+    'settings.updateUnsupported': '仅在已签名发布的安装版本中可用',
     'theme.system': '跟随系统主题',
   },
   'en-US': {
@@ -732,6 +741,7 @@ export const messages = {
     'settings.group.diagnostics': 'Diagnostics and error reports',
     'settings.group.general': 'General',
     'settings.group.history': 'History',
+    'settings.group.permissions': 'System permissions',
     'settings.group.profile': 'Identity',
     'settings.group.updates': 'App updates',
     'settings.historyEnabled': 'Keep history',
@@ -742,13 +752,22 @@ export const messages = {
     'settings.diagnosticsReady':
       'The error collector is running with no pending issues',
     'settings.hotkey': 'Shortcut',
-    'settings.hotkeyHint': 'Recording a new keyboard shortcut',
+    'settings.hotkeyHint':
+      'Hold modifiers, then press Space, a letter, or an F key',
     'settings.launchAtLogin': 'Launch at login',
     'settings.lastUpdateCheck': 'Last checked: {time}',
     'settings.locale': 'Interface language',
     'settings.microphone': 'Microphone',
     'settings.microphoneAuto': 'Automatic (system default)',
-    'settings.microphoneAutoHint': 'Follow the Windows default input device',
+    'settings.microphoneAutoHint': 'Follow the system default input device',
+    'settings.microphoneAccessGranted': 'Microphone access is granted.',
+    'settings.microphoneAccessNeeded':
+      'Dictation needs microphone access. Allow UnTypo in System Settings.',
+    'settings.accessibilityGranted':
+      'Accessibility access is granted, so UnTypo can paste into other apps.',
+    'settings.accessibilityNeeded':
+      'Pasting into other apps needs Accessibility access. Allow UnTypo in System Settings.',
+    'settings.openAccessibilitySettings': 'Open Accessibility settings',
     'settings.microphoneEmpty': 'No microphones were found',
     'settings.microphoneMissing':
       'The selected microphone is unavailable. Choose another device.',
@@ -761,7 +780,7 @@ export const messages = {
     'settings.retentionForever': '0 keeps records forever',
     'settings.title': 'Settings',
     'settings.updateNeverChecked': 'Never',
-    'settings.updateUnsupported': 'Available in the installed Windows app',
+    'settings.updateUnsupported': 'Available in signed, installed releases',
     'theme.system': 'Follow system theme',
   },
 } satisfies Record<SupportedLanguage, Record<string, string>>;

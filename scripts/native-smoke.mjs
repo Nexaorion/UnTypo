@@ -4,10 +4,13 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 const require = createRequire(import.meta.url);
-const { NativeHelperClient } = require('../dist/main/native/client.js');
+const {
+  NativeHelperClient,
+  nativeHelperFileName,
+} = require('../dist/main/native/client.js');
 const execFileAsync = promisify(execFile);
 
-const executablePath = path.resolve('build/Release/untypo_native_helper.exe');
+const executablePath = path.resolve('build/Release', nativeHelperFileName());
 const client = new NativeHelperClient(executablePath);
 const conflictingClient = new NativeHelperClient(executablePath);
 
@@ -25,6 +28,11 @@ const waitForHotkey = (targetClient) =>
   });
 
 const sendCtrlAltShiftF24 = async () => {
+  if (process.platform !== 'win32') {
+    throw new Error(
+      'Synthetic hotkey injection is only implemented on Windows',
+    );
+  }
   const script = String.raw`
 Add-Type -TypeDefinition @'
 using System;
@@ -63,17 +71,25 @@ if ($sent -ne 8) { throw "SendInput delivered $sent of 8 events" }
   );
 };
 
-await execFileAsync(executablePath, ['--self-test'], { windowsHide: true });
+const spawnOptions = process.platform === 'win32' ? { windowsHide: true } : {};
+
+await execFileAsync(executablePath, ['--self-test'], spawnOptions);
 
 await client.start();
 await conflictingClient.start();
 try {
-  await client.configureHotkey({ modifiers: 0x0007, virtualKey: 0x87 });
+  // F19 is mapped on both Win32 and macOS; F24 is Windows-only.
+  const conflictKey = process.platform === 'win32' ? 0x87 : 0x82;
+  const alternateKey = process.platform === 'win32' ? 0x86 : 0x81;
+  await client.configureHotkey({
+    modifiers: 0x0007,
+    virtualKey: conflictKey,
+  });
   let conflictDetected = false;
   try {
     await conflictingClient.configureHotkey({
       modifiers: 0x0007,
-      virtualKey: 0x87,
+      virtualKey: conflictKey,
     });
   } catch (error) {
     conflictDetected = error?.windowsErrorCode === 1409;
@@ -81,12 +97,17 @@ try {
   if (!conflictDetected) {
     throw new Error('Native helper did not report a hotkey conflict');
   }
-  const hotkeyEvent = waitForHotkey(client);
-  await sendCtrlAltShiftF24();
-  if ((await hotkeyEvent) !== 3) {
-    throw new Error('Native helper emitted an unexpected hotkey action');
+  if (process.platform === 'win32') {
+    const hotkeyEvent = waitForHotkey(client);
+    await sendCtrlAltShiftF24();
+    if ((await hotkeyEvent) !== 3) {
+      throw new Error('Native helper emitted an unexpected hotkey action');
+    }
   }
-  await conflictingClient.configureHotkey({ modifiers: 0, virtualKey: 0x86 });
+  await conflictingClient.configureHotkey({
+    modifiers: 0,
+    virtualKey: alternateKey,
+  });
   await client.ping();
   await conflictingClient.ping();
   const target = await client.captureTarget();

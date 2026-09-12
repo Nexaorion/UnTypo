@@ -2,6 +2,8 @@ import { access } from 'node:fs/promises';
 import { createConnection, type Socket } from 'node:net';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
+import os from 'node:os';
+import path from 'node:path';
 import {
   NativeFrameDecoder,
   NativeHotkeyAction,
@@ -28,21 +30,39 @@ interface PendingResponse {
 
 export type NativeHotkeyListener = (action: NativeHotkeyAction) => void;
 
+export const NATIVE_HOTKEY_ALREADY_REGISTERED = 1409;
+
 export class NativeHotkeyRegistrationError extends Error {
+  readonly nativeErrorCode: number;
   readonly windowsErrorCode: number;
 
-  constructor(windowsErrorCode: number) {
+  constructor(nativeErrorCode: number) {
     super(
-      `Native hotkey registration failed with Windows error ${String(windowsErrorCode)}`,
+      `Native hotkey registration failed with error ${String(nativeErrorCode)}`,
     );
     this.name = 'NativeHotkeyRegistrationError';
-    this.windowsErrorCode = windowsErrorCode;
+    this.nativeErrorCode = nativeErrorCode;
+    this.windowsErrorCode = nativeErrorCode;
   }
 }
 
 export const isNativeHotkeyConflictError = (error: unknown): boolean =>
   error instanceof NativeHotkeyRegistrationError &&
-  error.windowsErrorCode === 1409;
+  error.nativeErrorCode === NATIVE_HOTKEY_ALREADY_REGISTERED;
+
+export const nativeHelperFileName = (
+  platform: NodeJS.Platform = process.platform,
+): string =>
+  platform === 'win32' ? 'untypo_native_helper.exe' : 'untypo_native_helper';
+
+export const nativeIpcPath = (
+  pid: number,
+  uniqueId: string,
+  platform: NodeJS.Platform = process.platform,
+): string =>
+  platform === 'win32'
+    ? `\\\\.\\pipe\\untypo-${String(pid)}-${uniqueId}`
+    : path.join(os.tmpdir(), `untypo-${String(pid)}-${uniqueId}.sock`);
 
 const wait = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -64,12 +84,21 @@ export class NativeHelperClient {
     if (this.#process || this.#socket)
       throw new Error('Native helper is active');
     await access(this.#executablePath);
-    const pipeName = `\\\\.\\pipe\\untypo-${String(process.pid)}-${randomUUID()}`;
+    const pipeName = nativeIpcPath(process.pid, randomUUID());
     const token = randomBytes(32).toString('hex');
     const helper = spawn(
       this.#executablePath,
       ['--pipe', pipeName, '--token', token],
-      { stdio: 'ignore', windowsHide: true },
+      {
+        env: {
+          ...process.env,
+          ...(process.argv.includes('--smoke-test')
+            ? { UNTYPO_SKIP_TCC_PROMPT: '1' }
+            : {}),
+        },
+        stdio: 'ignore',
+        ...(process.platform === 'win32' ? { windowsHide: true } : {}),
+      },
     );
     this.#process = helper;
     helper.once('exit', (code) => {
@@ -288,7 +317,7 @@ export class NativeHelperClient {
     for (let attempt = 0; attempt < 100; attempt += 1) {
       try {
         return await new Promise<Socket>((resolve, reject) => {
-          const socket = createConnection(pipeName);
+          const socket = createConnection({ path: pipeName });
           socket.once('connect', () => resolve(socket));
           socket.once('error', reject);
         });

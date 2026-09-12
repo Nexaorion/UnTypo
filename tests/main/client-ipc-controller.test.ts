@@ -46,11 +46,13 @@ const createBackend = (): ClientBackendPort => ({
   installUpdate: vi.fn(),
   listHistory: vi.fn(),
   listMicrophones: vi.fn(),
+  requestAccessibilityAccess: vi.fn(),
   removeProvider: vi.fn(),
   removeDictionaryEntry: vi.fn(),
   removeWritingPreference: vi.fn(),
   rejectWritingPreference: vi.fn(),
   reportRendererIssue: vi.fn(),
+  setHotkeyCaptureActive: vi.fn(),
   setDictionaryLearningEnabled: vi.fn(),
   setApplicationWritingStyle: vi.fn(),
   setProfile: vi.fn(),
@@ -142,6 +144,21 @@ describe('ClientIpcController', () => {
 
     expect(assertTrustedSender).toHaveBeenCalledOnce();
     expect(backend.clearDiagnostics).toHaveBeenCalledOnce();
+    controller.destroy();
+  });
+
+  it('forwards the sender when toggling hotkey capture', async () => {
+    const backend = createBackend();
+    const controller = new ClientIpcController(backend);
+    const handler = electronMocks.handlers.get(
+      IPC_CHANNELS.setHotkeyCaptureActive,
+    );
+    const sender = { id: 7 };
+
+    await handler?.({ sender }, true);
+
+    expect(assertTrustedSender).toHaveBeenCalledOnce();
+    expect(backend.setHotkeyCaptureActive).toHaveBeenCalledWith(true, sender);
     controller.destroy();
   });
 });

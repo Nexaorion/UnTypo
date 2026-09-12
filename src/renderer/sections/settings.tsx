@@ -275,7 +275,11 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
             error={hotkeyError}
             label={t('settings.hotkey')}
             listeningText={t('settings.hotkeyHint')}
+            onCaptureActive={(active) => {
+              void store.setHotkeyCaptureActive(active);
+            }}
             onChange={saveHotkey}
+            platform={store.runtime?.platform}
             value={hotkey}
           />
           <SwitchField
@@ -330,6 +334,36 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
           />
         </Stack>
       </Card>
+
+      {store.snapshot?.permissions ? (
+        <Card title={t('settings.group.permissions')}>
+          <Stack sx={{ gap: 2.5 }}>
+            <Typography color="text.secondary" variant="body2">
+              {store.snapshot.permissions.microphone === 'granted'
+                ? t('settings.microphoneAccessGranted')
+                : t('settings.microphoneAccessNeeded')}
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              {store.snapshot.permissions.accessibility === 'granted'
+                ? t('settings.accessibilityGranted')
+                : t('settings.accessibilityNeeded')}
+            </Typography>
+            {store.snapshot.permissions.accessibility !== 'granted' ? (
+              <Button
+                onClick={() =>
+                  void run('accessibility', () =>
+                    store.requestAccessibilityAccess(),
+                  )
+                }
+                sx={{ alignSelf: 'flex-start' }}
+                variant="outlined"
+              >
+                {t('settings.openAccessibilitySettings')}
+              </Button>
+            ) : null}
+          </Stack>
+        </Card>
+      ) : null}
 
       <Card title={t('settings.group.updates')}>
         <Stack sx={{ gap: 2.5 }}>

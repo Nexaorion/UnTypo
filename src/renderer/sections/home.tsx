@@ -15,6 +15,7 @@ import type {
 } from '../../shared/ipc.js';
 import { useI18n } from '../i18n/context.js';
 import { formatTimestamp } from '../logic/history.js';
+import { formatHotkeyDisplay } from '../logic/hotkey.js';
 import { themeAlpha, themePalette, tokens } from '../theme.js';
 
 const MANUAL_TYPING_CHARACTERS_PER_SECOND = 2.4;
@@ -95,12 +96,14 @@ export const HomeSection = ({
   history,
   hotkey,
   onOpenHistory,
+  platform,
   userName,
   usage,
 }: {
   history: readonly ClientHistoryRecord[];
   hotkey: string;
   onOpenHistory: () => void;
+  platform?: string;
   userName: string;
   usage: ClientUsageStats | null;
 }) => {
@@ -225,7 +228,7 @@ export const HomeSection = ({
               },
             }}
           >
-            {hotkey.replaceAll('+', ' + ')}
+            {formatHotkeyDisplay(hotkey, platform)}
           </Box>
         </Stack>
       </Paper>

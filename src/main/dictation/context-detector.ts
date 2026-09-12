@@ -11,7 +11,18 @@ const aiTools: Readonly<Record<string, string>> = {
   windsurf: 'Windsurf',
 };
 
-const browsers = new Set(['brave', 'chrome', 'firefox', 'msedge', 'opera']);
+const browsers = new Set([
+  'arc',
+  'brave',
+  'chrome',
+  'chromium',
+  'firefox',
+  'google chrome',
+  'microsoft edge',
+  'msedge',
+  'opera',
+  'safari',
+]);
 const chatApps = new Set([
   'discord',
   'slack',
@@ -19,23 +30,35 @@ const chatApps = new Set([
   'telegram',
   'wechat',
   'weixin',
+  '微信',
 ]);
 const ideApps = new Set([
   'code',
   'devenv',
+  'goland',
   'idea64',
+  'intellij idea',
+  'pycharm',
   'pycharm64',
   'rider64',
+  'visual studio code',
+  'webstorm',
   'webstorm64',
   'zed',
 ]);
 const officeApps = new Set([
   'excel',
+  'microsoft excel',
+  'microsoft powerpoint',
+  'microsoft word',
+  'notes',
   'notion',
   'obsidian',
   'olk',
   'outlook',
+  'pages',
   'powerpnt',
+  'textedit',
   'winword',
 ]);
 const aiTitlePatterns: ReadonlyArray<readonly [RegExp, string]> = [
@@ -50,7 +73,7 @@ const normalizedProcessName = (value?: string): string =>
   (value ?? '')
     .trim()
     .toLocaleLowerCase('en-US')
-    .replace(/\.exe$/u, '');
+    .replace(/\.(exe|app)$/u, '');
 
 const aiToolFromTitle = (title?: string): string | undefined => {
   const value = title?.trim() ?? '';

@@ -3,9 +3,13 @@ import {
   Tray,
   app,
   dialog,
+  globalShortcut,
   nativeImage,
   net,
+  shell,
+  systemPreferences,
   type MenuItemConstructorOptions,
+  type WebContents,
 } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -43,6 +47,7 @@ import type {
   ClientMicrophoneDevice,
   ClientProviderInput,
   ClientSettingsUpdate,
+  ClientPermissionSnapshot,
   ClientSnapshot,
   ClientUpdateSnapshot,
   ClientUsageStats,
@@ -61,15 +66,23 @@ import type { DictionarySuggestionError } from '../../shared/capsule-ipc.js';
 import { CapsuleWindowController } from '../capsule/capsule-window.js';
 import type { DiagnosticCollector } from '../diagnostics/collector.js';
 import { ClipboardInjectionService } from '../dictation/clipboard.js';
+import { pasteDarwinWithHelperFallback } from '../dictation/darwin-paste.js';
 import { DictationCoordinator } from '../dictation/coordinator.js';
 import { DictionaryLearningService } from '../dictionary/learning.js';
 import { WritingPreferenceLearningService } from '../personalization/learning.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
 import {
+  NATIVE_HOTKEY_ALREADY_REGISTERED,
   NativeHelperClient,
+  NativeHotkeyRegistrationError,
   isNativeHotkeyConflictError,
+  nativeHelperFileName,
 } from '../native/client.js';
-import { parseHotkeyAccelerator } from '../native/hotkey.js';
+import { RendererHotkeyCapture } from '../native/hotkey-capture.js';
+import {
+  parseHotkeyAccelerator,
+  toElectronAccelerator,
+} from '../native/hotkey.js';
 import { NativeHotkeyAction } from '../native/protocol.js';
 import { RecorderWindowController } from '../recording/recorder-window.js';
 import {
@@ -223,10 +236,12 @@ const createConnectionTestWav = (): AudioPayload => {
   };
 };
 
-const resolveNativeHelperPath = (): string =>
-  app.isPackaged
-    ? path.join(process.resourcesPath, 'bin', 'untypo_native_helper.exe')
-    : path.resolve(app.getAppPath(), 'build/Release/untypo_native_helper.exe');
+const resolveNativeHelperPath = (): string => {
+  const fileName = nativeHelperFileName();
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'bin', fileName)
+    : path.resolve(app.getAppPath(), 'build/Release', fileName);
+};
 
 export class DesktopRuntime {
   readonly #capsule = new CapsuleWindowController();
@@ -249,7 +264,11 @@ export class DesktopRuntime {
   readonly #updates: ApplicationUpdateService;
   #coordinator?: DictationCoordinator;
   #hotkeyQueue: Promise<void> = Promise.resolve();
+  readonly #hotkeyCapture = new RendererHotkeyCapture();
+  #hotkeyCaptureActive = false;
+  #pendingHotkeyAccelerator?: string;
   #locale: 'en-US' | 'zh-CN' = 'en-US';
+  #electronHotkeyAccelerator?: string;
   #removeHotkeyListener?: () => void;
   #speechProviderId?: string;
   #started = false;
@@ -381,7 +400,18 @@ export class DesktopRuntime {
       history: this.#history,
       injection: new ClipboardInjectionService(
         new ElectronClipboardAdapter(),
-        this.#native,
+        {
+          paste: async (target) => {
+            if (process.platform === 'darwin') {
+              return pasteDarwinWithHelperFallback(target, (next) =>
+                this.#native.paste(next),
+              );
+            }
+            return this.#native.paste(target);
+          },
+        },
+        undefined,
+        process.platform === 'darwin' ? 1_000 : 120,
       ),
       native: this.#native,
       presenter: {
@@ -415,17 +445,11 @@ export class DesktopRuntime {
     });
 
     try {
-      await this.#recorder.initialize();
+      await this.ensureMicrophoneAccess();
+      await Promise.all([this.#recorder.initialize(), this.#capsule.warmup()]);
       await this.#native.start();
-      const nativeHotkey = parseHotkeyAccelerator(
-        config.dictation.hotkeyAccelerator,
-      );
       try {
-        await this.#native.configureHotkey(nativeHotkey);
-        this.logHotkeyConfiguration(
-          config.dictation.hotkeyAccelerator,
-          nativeHotkey,
-        );
+        await this.applyHotkey(config.dictation.hotkeyAccelerator);
       } catch (error) {
         if (!isNativeHotkeyConflictError(error)) throw error;
         this.#diagnostics.recordIssue({
@@ -444,7 +468,9 @@ export class DesktopRuntime {
         if (process.env.UNTYPO_HOTKEY_PROBE === '1') return;
         this.dispatchHotkey(action);
       });
-      app.setLoginItemSettings({ openAtLogin: config.general.launchAtLogin });
+      if (!process.argv.includes('--smoke-test')) {
+        app.setLoginItemSettings({ openAtLogin: config.general.launchAtLogin });
+      }
       this.createTray(config.general.locale);
       if (!process.argv.includes('--smoke-test')) {
         this.#selection = new SelectionWindowController({
@@ -489,12 +515,21 @@ export class DesktopRuntime {
   }
 
   async smokeTest(): Promise<boolean> {
-    const [recorderReady, , dictionaryCapsuleReady] = await Promise.all([
-      this.#recorder.smokeTest(),
-      this.#native.ping(),
-      this.#capsule.smokeTestDictionarySuggestion(),
-    ]);
-    return recorderReady && dictionaryCapsuleReady;
+    const [recorderReady, nativeReady, dictionaryCapsuleReady] =
+      await Promise.all([
+        this.#recorder.smokeTest(),
+        this.#native
+          .ping()
+          .then(() => true)
+          .catch(() => false),
+        this.#capsule.smokeTestDictionarySuggestion(),
+      ]);
+    if (!recorderReady || !nativeReady || !dictionaryCapsuleReady) {
+      console.error(
+        `SMOKE_SURFACE recorder=${String(recorderReady)} native=${String(nativeReady)} capsule=${String(dictionaryCapsuleReady)}`,
+      );
+    }
+    return recorderReady && nativeReady && dictionaryCapsuleReady;
   }
 
   async selectionSmokeTest(): Promise<void> {
@@ -507,6 +542,7 @@ export class DesktopRuntime {
       this.#configuration.getProfile(),
       this.#preferenceLearning.snapshot(),
     ]);
+    const permissions = this.permissionSnapshot();
     return {
       dictionary: config.dictionary,
       dictionaryLearning: { enabled: config.dictionaryLearning.enabled },
@@ -519,6 +555,7 @@ export class DesktopRuntime {
         suggestions: memory.suggestions,
       },
       ...(profile ? { profile } : {}),
+      ...(permissions ? { permissions } : {}),
       providers: config.providers.map((provider) => ({
         configuredSecretKeys: Object.keys(provider.secrets),
         id: provider.id,
@@ -584,16 +621,13 @@ export class DesktopRuntime {
       throw new Error('Active text provider profile does not exist');
     }
     const requestedHotkey = update.dictation?.hotkeyAccelerator;
-    const nextHotkey = parseHotkeyAccelerator(
-      requestedHotkey ?? current.dictation.hotkeyAccelerator,
-    );
     const hotkeyChanged =
       requestedHotkey !== undefined &&
       requestedHotkey !== current.dictation.hotkeyAccelerator;
 
-    if (hotkeyChanged) {
+    if (hotkeyChanged && requestedHotkey) {
       try {
-        await this.#native.configureHotkey(nextHotkey);
+        await this.applyHotkey(requestedHotkey);
       } catch (error) {
         this.#diagnostics.recordIssue({
           context: { accelerator: requestedHotkey },
@@ -653,10 +687,7 @@ export class DesktopRuntime {
     } catch (error) {
       if (hotkeyChanged) {
         try {
-          const previousHotkey = parseHotkeyAccelerator(
-            current.dictation.hotkeyAccelerator,
-          );
-          await this.#native.configureHotkey(previousHotkey);
+          await this.applyHotkey(current.dictation.hotkeyAccelerator);
         } catch (rollbackError) {
           this.#diagnostics.recordIssue({
             error: rollbackError,
@@ -668,10 +699,9 @@ export class DesktopRuntime {
       throw error;
     }
     this.#diagnostics.setEnabled(next.diagnostics.automaticCollection);
-    if (hotkeyChanged) {
-      this.logHotkeyConfiguration(next.dictation.hotkeyAccelerator, nextHotkey);
+    if (!process.argv.includes('--smoke-test')) {
+      app.setLoginItemSettings({ openAtLogin: next.general.launchAtLogin });
     }
-    app.setLoginItemSettings({ openAtLogin: next.general.launchAtLogin });
     this.applyLocale(next.general.locale);
     this.#updates.configure(next.updates);
     await this.activateConfiguredProviders(next);
@@ -747,6 +777,16 @@ export class DesktopRuntime {
 
   async clearPersonalizationMemory(): Promise<ClientSnapshot> {
     await this.#preferenceLearning.clear();
+    return this.getClientSnapshot();
+  }
+
+  async requestAccessibilityAccess(): Promise<ClientSnapshot> {
+    if (process.platform === 'darwin') {
+      systemPreferences.isTrustedAccessibilityClient(true);
+      await shell.openExternal(
+        'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility',
+      );
+    }
     return this.getClientSnapshot();
   }
 
@@ -964,6 +1004,9 @@ export class DesktopRuntime {
     this.#selection?.destroy();
     this.#removeHotkeyListener?.();
     this.#removeHotkeyListener = undefined;
+    this.#hotkeyCapture.stop();
+    this.#hotkeyCaptureActive = false;
+    this.unregisterDarwinHotkey();
     this.#tray?.destroy();
     this.#tray = undefined;
     this.#updates.stop();
@@ -1142,6 +1185,81 @@ export class DesktopRuntime {
     });
   }
 
+  async setHotkeyCaptureActive(
+    active: boolean,
+    sender?: WebContents,
+  ): Promise<void> {
+    if (this.#hotkeyCaptureActive === active) {
+      if (active && sender) this.#hotkeyCapture.start(sender);
+      return;
+    }
+    this.#hotkeyCaptureActive = active;
+    if (active) {
+      this.unregisterDarwinHotkey();
+      if (sender) this.#hotkeyCapture.start(sender);
+      return;
+    }
+    this.#hotkeyCapture.stop();
+    const accelerator =
+      this.#pendingHotkeyAccelerator ??
+      (await this.#configuration.load()).dictation.hotkeyAccelerator;
+    try {
+      await this.applyHotkey(accelerator);
+    } catch (error) {
+      this.#diagnostics.recordIssue({
+        context: { accelerator },
+        error,
+        kind: 'configuration',
+        source: 'hotkey.capture-resume',
+      });
+    }
+  }
+
+  private async applyHotkey(accelerator: string): Promise<void> {
+    const nativeHotkey = parseHotkeyAccelerator(accelerator);
+    this.#pendingHotkeyAccelerator = accelerator;
+    if (this.#hotkeyCaptureActive) {
+      this.logHotkeyConfiguration(accelerator, nativeHotkey);
+      return;
+    }
+    if (process.platform === 'darwin') {
+      this.registerDarwinHotkey(accelerator);
+      this.logHotkeyConfiguration(accelerator, nativeHotkey);
+      return;
+    }
+    await this.#native.configureHotkey(nativeHotkey);
+    this.logHotkeyConfiguration(accelerator, nativeHotkey);
+  }
+
+  private registerDarwinHotkey(accelerator: string): void {
+    const electronAccelerator = toElectronAccelerator(accelerator);
+    this.unregisterDarwinHotkey();
+    if (
+      !globalShortcut.register(electronAccelerator, () => {
+        this.#diagnostics.log({
+          context: { action: 'toggle', accelerator },
+          message: 'Native hotkey event received',
+          scope: 'hotkey.event',
+        });
+        if (this.#hotkeyCaptureActive) {
+          this.#hotkeyCapture.emitAccelerator(accelerator);
+          return;
+        }
+        if (process.env.UNTYPO_HOTKEY_PROBE === '1') return;
+        this.dispatchHotkey(NativeHotkeyAction.Toggle);
+      })
+    ) {
+      throw new NativeHotkeyRegistrationError(NATIVE_HOTKEY_ALREADY_REGISTERED);
+    }
+    this.#electronHotkeyAccelerator = electronAccelerator;
+  }
+
+  private unregisterDarwinHotkey(): void {
+    if (!this.#electronHotkeyAccelerator) return;
+    globalShortcut.unregister(this.#electronHotkeyAccelerator);
+    this.#electronHotkeyAccelerator = undefined;
+  }
+
   private dispatchHotkey(action: NativeHotkeyAction): void {
     if (this.#selection?.isBusy || this.#coordinator?.state === 'processing')
       return;
@@ -1160,6 +1278,25 @@ export class DesktopRuntime {
         });
         this.refreshTrayMenu();
       });
+  }
+
+  private permissionSnapshot(): ClientPermissionSnapshot | undefined {
+    if (process.platform !== 'darwin') return undefined;
+    return {
+      accessibility: systemPreferences.isTrustedAccessibilityClient(false)
+        ? 'granted'
+        : 'denied',
+      microphone: systemPreferences.getMediaAccessStatus('microphone'),
+    };
+  }
+
+  private async ensureMicrophoneAccess(): Promise<void> {
+    if (process.platform !== 'darwin') return;
+    if (process.argv.includes('--smoke-test')) return;
+    if (systemPreferences.getMediaAccessStatus('microphone') === 'granted') {
+      return;
+    }
+    await systemPreferences.askForMediaAccess('microphone');
   }
 
   private logHotkeyConfiguration(
@@ -1186,20 +1323,33 @@ export class DesktopRuntime {
   }
 
   private createTray(locale: 'en-US' | 'zh-CN'): void {
-    const icon = nativeImage
-      .createFromPath(this.#options.applicationIconPath)
-      .resize({
-        height: 16,
-        width: 16,
-      });
+    const iconPath =
+      process.platform === 'darwin'
+        ? this.darwinTrayIconPath()
+        : this.#options.applicationIconPath;
+    const icon =
+      process.platform === 'darwin'
+        ? nativeImage.createFromPath(iconPath)
+        : nativeImage.createFromPath(iconPath).resize({
+            height: 16,
+            width: 16,
+          });
     if (icon.isEmpty()) {
-      throw new Error(
-        `Application tray icon could not be loaded: ${this.#options.applicationIconPath}`,
-      );
+      throw new Error(`Application tray icon could not be loaded: ${iconPath}`);
     }
+    if (process.platform === 'darwin') icon.setTemplateImage(true);
     this.#tray = new Tray(icon);
-    this.#tray.on('click', () => void this.#options.showMainWindow());
+    if (process.platform !== 'darwin') {
+      this.#tray.on('click', () => void this.#options.showMainWindow());
+    }
     this.applyLocale(locale);
+  }
+
+  private darwinTrayIconPath(): string {
+    const fileName = 'untypo-trayTemplate.png';
+    return app.isPackaged
+      ? path.join(process.resourcesPath, fileName)
+      : path.join(app.getAppPath(), 'assets', fileName);
   }
 
   private applyLocale(locale: 'en-US' | 'zh-CN'): void {

@@ -2,7 +2,7 @@
   "name": "untypo",
   "version": "0.1.8",
   "private": true,
-  "description": "Open-source AI dictation client for Windows",
+  "description": "Open-source AI dictation client",
   "author": "UnTypo contributors",
   "main": "dist/main/index.js",
   "scripts": {
@@ -23,7 +23,9 @@
     "test:watch": "vitest",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
     "package:dir": "npm run build && electron-builder --dir --win",
-    "package:win": "npm run build && electron-builder --win nsis"
+    "package:dir:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir --mac --arm64",
+    "package:win": "npm run build && electron-builder --win nsis",
+    "package:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64"
   },
   "engines": {
     "node": ">=22.12.0",

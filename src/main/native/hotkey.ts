@@ -79,7 +79,9 @@ export const parseHotkeyAccelerator = (
       normalized === 'win' ||
       normalized === 'windows' ||
       normalized === 'super' ||
-      normalized === 'meta'
+      normalized === 'meta' ||
+      normalized === 'command' ||
+      normalized === 'cmd'
     )
       modifiers |= MOD_WIN;
     else if (key) throw new Error('Hotkey accelerator has multiple keys');
@@ -88,4 +90,34 @@ export const parseHotkeyAccelerator = (
 
   if (!key) throw new Error('Hotkey accelerator has no key');
   return { modifiers, virtualKey: parseVirtualKey(key) };
+};
+
+export const toElectronAccelerator = (accelerator: string): string => {
+  const configuration = parseHotkeyAccelerator(accelerator);
+  const parts: string[] = [];
+  if (configuration.modifiers & MOD_CONTROL) parts.push('Control');
+  if (configuration.modifiers & MOD_ALT) parts.push('Alt');
+  if (configuration.modifiers & MOD_SHIFT) parts.push('Shift');
+  if (configuration.modifiers & MOD_WIN) parts.push('Command');
+  const keyName = Object.entries(namedKeys).find(
+    ([, virtualKey]) => virtualKey === configuration.virtualKey,
+  )?.[0];
+  if (keyName) {
+    parts.push(keyName === 'space' ? 'Space' : keyName);
+    return parts.join('+');
+  }
+  if (configuration.virtualKey >= 0x41 && configuration.virtualKey <= 0x5a) {
+    parts.push(String.fromCharCode(configuration.virtualKey));
+    return parts.join('+');
+  }
+  if (configuration.virtualKey >= 0x30 && configuration.virtualKey <= 0x39) {
+    parts.push(String.fromCharCode(configuration.virtualKey));
+    return parts.join('+');
+  }
+  if (configuration.virtualKey >= 0x70 && configuration.virtualKey <= 0x87) {
+    parts.push(`F${String(configuration.virtualKey - 0x6f)}`);
+    return parts.join('+');
+  }
+  if (configuration.virtualKey === 0x12) return 'Alt';
+  throw new Error(`Unsupported hotkey key: ${accelerator}`);
 };

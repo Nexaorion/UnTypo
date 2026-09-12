@@ -12,6 +12,11 @@ const target: NativeTargetSnapshot = {
   windowHandle: '4660',
 };
 
+const flushRestore = async (): Promise<void> => {
+  await Promise.resolve();
+  await Promise.resolve();
+};
+
 describe('ClipboardInjectionService', () => {
   it('restores the prior clipboard after a successful unchanged paste', async () => {
     let current = 'original';
@@ -35,6 +40,7 @@ describe('ClipboardInjectionService', () => {
       injected: true,
       status: NativePasteStatus.Success,
     });
+    await flushRestore();
     expect(restore).toHaveBeenCalledWith('original');
     expect(current).toBe('original');
   });
@@ -61,9 +67,42 @@ describe('ClipboardInjectionService', () => {
     );
 
     await service.inject('result', target);
+    await flushRestore();
 
     expect(restore).not.toHaveBeenCalled();
     expect(current).toBe('user copied something else');
+  });
+
+  it('does not wait for clipboard restore before reporting a successful paste', async () => {
+    let release: (() => void) | undefined;
+    const delay = vi.fn(
+      async () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const restore = vi.fn();
+    const service = new ClipboardInjectionService(
+      {
+        isCurrentText: () => true,
+        readSnapshot: () => 'original',
+        restore,
+        writeText: () => undefined,
+      },
+      { paste: () => Promise.resolve(NativePasteStatus.Success) },
+      delay,
+      1_000,
+    );
+
+    await expect(service.inject('result', target)).resolves.toEqual({
+      injected: true,
+      status: NativePasteStatus.Success,
+    });
+    expect(delay).toHaveBeenCalledWith(1_000);
+    expect(restore).not.toHaveBeenCalled();
+    release?.();
+    await flushRestore();
+    expect(restore).toHaveBeenCalledWith('original');
   });
 
   it('keeps the generated result when target validation fails', async () => {

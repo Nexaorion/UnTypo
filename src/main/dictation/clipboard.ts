@@ -24,21 +24,26 @@ export class ClipboardInjectionService<Snapshot = unknown> {
   readonly #clipboard: ClipboardPort<Snapshot>;
   readonly #delay: (milliseconds: number) => Promise<void>;
   readonly #native: NativePastePort;
+  readonly #restoreDelayMs: number;
+  #restoreGeneration = 0;
 
   constructor(
     clipboard: ClipboardPort<Snapshot>,
     native: NativePastePort,
     delay: (milliseconds: number) => Promise<void> = defaultDelay,
+    restoreDelayMs = 120,
   ) {
     this.#clipboard = clipboard;
     this.#native = native;
     this.#delay = delay;
+    this.#restoreDelayMs = restoreDelayMs;
   }
 
   async inject(
     text: string,
     target: NativeTargetSnapshot,
   ): Promise<InjectionResult> {
+    this.#restoreGeneration += 1;
     const snapshot = await this.#clipboard.readSnapshot();
     await this.#clipboard.writeText(text);
     const status = await this.#native.paste(target);
@@ -46,10 +51,19 @@ export class ClipboardInjectionService<Snapshot = unknown> {
       return { injected: false, status };
     }
 
-    await this.#delay(120);
-    if (await this.#clipboard.isCurrentText(text)) {
-      await this.#clipboard.restore(snapshot);
-    }
+    this.scheduleRestore(text, snapshot);
     return { injected: true, status };
+  }
+
+  private scheduleRestore(text: string, snapshot: Snapshot): void {
+    const generation = this.#restoreGeneration;
+    void this.#delay(this.#restoreDelayMs)
+      .then(async () => {
+        if (generation !== this.#restoreGeneration) return;
+        if (await this.#clipboard.isCurrentText(text)) {
+          await this.#clipboard.restore(snapshot);
+        }
+      })
+      .catch(() => undefined);
   }
 }

@@ -50,12 +50,14 @@ export interface ClientStore {
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   reloadDiagnostics: () => Promise<void>;
   reloadHistory: () => Promise<void>;
+  requestAccessibilityAccess: () => Promise<void>;
   removeProvider: (profileId: string) => Promise<void>;
   removeDictionaryEntry: (term: string) => Promise<void>;
   removeWritingPreference: (id: string) => Promise<void>;
   rejectWritingPreference: (id: string) => Promise<void>;
   runtime: PingResponse | null;
   usage: ClientUsageStats | null;
+  setHotkeyCaptureActive: (active: boolean) => Promise<void>;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<void>;
   setApplicationWritingStyle: (
     update: ClientApplicationWritingStyleUpdate,
@@ -287,6 +289,10 @@ export const useClientStore = (): ClientStore => {
     [applySnapshot],
   );
 
+  const setHotkeyCaptureActive = useCallback(async (active: boolean) => {
+    await requireApi().setHotkeyCaptureActive(active);
+  }, []);
+
   const setDictionaryLearningEnabled = useCallback(
     async (enabled: boolean) => {
       applySnapshot(await requireApi().setDictionaryLearningEnabled(enabled));
@@ -321,6 +327,10 @@ export const useClientStore = (): ClientStore => {
     await requireApi().testProvider(profileId);
   }, []);
 
+  const requestAccessibilityAccess = useCallback(async () => {
+    applySnapshot(await requireApi().requestAccessibilityAccess());
+  }, [applySnapshot]);
+
   return {
     acceptWritingPreference,
     addDictionaryEntry,
@@ -340,12 +350,14 @@ export const useClientStore = (): ClientStore => {
     listMicrophones,
     reloadDiagnostics,
     reloadHistory,
+    requestAccessibilityAccess,
     removeProvider,
     removeDictionaryEntry,
     removeWritingPreference,
     rejectWritingPreference,
     runtime,
     usage,
+    setHotkeyCaptureActive,
     setDictionaryLearningEnabled,
     setApplicationWritingStyle,
     setProfile,

@@ -1,4 +1,9 @@
-import { clipboard, ipcMain, type IpcMainInvokeEvent } from 'electron';
+import {
+  clipboard,
+  ipcMain,
+  type IpcMainInvokeEvent,
+  type WebContents,
+} from 'electron';
 import type { UserProfileContext } from '../../core/providers/contracts.js';
 import type {
   ClientDiagnosticExportRequest,
@@ -31,6 +36,7 @@ import {
   parseDictionaryTerm,
   parseHistoryQuery,
   parsePersonalizationLearningEnabled,
+  parseBooleanFlag,
   parseProfile,
   parseProfileId,
   parseProviderInput,
@@ -58,11 +64,16 @@ export interface ClientBackendPort {
   installUpdate: () => void;
   listHistory: (query: ClientHistoryQuery) => readonly ClientHistoryRecord[];
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
+  requestAccessibilityAccess: () => Promise<ClientSnapshot>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
   removeDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   removeWritingPreference: (id: string) => Promise<ClientSnapshot>;
   rejectWritingPreference: (id: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => void;
+  setHotkeyCaptureActive: (
+    active: boolean,
+    sender?: WebContents,
+  ) => Promise<void>;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
   setApplicationWritingStyle: (
     update: ClientApplicationWritingStyleUpdate,
@@ -102,6 +113,10 @@ export class ClientIpcController {
     ipcMain.handle(IPC_CHANNELS.getSnapshot, this.getSnapshot);
     ipcMain.handle(IPC_CHANNELS.getUsageStats, this.getUsageStats);
     ipcMain.handle(IPC_CHANNELS.listMicrophones, this.listMicrophones);
+    ipcMain.handle(
+      IPC_CHANNELS.requestAccessibilityAccess,
+      this.requestAccessibilityAccess,
+    );
     ipcMain.handle(IPC_CHANNELS.updateSettings, this.updateSettings);
     ipcMain.handle(
       IPC_CHANNELS.removeDictionaryEntry,
@@ -131,6 +146,10 @@ export class ClientIpcController {
     ipcMain.handle(IPC_CHANNELS.upsertProvider, this.upsertProvider);
     ipcMain.handle(IPC_CHANNELS.removeProvider, this.removeProvider);
     ipcMain.handle(IPC_CHANNELS.reportRendererIssue, this.reportRendererIssue);
+    ipcMain.handle(
+      IPC_CHANNELS.setHotkeyCaptureActive,
+      this.setHotkeyCaptureActive,
+    );
     ipcMain.handle(IPC_CHANNELS.testProvider, this.testProvider);
     ipcMain.handle(IPC_CHANNELS.listHistory, this.listHistory);
     ipcMain.handle(IPC_CHANNELS.clearHistory, this.clearHistory);
@@ -152,6 +171,7 @@ export class ClientIpcController {
       IPC_CHANNELS.getSnapshot,
       IPC_CHANNELS.getUsageStats,
       IPC_CHANNELS.listMicrophones,
+      IPC_CHANNELS.requestAccessibilityAccess,
       IPC_CHANNELS.updateSettings,
       IPC_CHANNELS.removeDictionaryEntry,
       IPC_CHANNELS.removeWritingPreference,
@@ -163,6 +183,7 @@ export class ClientIpcController {
       IPC_CHANNELS.upsertProvider,
       IPC_CHANNELS.removeProvider,
       IPC_CHANNELS.reportRendererIssue,
+      IPC_CHANNELS.setHotkeyCaptureActive,
       IPC_CHANNELS.testProvider,
       IPC_CHANNELS.listHistory,
       IPC_CHANNELS.clearHistory,
@@ -236,6 +257,13 @@ export class ClientIpcController {
     return this.#backend.listMicrophones();
   };
 
+  private readonly requestAccessibilityAccess = (
+    event: IpcMainInvokeEvent,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.requestAccessibilityAccess();
+  };
+
   private readonly updateSettings = (
     event: IpcMainInvokeEvent,
     value: unknown,
@@ -269,6 +297,17 @@ export class ClientIpcController {
     trust(event);
     return this.#backend.rejectWritingPreference(
       parseWritingPreferenceId(value),
+    );
+  };
+
+  private readonly setHotkeyCaptureActive = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<void> => {
+    trust(event);
+    return this.#backend.setHotkeyCaptureActive(
+      parseBooleanFlag(value, 'Hotkey capture'),
+      event.sender,
     );
   };
 
