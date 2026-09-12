@@ -30,6 +30,28 @@ jobs:
       - name: Verify frontend
         run: npm run check
 
+  verify-macos:
+    name: Verify macOS
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          cache: npm
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify frontend and native helper
+        run: npm run check
+
   check-version:
     name: Check preview version
     if: github.event_name == 'push' && github.ref == 'refs/heads/preview'
