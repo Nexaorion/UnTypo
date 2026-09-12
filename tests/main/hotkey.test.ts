@@ -60,6 +60,8 @@ describe('toElectronAccelerator', () => {
     );
     expect(toElectronAccelerator('Win+K')).toBe('Command+K');
     expect(toElectronAccelerator('F9')).toBe('F9');
+    expect(toElectronAccelerator('Ctrl+Numpad0')).toBe('Control+num0');
+    expect(toElectronAccelerator('NumpadDecimal')).toBe('numdec');
   });
 });
 

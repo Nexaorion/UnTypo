@@ -323,6 +323,21 @@ describe('defaultHotkeyAccelerator', () => {
   });
 });
 
+describe('acceleratorFromEvent', () => {
+  it('uses the logical key for alternate keyboard layouts', () => {
+    expect(
+      acceleratorFromEvent({
+        code: 'KeyZ',
+        ctrlKey: true,
+        key: 'y',
+        altKey: false,
+        metaKey: false,
+        shiftKey: false,
+      }),
+    ).toBe('Ctrl+Y');
+  });
+});
+
 describe('hotkeyKeycapLabels', () => {
   it('creates display labels without changing the stored accelerator', () => {
     expect(hotkeyKeycapLabels('Ctrl+0')).toEqual(['Ctrl', '0']);

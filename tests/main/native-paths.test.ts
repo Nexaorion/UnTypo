@@ -1,6 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   nativeHelperFileName,
   nativeIpcPath,
@@ -19,5 +19,16 @@ describe('native helper paths', () => {
     expect(nativeIpcPath(12, 'abc', 'darwin')).toBe(
       path.join(os.tmpdir(), 'untypo-12-abc.sock'),
     );
+  });
+
+  it('keeps Darwin socket paths within sockaddr_un limits', () => {
+    const tmpdir = vi.spyOn(os, 'tmpdir').mockReturnValue('x'.repeat(200));
+    try {
+      const socketPath = nativeIpcPath(12, 'abc', 'darwin');
+      expect(Buffer.byteLength(socketPath, 'utf8')).toBeLessThan(104);
+      expect(socketPath).toContain('u-12-');
+    } finally {
+      tmpdir.mockRestore();
+    }
   });
 });

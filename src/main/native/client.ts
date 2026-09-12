@@ -1,7 +1,7 @@
 import { access } from 'node:fs/promises';
 import { createConnection, type Socket } from 'node:net';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -59,10 +59,25 @@ export const nativeIpcPath = (
   pid: number,
   uniqueId: string,
   platform: NodeJS.Platform = process.platform,
-): string =>
-  platform === 'win32'
-    ? `\\\\.\\pipe\\untypo-${String(pid)}-${uniqueId}`
-    : path.join(os.tmpdir(), `untypo-${String(pid)}-${uniqueId}.sock`);
+): string => {
+  if (platform === 'win32')
+    return `\\\\.\\pipe\\untypo-${String(pid)}-${uniqueId}`;
+
+  const socketPath = path.join(
+    os.tmpdir(),
+    `untypo-${String(pid)}-${uniqueId}.sock`,
+  );
+  if (Buffer.byteLength(socketPath, 'utf8') < 104) return socketPath;
+
+  const compactPath = path.join('/tmp', `u-${String(pid)}-${uniqueId}.sock`);
+  if (Buffer.byteLength(compactPath, 'utf8') < 104) return compactPath;
+
+  const digest = createHash('sha256')
+    .update(`${String(pid)}:${uniqueId}`)
+    .digest('hex')
+    .slice(0, 24);
+  return path.join('/tmp', `u-${String(pid)}-${digest}.sock`);
+};
 
 const wait = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));

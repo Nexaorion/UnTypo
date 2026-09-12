@@ -38,6 +38,24 @@ const namedKeys: Readonly<Record<string, number>> = {
   up: 0x26,
 };
 
+const electronNumpadNames: Readonly<Record<string, string>> = {
+  numpad0: 'num0',
+  numpad1: 'num1',
+  numpad2: 'num2',
+  numpad3: 'num3',
+  numpad4: 'num4',
+  numpad5: 'num5',
+  numpad6: 'num6',
+  numpad7: 'num7',
+  numpad8: 'num8',
+  numpad9: 'num9',
+  numpadadd: 'numadd',
+  numpaddecimal: 'numdec',
+  numpaddivide: 'numdiv',
+  numpadmultiply: 'nummult',
+  numpadsubtract: 'numsub',
+};
+
 const parseVirtualKey = (value: string): number => {
   const normalized = value.toLowerCase();
   if (normalized in namedKeys) return namedKeys[normalized] as number;
@@ -103,7 +121,9 @@ export const toElectronAccelerator = (accelerator: string): string => {
     ([, virtualKey]) => virtualKey === configuration.virtualKey,
   )?.[0];
   if (keyName) {
-    parts.push(keyName === 'space' ? 'Space' : keyName);
+    parts.push(
+      keyName === 'space' ? 'Space' : (electronNumpadNames[keyName] ?? keyName),
+    );
     return parts.join('+');
   }
   if (configuration.virtualKey >= 0x41 && configuration.virtualKey <= 0x5a) {

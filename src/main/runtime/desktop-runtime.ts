@@ -460,6 +460,7 @@ export class DesktopRuntime {
         });
       }
       this.#removeHotkeyListener = this.#native.onHotkey((action) => {
+        if (this.#hotkeyCaptureActive) return;
         this.#diagnostics.log({
           context: { action: 'toggle' },
           message: 'Native hotkey event received',
@@ -1193,16 +1194,17 @@ export class DesktopRuntime {
       if (active && sender) this.#hotkeyCapture.start(sender);
       return;
     }
-    this.#hotkeyCaptureActive = active;
     if (active) {
+      this.#hotkeyCaptureActive = true;
       this.unregisterDarwinHotkey();
       if (sender) this.#hotkeyCapture.start(sender);
       return;
     }
+    const previous = (await this.#configuration.load()).dictation
+      .hotkeyAccelerator;
+    const accelerator = this.#pendingHotkeyAccelerator ?? previous;
     this.#hotkeyCapture.stop();
-    const accelerator =
-      this.#pendingHotkeyAccelerator ??
-      (await this.#configuration.load()).dictation.hotkeyAccelerator;
+    this.#hotkeyCaptureActive = false;
     try {
       await this.applyHotkey(accelerator);
     } catch (error) {
@@ -1212,6 +1214,16 @@ export class DesktopRuntime {
         kind: 'configuration',
         source: 'hotkey.capture-resume',
       });
+      try {
+        await this.applyHotkey(previous);
+      } catch (rollbackError) {
+        this.#diagnostics.recordIssue({
+          error: rollbackError,
+          kind: 'internal',
+          source: 'hotkey.capture-resume-rollback',
+        });
+      }
+      throw error;
     }
   }
 
@@ -1225,15 +1237,17 @@ export class DesktopRuntime {
     if (process.platform === 'darwin') {
       this.registerDarwinHotkey(accelerator);
       this.logHotkeyConfiguration(accelerator, nativeHotkey);
+      this.#pendingHotkeyAccelerator = undefined;
       return;
     }
     await this.#native.configureHotkey(nativeHotkey);
     this.logHotkeyConfiguration(accelerator, nativeHotkey);
+    this.#pendingHotkeyAccelerator = undefined;
   }
 
   private registerDarwinHotkey(accelerator: string): void {
     const electronAccelerator = toElectronAccelerator(accelerator);
-    this.unregisterDarwinHotkey();
+    if (electronAccelerator === this.#electronHotkeyAccelerator) return;
     if (
       !globalShortcut.register(electronAccelerator, () => {
         this.#diagnostics.log({
@@ -1251,7 +1265,9 @@ export class DesktopRuntime {
     ) {
       throw new NativeHotkeyRegistrationError(NATIVE_HOTKEY_ALREADY_REGISTERED);
     }
+    const previous = this.#electronHotkeyAccelerator;
     this.#electronHotkeyAccelerator = electronAccelerator;
+    if (previous) globalShortcut.unregister(previous);
   }
 
   private unregisterDarwinHotkey(): void {

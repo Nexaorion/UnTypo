@@ -228,8 +228,8 @@ export const acceleratorFromEvent = (
   event: HotkeyCaptureEvent,
 ): string | undefined => {
   const key =
-    physicalKeyFromCode(event.code) ??
-    eventKeyToAcceleratorKey(event.key, event.code);
+    eventKeyToAcceleratorKey(event.key, event.code) ??
+    physicalKeyFromCode(event.code);
   if (key === undefined) return undefined;
 
   const parts: string[] = [];
