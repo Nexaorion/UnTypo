@@ -50,6 +50,7 @@ export interface ClientStore {
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   reloadDiagnostics: () => Promise<void>;
   reloadHistory: () => Promise<void>;
+  reloadSnapshot: () => Promise<void>;
   requestAccessibilityAccess: () => Promise<void>;
   removeProvider: (profileId: string) => Promise<void>;
   removeDictionaryEntry: (term: string) => Promise<void>;
@@ -331,6 +332,10 @@ export const useClientStore = (): ClientStore => {
     applySnapshot(await requireApi().requestAccessibilityAccess());
   }, [applySnapshot]);
 
+  const reloadSnapshot = useCallback(async () => {
+    applySnapshot(await requireApi().getSnapshot());
+  }, [applySnapshot]);
+
   return {
     acceptWritingPreference,
     addDictionaryEntry,
@@ -350,6 +355,7 @@ export const useClientStore = (): ClientStore => {
     listMicrophones,
     reloadDiagnostics,
     reloadHistory,
+    reloadSnapshot,
     requestAccessibilityAccess,
     removeProvider,
     removeDictionaryEntry,
