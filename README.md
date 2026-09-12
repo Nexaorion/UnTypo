@@ -12,26 +12,6 @@
 
 UnTypo 是一个仍在早期开发中的听写工具，支持 Windows x64 和 macOS Apple Silicon。它把语音转成文字，再按口述内容完成润色、翻译或指令生成。
 
-## macOS 安装（Apple Silicon）
-
-本地打包：
-
-```bash
-npm run package:mac
-```
-
-产物在 `release/` 下的 `.dmg`。把 UnTypo 拖进「应用程序」。当前构建尚未公证，首次打开会被 Gatekeeper 拦截：
-
-1. 按住 Control 点击 UnTypo → 打开；或
-2. 运行 `xattr -cr /Applications/UnTypo.app`
-
-听写需要两项系统权限：
-
-- **麦克风**：录音
-- **辅助功能**：读取前台输入框，并把文字粘贴回去
-
-未签名包每次重新打包后，可能需要重新打开这两项权限。自动更新在 macOS 上尚未启用。
-
 ## 你可以用 UnTypo 做什么
 
 ### 在聊天、写作或填表时，少说多做
