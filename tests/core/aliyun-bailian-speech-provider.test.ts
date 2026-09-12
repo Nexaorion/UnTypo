@@ -304,7 +304,7 @@ describe('AliyunBailianSpeechProvider', () => {
     expect(body.parameters).not.toHaveProperty('vocabulary');
   });
 
-  it('uses the official public audio sample for connection testing', async () => {
+  it('sends a data-URI WAV for connection testing', async () => {
     const request = vi.fn<typeof fetch>(() =>
       Promise.resolve(
         new Response(JSON.stringify({ output: { text: 'ready' } }), {
@@ -321,28 +321,23 @@ describe('AliyunBailianSpeechProvider', () => {
       'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation',
     );
     if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
-    expect(JSON.parse(init.body)).toMatchObject({
+    const body = JSON.parse(init.body) as {
       input: {
-        messages: [
-          {
-            content: [
-              {
-                input_audio: {
-                  data: 'https://dashscope.oss-cn-beijing.aliyuncs.com/samples/audio/paraformer/hello_world_female2.wav',
-                },
-                type: 'input_audio',
-              },
-            ],
-            role: 'user',
-          },
-        ],
-      },
-      model: 'qwen-audio-3.0-asr-flash',
-      parameters: {
-        format: 'wav',
-        language_hints: ['en'],
-        sample_rate: '16000',
-      },
+        messages: Array<{
+          content: Array<{ input_audio: { data: string }; type: string }>;
+        }>;
+      };
+      model: string;
+      parameters: Record<string, unknown>;
+    };
+    const audioData = body.input.messages[0]?.content[0]?.input_audio.data;
+    expect(audioData?.startsWith('data:audio/wav;base64,')).toBe(true);
+    expect(audioData).not.toContain('http');
+    expect(body.model).toBe('qwen-audio-3.0-asr-flash');
+    expect(body.parameters).toEqual({
+      format: 'wav',
+      language_hints: ['en'],
+      sample_rate: '16000',
     });
   });
 
