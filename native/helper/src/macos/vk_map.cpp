@@ -122,8 +122,7 @@ bool MapWin32VirtualKey(std::uint32_t virtual_key, std::uint16_t* key_code) {
     case 0x85:
     case 0x86:
     case 0x87:
-      *key_code = static_cast<std::uint16_t>(virtual_key);
-      return true;
+      return false;
     default:
       return false;
   }

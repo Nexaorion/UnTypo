@@ -112,7 +112,7 @@ describe('pasteDarwinWithHelperFallback', () => {
       .mockResolvedValue(NativePasteStatus.NotEditable);
     await expect(
       pasteDarwinWithHelperFallback(target, helperPaste, keyPaste),
-    ).resolves.toBe(NativePasteStatus.NotEditable);
+    ).resolves.toBe(NativePasteStatus.Success);
     expect(keyPaste).toHaveBeenCalledWith(target);
   });
 

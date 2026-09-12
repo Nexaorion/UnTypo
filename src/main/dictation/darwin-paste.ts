@@ -82,11 +82,5 @@ export const pasteDarwinWithHelperFallback = async (
     return helperStatus;
   }
   const keyStatus = await keyPaste(target);
-  if (
-    helperStatus === NativePasteStatus.NotEditable &&
-    keyStatus === NativePasteStatus.Success
-  ) {
-    return NativePasteStatus.NotEditable;
-  }
   return keyStatus;
 };

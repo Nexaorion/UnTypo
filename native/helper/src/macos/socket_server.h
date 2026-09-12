@@ -51,7 +51,7 @@ class SocketServer {
 
   SocketCallbacks callbacks_;
   std::atomic<bool> authenticated_{false};
-  int client_fd_ = -1;
+  std::atomic<int> client_fd_{-1};
   int listen_fd_ = -1;
   std::string socket_path_;
   std::atomic<bool> running_{false};

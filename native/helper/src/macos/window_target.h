@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <sys/types.h>
 #include <vector>
 
 #include "../protocol.h"
@@ -23,7 +24,7 @@ class WindowTargetService {
   bool selection_editable_ = false;
 
   bool IsTrusted() const;
-  bool IsEditable() const;
+  bool IsEditable(pid_t process_id) const;
   bool ModifierHeld() const;
 };
 

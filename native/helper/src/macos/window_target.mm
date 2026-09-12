@@ -5,6 +5,8 @@
 #import <Carbon/Carbon.h>
 #import <Foundation/Foundation.h>
 
+#include <dispatch/dispatch.h>
+
 #include <unistd.h>
 
 #include <algorithm>
@@ -246,19 +248,34 @@ bool ElementIsEditable(AXUIElementRef focused) {
 }
 
 bool ActivateProcess(pid_t pid) {
-  NSRunningApplication* application =
-      [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
-  if (application == nil) return false;
-  return [application activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+  __block bool activated = false;
+  dispatch_sync(dispatch_get_main_queue(), ^{
+    NSRunningApplication* application =
+        [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+    if (application == nil) return;
+    if (@available(macOS 14.0, *)) {
+      activated = [application
+          activateFromApplication:[NSRunningApplication currentApplication]
+                           options:NSApplicationActivateAllWindows];
+    } else {
+      activated = [application
+          activateWithOptions:NSApplicationActivateIgnoringOtherApps];
+    }
+  });
+  return activated;
 }
 
 bool InsertClipboardViaAx(AXUIElementRef focused) {
-  NSString* text =
-      [[NSPasteboard generalPasteboard] stringForType:NSPasteboardTypeString];
-  if (text.length == 0 || focused == nullptr) return false;
-  const AXError error = AXUIElementSetAttributeValue(
-      focused, kAXSelectedTextAttribute, (__bridge CFTypeRef)text);
-  return error == kAXErrorSuccess;
+  __block bool inserted = false;
+  dispatch_sync(dispatch_get_main_queue(), ^{
+    NSString* text =
+        [[NSPasteboard generalPasteboard] stringForType:NSPasteboardTypeString];
+    if (text.length == 0 || focused == nullptr) return;
+    const AXError error = AXUIElementSetAttributeValue(
+        focused, kAXSelectedTextAttribute, (__bridge CFTypeRef)text);
+    inserted = error == kAXErrorSuccess;
+  });
+  return inserted;
 }
 
 std::vector<std::uint8_t> EmptySelection() { return std::vector<std::uint8_t>(5, 0); }
@@ -267,12 +284,10 @@ std::vector<std::uint8_t> EmptySelection() { return std::vector<std::uint8_t>(5,
 
 bool WindowTargetService::IsTrusted() const { return AXIsProcessTrusted(); }
 
-bool WindowTargetService::IsEditable() const {
-  if (!IsTrusted()) return false;
-  NSRunningApplication* application = FrontmostApp();
-  if (application == nil) return false;
+bool WindowTargetService::IsEditable(pid_t process_id) const {
+  if (!IsTrusted() || process_id <= 0) return false;
   AXUIElementRef focused =
-      CopyFocusedElementForProcess(application.processIdentifier);
+      CopyFocusedElementForProcess(process_id);
   if (focused == nullptr) return false;
   std::unique_ptr<const void, CfReleaser> focused_owner(focused);
   return ElementIsEditable(focused);
@@ -297,7 +312,8 @@ std::vector<std::uint8_t> WindowTargetService::Capture() const {
   const std::uint32_t window_id =
       process_id == 0 ? 0 : FrontmostWindowId(process_id);
   const bool trusted = IsTrusted();
-  const bool editable = trusted && process_id != 0 && IsEditable();
+  const bool editable = trusted && process_id != 0 &&
+                        IsEditable(static_cast<pid_t>(process_id));
   return EncodeTargetSnapshot(
       EncodeHandle(process_id, window_id), process_id, editable, !trusted,
       trusted ? WindowTitle(process_id) : std::u16string{},
@@ -310,10 +326,12 @@ PasteResultPayload WindowTargetService::Paste(
   if (process_id <= 0 || IsOwnProcess(process_id)) {
     return {PasteStatus::TargetChanged};
   }
-  NSRunningApplication* front =
-      [[NSWorkspace sharedWorkspace] frontmostApplication];
-  const pid_t front_pid =
-      front == nil ? 0 : front.processIdentifier;
+  __block pid_t front_pid = 0;
+  dispatch_sync(dispatch_get_main_queue(), ^{
+    NSRunningApplication* front =
+        [[NSWorkspace sharedWorkspace] frontmostApplication];
+    front_pid = front == nil ? 0 : front.processIdentifier;
+  });
   if (front_pid != process_id && !IsOwnProcess(front_pid)) {
     return {PasteStatus::TargetChanged};
   }
@@ -345,7 +363,8 @@ std::vector<std::uint8_t> WindowTargetService::CaptureSelection() {
   const auto process_id =
       static_cast<std::uint32_t>(application.processIdentifier);
   const auto window_id = FrontmostWindowId(process_id);
-  AXUIElementRef focused = CopyFocusedElement();
+  AXUIElementRef focused = CopyFocusedElementForProcess(
+      static_cast<pid_t>(process_id));
   if (focused == nullptr) return EmptySelection();
   std::unique_ptr<const void, CfReleaser> focused_owner(focused);
 
@@ -373,7 +392,7 @@ std::vector<std::uint8_t> WindowTargetService::CaptureSelection() {
     return EmptySelection();
   }
 
-  const bool editable = IsEditable();
+  const bool editable = IsEditable(static_cast<pid_t>(process_id));
   selection_text_ = text;
   selection_window_handle_ = EncodeHandle(process_id, window_id);
   selection_process_ = process_id;

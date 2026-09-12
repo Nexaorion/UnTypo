@@ -51,11 +51,16 @@ bool SocketServer::Start(std::string socket_path, std::string token,
 void SocketServer::Stop() {
   const bool was_running = running_.exchange(false);
   authenticated_ = false;
-  if (client_fd_ >= 0) shutdown(client_fd_, SHUT_RDWR);
+  const int detached_client = client_fd_.exchange(-1);
+  if (detached_client >= 0) shutdown(detached_client, SHUT_RDWR);
   if (listen_fd_ >= 0) shutdown(listen_fd_, SHUT_RDWR);
   if (was_running && thread_.joinable() &&
       thread_.get_id() != std::this_thread::get_id()) {
     thread_.join();
+  }
+  {
+    std::scoped_lock lock(write_mutex_);
+    CloseFd(detached_client);
   }
   CloseClient();
   CloseListen();
@@ -112,7 +117,20 @@ bool SocketServer::AcceptClient() {
   while (running_) {
     const int client = accept(listen_fd_, nullptr, nullptr);
     if (client >= 0) {
-      client_fd_ = client;
+      if (!running_) {
+        CloseFd(client);
+        return false;
+      }
+      client_fd_.store(client);
+      if (!running_) {
+        const int detached = client_fd_.exchange(-1);
+        if (detached >= 0) {
+          shutdown(detached, SHUT_RDWR);
+          std::scoped_lock lock(write_mutex_);
+          CloseFd(detached);
+        }
+        return false;
+      }
       return true;
     }
     if (errno == EINTR) continue;
@@ -204,7 +222,9 @@ bool SocketServer::ReadExact(void* data, std::uint32_t bytes) {
   auto* cursor = static_cast<std::uint8_t*>(data);
   std::uint32_t remaining = bytes;
   while (remaining > 0 && running_) {
-    const ssize_t received = recv(client_fd_, cursor, remaining, 0);
+    const int client = client_fd_.load();
+    if (client < 0) return false;
+    const ssize_t received = recv(client, cursor, remaining, 0);
     if (received < 0) {
       if (errno == EINTR) continue;
       return false;
@@ -218,21 +238,24 @@ bool SocketServer::ReadExact(void* data, std::uint32_t bytes) {
 
 bool SocketServer::WriteFrame(MessageType type, const void* data,
                               std::uint32_t bytes) {
-  if (!running_ || client_fd_ < 0 || bytes > kMaximumPayloadBytes) {
+  if (!running_ || bytes > kMaximumPayloadBytes) {
     return false;
   }
   const FrameHeader header{kProtocolMagic, kProtocolVersion,
                            static_cast<std::uint16_t>(type), bytes};
   std::scoped_lock lock(write_mutex_);
+  if (!running_ || client_fd_.load() < 0) return false;
   return WriteExact(&header, sizeof(header)) &&
          (bytes == 0 || WriteExact(data, bytes));
 }
 
 bool SocketServer::WriteExact(const void* data, std::uint32_t bytes) {
+  const int client = client_fd_.load();
+  if (client < 0) return false;
   const auto* cursor = static_cast<const std::uint8_t*>(data);
   std::uint32_t remaining = bytes;
   while (remaining > 0 && running_) {
-    const ssize_t written = send(client_fd_, cursor, remaining, 0);
+    const ssize_t written = send(client, cursor, remaining, 0);
     if (written < 0) {
       if (errno == EINTR) continue;
       return false;
@@ -245,7 +268,9 @@ bool SocketServer::WriteExact(const void* data, std::uint32_t bytes) {
 }
 
 void SocketServer::CloseClient() {
-  client_fd_ = CloseFd(client_fd_);
+  std::scoped_lock lock(write_mutex_);
+  const int client = client_fd_.exchange(-1);
+  CloseFd(client);
 }
 
 void SocketServer::CloseListen() {
