@@ -290,7 +290,6 @@ jobs:
     # macos-15 avoids electron-builder's CSC_LINK keychain bug on Darwin 25+.
     runs-on: macos-15
     timeout-minutes: 120
-    environment: macos-release
     concurrency:
       group: macos-release-${{ github.repository }}
       cancel-in-progress: false
@@ -381,7 +380,7 @@ jobs:
           [[ -n "${APPLE_API_KEY_ID:-}" ]] || missing+=("APPLE_API_KEY_ID")
           [[ -n "${APPLE_API_ISSUER:-}" ]] || missing+=("APPLE_API_ISSUER")
           if ((${#missing[@]} > 0)); then
-            printf 'Missing macos-release environment secrets:\n' >&2
+            printf 'Missing macOS signing repository secrets:\n' >&2
             printf '  - %s\n' "${missing[@]}" >&2
             exit 1
           fi
