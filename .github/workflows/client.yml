@@ -167,16 +167,34 @@ jobs:
         if: steps.branch.outputs.is_current == 'true'
         shell: pwsh
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        # The checkout keeps no git credentials, so the tag is written through the API.
         run: |
-          & git fetch --force --tags origin
-          if ($LASTEXITCODE -ne 0) { throw 'Unable to fetch remote tags' }
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          & git tag --force --annotate $env:RELEASE_TAG $env:GITHUB_SHA --message "Release $env:RELEASE_TAG"
-          if ($LASTEXITCODE -ne 0) { throw "Unable to create or update tag $env:RELEASE_TAG" }
-          & git push --force origin "refs/tags/$env:RELEASE_TAG"
-          if ($LASTEXITCODE -ne 0) { throw "Unable to push tag $env:RELEASE_TAG" }
+          $tagArguments = @(
+            'api', '--method', 'POST', "repos/$env:GITHUB_REPOSITORY/git/tags",
+            '-f', "tag=$env:RELEASE_TAG",
+            '-f', "object=$env:GITHUB_SHA",
+            '-f', 'type=commit',
+            '-f', "message=Release $env:RELEASE_TAG"
+          )
+          $tagObject = (& gh @tagArguments) | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw "Unable to create the tag object for $env:RELEASE_TAG" }
+
+          $updateArguments = @(
+            'api', '--method', 'PATCH', "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$env:RELEASE_TAG",
+            '-f', "sha=$($tagObject.sha)", '-F', 'force=true'
+          )
+          & gh @updateArguments 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            $createArguments = @(
+              'api', '--method', 'POST', "repos/$env:GITHUB_REPOSITORY/git/refs",
+              '-f', "ref=refs/tags/$env:RELEASE_TAG",
+              '-f', "sha=$($tagObject.sha)"
+            )
+            & gh @createArguments
+            if ($LASTEXITCODE -ne 0) { throw "Unable to point tag $env:RELEASE_TAG at $env:GITHUB_SHA" }
+          }
 
       - name: Create or reuse draft release
         if: steps.branch.outputs.is_current == 'true'
