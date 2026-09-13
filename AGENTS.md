@@ -2,7 +2,7 @@
 
 ## Project boundaries
 
-UnTypo is a Windows-first, local-first dictation client built with Electron, React, strict TypeScript, and a C++ native helper. It requires Node `>=22.12` and npm `>=9`. Configuration, history, and BYOK credentials are user-local data; current source and tests are the authority on implemented behavior.
+UnTypo is a local-first dictation client for Windows x64 and macOS arm64, built with Electron, React, strict TypeScript, and a C++ native helper. It requires Node `>=22.12` and npm `>=9`. Configuration, history, and BYOK credentials are user-local data; current source and tests are the authority on implemented behavior.
 
 Before working, run `git status --short` and inspect the affected code and adjacent tests. Preserve unrelated changes made by the user or other tasks. Do not commit, push, publish, reset, or clean the working tree unless explicitly asked.
 
@@ -18,7 +18,7 @@ For a settings control, switch, or action that looks functional but is ineffecti
 | `src/preload/`                  | Minimal, typed APIs exposed only through `contextBridge`.                                                                                   |
 | `src/renderer/`                 | Main-window React + MUI UI, i18n, state, and pure UI logic.                                                                                 |
 | `src/capsule/`, `src/recorder/` | Renderer code for the floating capsule and recording windows.                                                                               |
-| `native/helper/`                | Windows-native hotkey, target-window, and paste behavior.                                                                                   |
+| `native/helper/`                | Native hotkey, target-window, and paste behavior (Win32 and macOS).                                                                         |
 | `tests/`                        | Vitest regression tests mirroring `core`, `main`, `preload`, `renderer`, `recorder`, and `capsule`.                                         |
 
 Follow the neighboring source convention of using `.js` output extensions in relative imports. Production code in `src/renderer/`, `src/capsule/`, and `src/recorder/` must not import Electron or Node directly; communicate through the appropriate preload API.
@@ -69,28 +69,32 @@ Follow the neighboring source convention of using `.js` output extensions in rel
 
 ## Native helper and wire protocol
 
-- When changing the wire protocol in `src/main/native/protocol.ts`, update `native/helper/src/protocol.h`, encoding/decoding, frame-length validation, and related tests together. Do not update only the TypeScript or C++ side.
+- When changing the wire protocol in `src/main/native/protocol.ts`, update `native/helper/src/protocol.h`, encoding/decoding, frame-length validation, the Windows and macOS helper implementations, and related tests together. Do not update only the TypeScript or C++ side.
 - Do not present a native self-test, source inspection, or simulated input as complete real-world hotkey or target-window validation; state the actual scope of validation.
 - Recording and provider changes must retain format, sample information, cancellation, and error propagation. Real requests, recordings, and user dictionaries are sensitive data; do not use saved credentials for external requests without explicit authorization.
 - Provider URLs default to HTTPS. Allow HTTP only when the user explicitly enables it and the target is localhost or a private network; continue removing credentials, query parameters, and fragments from URLs.
 
 ## Validation and packaging
 
-Use `npm.cmd`/`npx.cmd` for local Windows commands. Run affected tests first, then expand validation according to risk.
+Use `npm.cmd`/`npx.cmd` for local Windows commands and `npm`/`npx` on macOS. Run affected tests first, then expand validation according to risk.
 
-| Scenario                                     | Command                    |
-| -------------------------------------------- | -------------------------- |
-| Formatting, linting, types, tests, and build | `npm.cmd run check`        |
-| Electron-layer smoke test                    | `npm.cmd run smoke`        |
-| Native-helper smoke test                     | `npm.cmd run smoke:native` |
-| Runnable directory package                   | `npm.cmd run package:dir`  |
-| NSIS installer                               | `npm.cmd run package:win`  |
+| Scenario                                     | Command                   |
+| -------------------------------------------- | ------------------------- |
+| Formatting, linting, types, tests, and build | `npm run check`           |
+| Electron-layer smoke test                    | `npm run smoke`           |
+| Native-helper smoke test                     | `npm run smoke:native`    |
+| Runnable directory package (Windows)         | `npm run package:dir`     |
+| NSIS installer                               | `npm run package:win`     |
+| Runnable directory package (macOS arm64)     | `npm run package:dir:mac` |
+| Unsigned macOS DMG + zip                     | `npm run package:mac`     |
 
-`npm.cmd run build` runs `clean` first and recursively deletes `dist/` and `release/`; `check`, `smoke`, `smoke:native`, and the packaging commands all pass through that build step. Copy or inspect deliverable artifacts before running those commands. `smoke` proves only the development Electron path; claim packaged-artifact verification only after creating and inspecting the actual installer or executable.
+`npm run build` runs `clean` first and recursively deletes `dist/` and `release/`; `check`, `smoke`, `smoke:native`, and the packaging commands all pass through that build step. Copy or inspect deliverable artifacts before running those commands. `smoke` proves only the development Electron path; claim packaged-artifact verification only after creating and inspecting the actual installer or executable.
 
-Preserve the `asarUnpack` and `extraResources` rules in `electron-builder.yml`: `better-sqlite3`, the application icon, and `untypo_native_helper.exe` depend on them. Native Windows builds require the Visual Studio C++ x64 workload; do not move the full build or CI verification to a non-Windows runner.
+Preserve the `asarUnpack` and `extraResources` rules in `electron-builder.yml`: `better-sqlite3`, the application icon, and the platform native helper depend on them. Native Windows builds require the Visual Studio C++ x64 workload. Native macOS builds require CMake and the Xcode command-line tools, and produce `build/Release/untypo_native_helper` for arm64. Do not cross-compile Windows packages on macOS or macOS packages on Windows.
 
-When changing CI or release behavior, keep the Windows runner, locked dependency installation, and Node 22. The release job must explicitly run `node node_modules/electron/install.js` after `npm ci`. Stable releases use `master`; `preview` releases only publish when the version changes. Inspect the current workflow's branch, tag, and release-asset logic before changing these rules.
+macOS distribution is currently unsigned/ad-hoc. Notarization, Developer ID signing, `latest-mac.yml`, and darwin auto-update stay disabled until Apple Developer credentials exist. Gatekeeper will block first launch of unsigned builds.
+
+When changing CI or release behavior, keep the Windows runner for NSIS publishing, add macOS verification on `macos-latest` without publishing, locked dependency installation, and Node 22. The Windows release job must explicitly run `node node_modules/electron/install.js` after `npm ci`. Stable releases use `master`; `preview` releases only publish when the version changes. Inspect the current workflow's branch, tag, and release-asset logic before changing these rules.
 
 ## Git and delivery
 

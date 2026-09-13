@@ -4,27 +4,38 @@ import FormHelperText from '@mui/material/FormHelperText';
 import FormLabel from '@mui/material/FormLabel';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { Fragment, useId, useRef, useState, type KeyboardEvent } from 'react';
 import {
-  acceleratorFromEvent,
+  Fragment,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react';
+import type { HotkeyCaptureInput } from '../../shared/ipc.js';
+import {
+  applyHotkeyCaptureInput,
+  createHotkeyCaptureSession,
   hotkeyKeycapLabels,
-  modifierAcceleratorFromEvent,
+  resetHotkeyCaptureSession,
 } from '../logic/hotkey.js';
 import { themeAlpha, themePalette } from '../theme.js';
-
-const modifierOrder = ['Ctrl', 'Alt', 'Shift', 'Win'] as const;
 
 export const HotkeyField = ({
   error,
   label,
   listeningText,
+  onCaptureActive,
   onChange,
+  platform,
   value,
 }: {
   error?: string;
   label: string;
   listeningText: string;
+  onCaptureActive?: (active: boolean) => void;
   onChange: (value: string) => void;
+  platform?: string;
   value: string;
 }) => {
   const controlId = useId();
@@ -32,81 +43,65 @@ export const HotkeyField = ({
   const errorId = `${controlId}-error`;
   const [focused, setFocused] = useState(false);
   const [preview, setPreview] = useState<string>();
-  const capturedCombination = useRef(false);
-  const heldModifiers = useRef(new Set<string>());
-  const modifierChord = useRef(false);
+  const session = useRef(createHotkeyCaptureSession());
+  const onChangeRef = useRef(onChange);
+  const onCaptureActiveRef = useRef(onCaptureActive);
+  const preferMainCapture = useRef(false);
+  onChangeRef.current = onChange;
+  onCaptureActiveRef.current = onCaptureActive;
   const displayedValue = preview ?? value;
-  const keycaps = hotkeyKeycapLabels(displayedValue);
+  const keycaps = hotkeyKeycapLabels(displayedValue, platform);
   const describedBy = [
     ...(focused ? [helperId] : []),
     ...(error ? [errorId] : []),
   ].join(' ');
 
+  const consumeStroke = (input: HotkeyCaptureInput) => {
+    const { commit } = applyHotkeyCaptureInput(session.current, input);
+    setPreview(session.current.preview);
+    if (commit) onChangeRef.current(commit);
+  };
+
   const clearCaptureState = () => {
-    capturedCombination.current = false;
-    heldModifiers.current.clear();
-    modifierChord.current = false;
+    preferMainCapture.current = false;
+    resetHotkeyCaptureSession(session.current);
     setPreview(undefined);
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+  useEffect(() => {
+    if (!focused) return;
+    const api = window.untypo;
+    if (!api?.onHotkeyCaptureEvent) return;
+    return api.onHotkeyCaptureEvent((input) => {
+      preferMainCapture.current = true;
+      consumeStroke(input);
+    });
+  }, [focused]);
+
+  useEffect(
+    () => () => {
+      onCaptureActiveRef.current?.(false);
+    },
+    [],
+  );
+
+  const handleBrowserKey = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    type: 'keyDown' | 'keyUp',
+  ) => {
     event.preventDefault();
     event.stopPropagation();
-    if (event.repeat) return;
-
-    const modifier = modifierAcceleratorFromEvent(event);
-    if (modifier) {
-      heldModifiers.current.add(modifier);
-      if (heldModifiers.current.size > 1) modifierChord.current = true;
-      setPreview(
-        modifierOrder
-          .filter((candidate) => heldModifiers.current.has(candidate))
-          .join('+'),
-      );
-      return;
-    }
-
-    if (capturedCombination.current) return;
-    const accelerator = acceleratorFromEvent(event);
-    if (!accelerator) return;
-    capturedCombination.current = true;
-    setPreview(accelerator);
-    onChange(accelerator);
-  };
-
-  const handleKeyUp = (event: KeyboardEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const modifier = modifierAcceleratorFromEvent(event);
-    if (modifier) {
-      if (
-        !capturedCombination.current &&
-        !modifierChord.current &&
-        modifier === 'Alt' &&
-        heldModifiers.current.size === 1
-      ) {
-        onChange(modifier);
-      }
-      heldModifiers.current.delete(modifier);
-      if (heldModifiers.current.size === 0) {
-        capturedCombination.current = false;
-        modifierChord.current = false;
-        setPreview(undefined);
-      } else {
-        setPreview(
-          modifierOrder
-            .filter((candidate) => heldModifiers.current.has(candidate))
-            .join('+'),
-        );
-      }
-      return;
-    }
-
-    if (heldModifiers.current.size === 0) {
-      capturedCombination.current = false;
-      setPreview(undefined);
-    }
+    if (preferMainCapture.current) return;
+    consumeStroke({
+      altKey: event.altKey,
+      code: event.code,
+      ctrlKey: event.ctrlKey,
+      key: event.key,
+      metaKey: event.metaKey,
+      repeat: event.repeat,
+      shiftKey: event.shiftKey,
+      type,
+    });
   };
 
   return (
@@ -121,10 +116,17 @@ export const HotkeyField = ({
         onBlur={() => {
           setFocused(false);
           clearCaptureState();
+          onCaptureActive?.(false);
         }}
-        onFocus={() => setFocused(true)}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
+        onFocus={() => {
+          setFocused(true);
+          onCaptureActive?.(true);
+        }}
+        onKeyDown={(event) => handleBrowserKey(event, 'keyDown')}
+        onKeyUp={(event) => handleBrowserKey(event, 'keyUp')}
+        onPointerDown={() => {
+          onCaptureActive?.(true);
+        }}
         sx={(currentTheme) => ({
           alignItems: { sm: 'center', xs: 'flex-start' },
           backgroundColor: themePalette(currentTheme).background.paper,

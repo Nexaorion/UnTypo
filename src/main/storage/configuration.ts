@@ -176,13 +176,35 @@ const providerKinds: Readonly<Record<ModelProviderId, ModelProviderKind>> = {
   'openai-responses-text': 'text',
 };
 
-export const DEFAULT_HOTKEY_ACCELERATOR = 'Ctrl+Alt+Space';
-const LEGACY_DEFAULT_HOTKEY_ACCELERATOR = 'Ctrl+Shift+Space';
+export const WINDOWS_DEFAULT_HOTKEY_ACCELERATOR = 'Ctrl+Alt+Space';
+export const DARWIN_DEFAULT_HOTKEY_ACCELERATOR = 'Ctrl+Shift+D';
+const LEGACY_WINDOWS_HOTKEY_ACCELERATOR = 'Ctrl+Shift+Space';
 
-const migrateDefaultHotkey = (accelerator: string): string =>
-  accelerator === LEGACY_DEFAULT_HOTKEY_ACCELERATOR
-    ? DEFAULT_HOTKEY_ACCELERATOR
+export const DEFAULT_HOTKEY_ACCELERATOR =
+  process.platform === 'darwin'
+    ? DARWIN_DEFAULT_HOTKEY_ACCELERATOR
+    : WINDOWS_DEFAULT_HOTKEY_ACCELERATOR;
+
+const isLegacyDarwinHotkey = (accelerator: string): boolean =>
+  accelerator === WINDOWS_DEFAULT_HOTKEY_ACCELERATOR ||
+  accelerator === LEGACY_WINDOWS_HOTKEY_ACCELERATOR;
+
+const migrateDefaultHotkey = (accelerator: string): string => {
+  if (process.platform === 'darwin') {
+    return isLegacyDarwinHotkey(accelerator)
+      ? DARWIN_DEFAULT_HOTKEY_ACCELERATOR
+      : accelerator;
+  }
+  return accelerator === LEGACY_WINDOWS_HOTKEY_ACCELERATOR
+    ? WINDOWS_DEFAULT_HOTKEY_ACCELERATOR
     : accelerator;
+};
+
+const isMigratedDefaultHotkey = (accelerator: unknown): boolean => {
+  if (typeof accelerator !== 'string') return false;
+  if (process.platform === 'darwin') return isLegacyDarwinHotkey(accelerator);
+  return accelerator === LEGACY_WINDOWS_HOTKEY_ACCELERATOR;
+};
 
 const defaultConfig = (): StoredClientConfig => ({
   version: 4,
@@ -1041,8 +1063,7 @@ const parseConfig = (source: string): ParsedConfig => {
         value.diagnostics === undefined ||
         value.updates === undefined ||
         (isRecord(value.dictation) &&
-          (value.dictation.hotkeyAccelerator ===
-            LEGACY_DEFAULT_HOTKEY_ACCELERATOR ||
+          (isMigratedDefaultHotkey(value.dictation.hotkeyAccelerator) ||
             value.dictation.hotkeyMode !== undefined)),
     };
   }

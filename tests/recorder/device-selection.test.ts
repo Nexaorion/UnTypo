@@ -5,7 +5,7 @@ import {
 } from '../../src/recorder/device-selection';
 
 describe('recorderAudioConstraints', () => {
-  it('uses the Windows default input when automatic selection is active', () => {
+  it('uses the system default input when automatic selection is active', () => {
     expect(recorderAudioConstraints()).toEqual({
       autoGainControl: true,
       echoCancellation: true,

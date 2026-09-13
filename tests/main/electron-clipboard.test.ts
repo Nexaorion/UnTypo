@@ -59,6 +59,16 @@ describe('ElectronClipboardAdapter', () => {
     expect(getType).toHaveBeenCalledTimes(3);
   });
 
+  it('skips clipboard items that have no MIME types', async () => {
+    electronMocks.clipboard.read.mockResolvedValue([
+      { types: [], getType: vi.fn() },
+    ]);
+    const adapter = new ElectronClipboardAdapter();
+
+    await expect(adapter.readSnapshot()).resolves.toEqual([]);
+    expect(electronMocks.ClipboardItem).not.toHaveBeenCalled();
+  });
+
   it('clears the clipboard when the captured snapshot is empty', async () => {
     const adapter = new ElectronClipboardAdapter();
 

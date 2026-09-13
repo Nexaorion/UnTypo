@@ -6,11 +6,11 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-0.1.8%20early-f4f4f5?style=flat-square&labelColor=18181b" alt="0.1.8 early">
-  <img src="https://img.shields.io/badge/platform-Windows%20x64-f4f4f5?style=flat-square&labelColor=18181b" alt="Windows x64">
+  <img src="https://img.shields.io/badge/platform-Windows%20x64%20%7C%20macOS%20arm64-f4f4f5?style=flat-square&labelColor=18181b" alt="Windows x64 and macOS arm64">
   <img src="https://img.shields.io/badge/desktop-Electron%20%2B%20TypeScript-f4f4f5?style=flat-square&labelColor=18181b" alt="Electron and TypeScript">
 </p>
 
-UnTypo 是一个仍在早期开发中的 Windows 听写工具。它把语音转成文字，再按口述内容完成润色、翻译或指令生成。
+UnTypo 是一个仍在早期开发中的听写工具，支持 Windows x64 和 macOS Apple Silicon。它把语音转成文字，再按口述内容完成润色、翻译或指令生成。
 
 ## 你可以用 UnTypo 做什么
 

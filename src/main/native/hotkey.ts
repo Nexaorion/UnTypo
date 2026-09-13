@@ -38,6 +38,24 @@ const namedKeys: Readonly<Record<string, number>> = {
   up: 0x26,
 };
 
+const electronNumpadNames: Readonly<Record<string, string>> = {
+  numpad0: 'num0',
+  numpad1: 'num1',
+  numpad2: 'num2',
+  numpad3: 'num3',
+  numpad4: 'num4',
+  numpad5: 'num5',
+  numpad6: 'num6',
+  numpad7: 'num7',
+  numpad8: 'num8',
+  numpad9: 'num9',
+  numpadadd: 'numadd',
+  numpaddecimal: 'numdec',
+  numpaddivide: 'numdiv',
+  numpadmultiply: 'nummult',
+  numpadsubtract: 'numsub',
+};
+
 const parseVirtualKey = (value: string): number => {
   const normalized = value.toLowerCase();
   if (normalized in namedKeys) return namedKeys[normalized] as number;
@@ -79,7 +97,9 @@ export const parseHotkeyAccelerator = (
       normalized === 'win' ||
       normalized === 'windows' ||
       normalized === 'super' ||
-      normalized === 'meta'
+      normalized === 'meta' ||
+      normalized === 'command' ||
+      normalized === 'cmd'
     )
       modifiers |= MOD_WIN;
     else if (key) throw new Error('Hotkey accelerator has multiple keys');
@@ -88,4 +108,36 @@ export const parseHotkeyAccelerator = (
 
   if (!key) throw new Error('Hotkey accelerator has no key');
   return { modifiers, virtualKey: parseVirtualKey(key) };
+};
+
+export const toElectronAccelerator = (accelerator: string): string => {
+  const configuration = parseHotkeyAccelerator(accelerator);
+  const parts: string[] = [];
+  if (configuration.modifiers & MOD_CONTROL) parts.push('Control');
+  if (configuration.modifiers & MOD_ALT) parts.push('Alt');
+  if (configuration.modifiers & MOD_SHIFT) parts.push('Shift');
+  if (configuration.modifiers & MOD_WIN) parts.push('Command');
+  const keyName = Object.entries(namedKeys).find(
+    ([, virtualKey]) => virtualKey === configuration.virtualKey,
+  )?.[0];
+  if (keyName) {
+    parts.push(
+      keyName === 'space' ? 'Space' : (electronNumpadNames[keyName] ?? keyName),
+    );
+    return parts.join('+');
+  }
+  if (configuration.virtualKey >= 0x41 && configuration.virtualKey <= 0x5a) {
+    parts.push(String.fromCharCode(configuration.virtualKey));
+    return parts.join('+');
+  }
+  if (configuration.virtualKey >= 0x30 && configuration.virtualKey <= 0x39) {
+    parts.push(String.fromCharCode(configuration.virtualKey));
+    return parts.join('+');
+  }
+  if (configuration.virtualKey >= 0x70 && configuration.virtualKey <= 0x87) {
+    parts.push(`F${String(configuration.virtualKey - 0x6f)}`);
+    return parts.join('+');
+  }
+  if (configuration.virtualKey === 0x12) return 'Alt';
+  throw new Error(`Unsupported hotkey key: ${accelerator}`);
 };

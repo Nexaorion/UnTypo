@@ -17,6 +17,11 @@ export const focusSelectionFixture = async (
     throw new Error('Selection smoke focus shortcut is unavailable');
   }
   try {
+    if (process.platform !== 'win32') {
+      window.show();
+      window.focus();
+      return;
+    }
     await execFileAsync(
       'powershell.exe',
       [

@@ -41,6 +41,8 @@ export const IPC_CHANNELS = {
   removeDictionaryEntry: 'client:remove-dictionary-entry',
   removeWritingPreference: 'client:remove-writing-preference',
   rejectWritingPreference: 'client:reject-writing-preference',
+  hotkeyCaptureEvent: 'client:hotkey-capture-event',
+  setHotkeyCaptureActive: 'client:set-hotkey-capture-active',
   setDictionaryLearningEnabled: 'client:set-dictionary-learning-enabled',
   setApplicationWritingStyle: 'client:set-application-writing-style',
   setPersonalizationLearningEnabled:
@@ -49,6 +51,7 @@ export const IPC_CHANNELS = {
   snapshotChanged: 'client:snapshot-changed',
   testProvider: 'client:test-provider',
   installUpdate: 'client:install-update',
+  requestAccessibilityAccess: 'client:request-accessibility-access',
   updateChanged: 'client:update-changed',
   updateSettings: 'client:update-settings',
   upsertProvider: 'client:upsert-provider',
@@ -172,11 +175,18 @@ export interface ClientUpdateSnapshot {
   supported: boolean;
 }
 
+export interface ClientPermissionSnapshot {
+  accessibility: 'denied' | 'granted';
+  microphone:
+    'denied' | 'granted' | 'not-determined' | 'restricted' | 'unknown';
+}
+
 export interface ClientSnapshot {
   dictionary: readonly DictionaryEntry[];
   dictionaryLearning: {
     enabled: boolean;
   };
+  permissions?: ClientPermissionSnapshot;
   personalization: {
     applicationStyles: ApplicationWritingStyles;
     learningEnabled: boolean;
@@ -240,6 +250,17 @@ export interface PingResponse {
   version: string;
 }
 
+export interface HotkeyCaptureInput {
+  altKey: boolean;
+  code: string;
+  ctrlKey: boolean;
+  key: string;
+  metaKey: boolean;
+  repeat: boolean;
+  shiftKey: boolean;
+  type: 'keyDown' | 'keyUp';
+}
+
 export interface UntypoApi {
   acceptWritingPreference: (id: string) => Promise<ClientSnapshot>;
   addDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
@@ -262,6 +283,9 @@ export interface UntypoApi {
     query?: ClientHistoryQuery,
   ) => Promise<readonly ClientHistoryRecord[]>;
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
+  onHotkeyCaptureEvent: (
+    listener: (input: HotkeyCaptureInput) => void,
+  ) => () => void;
   onDiagnosticsChanged: (listener: () => void) => () => void;
   onSnapshotChanged: (
     listener: (snapshot: ClientSnapshot) => void,
@@ -270,11 +294,13 @@ export interface UntypoApi {
     listener: (update: ClientUpdateSnapshot) => void,
   ) => () => void;
   ping: () => Promise<PingResponse>;
+  requestAccessibilityAccess: () => Promise<ClientSnapshot>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
   removeDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   removeWritingPreference: (id: string) => Promise<ClientSnapshot>;
   rejectWritingPreference: (id: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => Promise<void>;
+  setHotkeyCaptureActive: (active: boolean) => Promise<void>;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
   setApplicationWritingStyle: (
     update: ClientApplicationWritingStyleUpdate,

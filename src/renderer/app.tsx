@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppShell, type AppPage } from './app-shell.js';
 import { I18nProvider, useI18n } from './i18n/context.js';
+import { defaultHotkeyAccelerator } from './logic/hotkey.js';
 import { DictionarySection } from './sections/dictionary.js';
 import { DiagnosticsDialog } from './sections/diagnostics-dialog.js';
 import { HistorySection } from './sections/history.js';
@@ -57,9 +58,10 @@ const Shell = ({ store }: { store: ClientStore }) => {
         history={store.history}
         hotkey={
           store.snapshot?.settings.dictation.hotkeyAccelerator ??
-          'Control+Alt+Space'
+          defaultHotkeyAccelerator(store.runtime?.platform)
         }
         onOpenHistory={() => setPage('history')}
+        platform={store.runtime?.platform}
         usage={store.usage}
         userName={userName}
       />

@@ -38,6 +38,7 @@ const electronMocks = vi.hoisted(() => {
         if (event === 'closed') closedHandler = handler;
       }),
       setAlwaysOnTop: vi.fn(),
+      setFocusable: vi.fn(),
       setIgnoreMouseEvents: vi.fn(),
       setPosition: vi.fn(),
       setSize: vi.fn(),
@@ -101,10 +102,14 @@ describe('CapsuleWindowController', () => {
     await controller.showRecording('zh-CN');
     const window = electronMocks.windows[0] as {
       destroy: ReturnType<typeof vi.fn>;
+      setIgnoreMouseEvents: ReturnType<typeof vi.fn>;
       setSize: ReturnType<typeof vi.fn>;
       webContents: { send: ReturnType<typeof vi.fn> };
     };
     electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
+    expect(window.setIgnoreMouseEvents).toHaveBeenCalledWith(true, {
+      forward: true,
+    });
     controller.updateLevel(0.55);
     await controller.showProcessing('zh-CN');
     await controller.showSuccess(
@@ -131,6 +136,21 @@ describe('CapsuleWindowController', () => {
 
     await vi.advanceTimersByTimeAsync(10_000);
     expect(window.destroy).toHaveBeenCalledOnce();
+    controller.destroy();
+  });
+
+  it('reuses the warmed window for a second recording', async () => {
+    const controller = new CapsuleWindowController();
+    await controller.warmup();
+    await controller.showRecording('zh-CN');
+    await controller.showSuccess(
+      { intent: 'transcription', outputText: '第一次' },
+      'inserted',
+      'zh-CN',
+    );
+    await controller.showRecording('zh-CN');
+
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(1);
     controller.destroy();
   });
 
@@ -331,7 +351,7 @@ describe('CapsuleWindowController', () => {
     await vi.advanceTimersByTimeAsync(1_500);
 
     await expect(suggestion).resolves.toBe('dismissed');
-    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(2);
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(1);
     controller.destroy();
   });
 

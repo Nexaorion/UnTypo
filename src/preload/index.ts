@@ -13,6 +13,7 @@ import type {
   ClientSnapshot,
   ClientUpdateSnapshot,
   ClientUsageStats,
+  HotkeyCaptureInput,
   PingResponse,
   UntypoApi,
 } from '../shared/ipc.js';
@@ -22,6 +23,7 @@ const PING_CHANNEL = 'app:ping';
 const DIAGNOSTIC_CHANGED_CHANNEL = 'client:diagnostics-changed';
 const UPDATE_CHANGED_CHANNEL = 'client:update-changed';
 const SNAPSHOT_CHANGED_CHANNEL = 'client:snapshot-changed';
+const HOTKEY_CAPTURE_EVENT_CHANNEL = 'client:hotkey-capture-event';
 const channels = {
   acceptWritingPreference: 'client:accept-writing-preference',
   addDictionaryEntry: 'client:add-dictionary-entry',
@@ -39,11 +41,13 @@ const channels = {
   installUpdate: 'client:install-update',
   listHistory: 'client:list-history',
   listMicrophones: 'client:list-microphones',
+  requestAccessibilityAccess: 'client:request-accessibility-access',
   removeProvider: 'client:remove-provider',
   removeDictionaryEntry: 'client:remove-dictionary-entry',
   removeWritingPreference: 'client:remove-writing-preference',
   rejectWritingPreference: 'client:reject-writing-preference',
   reportRendererIssue: 'client:report-renderer-issue',
+  setHotkeyCaptureActive: 'client:set-hotkey-capture-active',
   setDictionaryLearningEnabled: 'client:set-dictionary-learning-enabled',
   setApplicationWritingStyle: 'client:set-application-writing-style',
   setPersonalizationLearningEnabled:
@@ -113,6 +117,15 @@ const api: UntypoApi = {
     ipcRenderer.invoke(channels.listMicrophones) as Promise<
       readonly ClientMicrophoneDevice[]
     >,
+  onHotkeyCaptureEvent: (listener: (input: HotkeyCaptureInput) => void) => {
+    const handleCapture = (
+      _event: Electron.IpcRendererEvent,
+      input: HotkeyCaptureInput,
+    ) => listener(input);
+    ipcRenderer.on(HOTKEY_CAPTURE_EVENT_CHANNEL, handleCapture);
+    return () =>
+      ipcRenderer.removeListener(HOTKEY_CAPTURE_EVENT_CHANNEL, handleCapture);
+  },
   onDiagnosticsChanged: (listener: () => void) => {
     const handleChanged = () => listener();
     ipcRenderer.on(DIAGNOSTIC_CHANGED_CHANNEL, handleChanged);
@@ -138,6 +151,10 @@ const api: UntypoApi = {
       ipcRenderer.removeListener(UPDATE_CHANGED_CHANNEL, handleChanged);
   },
   ping: () => ipcRenderer.invoke(PING_CHANNEL) as Promise<PingResponse>,
+  requestAccessibilityAccess: () =>
+    ipcRenderer.invoke(
+      channels.requestAccessibilityAccess,
+    ) as Promise<ClientSnapshot>,
   removeProvider: (profileId: string) =>
     ipcRenderer.invoke(
       channels.removeProvider,
@@ -160,6 +177,11 @@ const api: UntypoApi = {
     ) as Promise<ClientSnapshot>,
   reportRendererIssue: (issue: ClientRendererIssueInput) =>
     ipcRenderer.invoke(channels.reportRendererIssue, issue) as Promise<void>,
+  setHotkeyCaptureActive: (active: boolean) =>
+    ipcRenderer.invoke(
+      channels.setHotkeyCaptureActive,
+      active,
+    ) as Promise<void>,
   setDictionaryLearningEnabled: (enabled: boolean) =>
     ipcRenderer.invoke(
       channels.setDictionaryLearningEnabled,

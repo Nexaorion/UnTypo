@@ -10,7 +10,7 @@ describe('capsuleViewModel', () => {
         type: 'recording',
       }),
     ).toMatchObject({
-      detail: '正在监听麦克风',
+      detail: '再次按下快捷键结束',
       showClose: false,
       showCopy: false,
       title: '正在录音',

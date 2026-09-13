@@ -21,6 +21,9 @@ afterEach(async () => {
   await rm(temporaryDirectory, { force: true, recursive: true });
 });
 
+const platformDefaultHotkey =
+  process.platform === 'darwin' ? 'Ctrl+Shift+D' : 'Ctrl+Alt+Space';
+
 describe('ConfigurationService', () => {
   it('returns the bilingual Windows defaults before the first write', async () => {
     await expect(service.load()).resolves.toMatchObject({
@@ -33,7 +36,7 @@ describe('ConfigurationService', () => {
       general: { locale: 'zh-CN' },
       dictation: {
         defaultTargetLanguage: 'en-US',
-        hotkeyAccelerator: 'Ctrl+Alt+Space',
+        hotkeyAccelerator: platformDefaultHotkey,
         language: 'zh-CN',
       },
       history: { enabled: true, retentionDays: 30 },
@@ -152,13 +155,59 @@ describe('ConfigurationService', () => {
     );
 
     await expect(service.load()).resolves.toMatchObject({
-      dictation: { hotkeyAccelerator: 'Ctrl+Alt+Space' },
+      dictation: {
+        hotkeyAccelerator:
+          process.platform === 'darwin' ? 'Ctrl+Shift+D' : 'Ctrl+Alt+Space',
+      },
     });
     await expect(readFile(configPath, 'utf8')).resolves.toContain(
-      '"hotkeyAccelerator": "Ctrl+Alt+Space"',
+      `"hotkeyAccelerator": "${
+        process.platform === 'darwin' ? 'Ctrl+Shift+D' : 'Ctrl+Alt+Space'
+      }"`,
     );
     await expect(readFile(configPath, 'utf8')).resolves.not.toContain(
       '"hotkeyMode"',
+    );
+  });
+
+  it('replaces the Windows default hotkey on macOS', async () => {
+    if (process.platform !== 'darwin') return;
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 4,
+        diagnostics: { automaticCollection: true, showErrorDialogs: false },
+        general: { launchAtLogin: false, locale: 'zh-CN' },
+        dictation: {
+          defaultTargetLanguage: 'en-US',
+          hotkeyAccelerator: 'Ctrl+Alt+Space',
+          language: 'zh-CN',
+        },
+        dictionary: [],
+        dictionaryLearning: { enabled: true },
+        history: { enabled: true, retentionDays: 30 },
+        personalization: {
+          applicationStyles: {
+            'ai-tool': 'prompt',
+            browser: 'auto',
+            'chat-app': 'casual',
+            general: 'auto',
+            ide: 'concise',
+            office: 'formal',
+          },
+          learningEnabled: false,
+        },
+        providers: [],
+        updates: { autoCheck: true, autoDownload: true },
+      }),
+      'utf8',
+    );
+
+    await expect(service.load()).resolves.toMatchObject({
+      dictation: { hotkeyAccelerator: 'Ctrl+Shift+D' },
+    });
+    await expect(readFile(configPath, 'utf8')).resolves.toContain(
+      '"hotkeyAccelerator": "Ctrl+Shift+D"',
     );
   });
 

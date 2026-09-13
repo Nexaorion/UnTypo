@@ -71,8 +71,12 @@ export class CapsuleWindowController {
     ipcMain.on(CAPSULE_CHANNELS.setInteractive, this.handleSetInteractive);
   }
 
+  async warmup(): Promise<void> {
+    await this.ensureWindow();
+  }
+
   async showRecording(locale: SupportedLanguage): Promise<void> {
-    this.close();
+    this.clearTransientPresentation();
     await this.present({ level: 0, locale, type: 'recording' });
   }
 
@@ -93,9 +97,19 @@ export class CapsuleWindowController {
         return Promise.resolve(undefined);
       },
     );
-    await new Promise<void>((resolve) =>
-      setTimeout(resolve, DICTIONARY_SUGGESTION_DELAY_MILLISECONDS + 100),
-    );
+    const suggestionDeadline =
+      Date.now() + DICTIONARY_SUGGESTION_DELAY_MILLISECONDS + 2_000;
+    while (Date.now() < suggestionDeadline) {
+      const candidate = this.#window;
+      if (
+        candidate &&
+        !candidate.isDestroyed() &&
+        candidate.webContents.id !== successWebContentsId
+      ) {
+        break;
+      }
+      await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    }
     const suggestionWindow = this.#window;
     if (
       !suggestionWindow ||
@@ -110,15 +124,21 @@ export class CapsuleWindowController {
       (async () => {
         const wait = (milliseconds) =>
           new Promise((resolve) => setTimeout(resolve, milliseconds));
-        const capsule = document.querySelector(
-          '[data-status="dictionary-suggestion"]',
-        );
+        let capsule;
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+          capsule = document.querySelector(
+            '[data-status="dictionary-suggestion"]',
+          );
+          if (capsule) break;
+          await wait(50);
+        }
         const buttons = [...document.querySelectorAll('button')];
         if (!capsule || buttons.length < 3) return 'suggestion';
         buttons[1].click();
         await wait(80);
         const input = document.querySelector('input[maxlength="128"]');
         if (!(input instanceof HTMLInputElement)) return 'input';
+        input.focus();
         if (document.activeElement !== input) return 'focus';
         window.capsule.dictionaryAccept('UnTypo Smoke Edited');
         return 'ok';
@@ -238,16 +258,20 @@ export class CapsuleWindowController {
   }
 
   close(): void {
-    if (this.#autoCloseTimer) clearTimeout(this.#autoCloseTimer);
-    this.#autoCloseTimer = undefined;
+    this.clearTransientPresentation();
     this.#rendererReady = false;
     this.#status = undefined;
     this.#successPresentedAt = 0;
     this.#generation += 1;
-    this.resolveConfirmation(false);
-    this.resolveDictionarySuggestion('dismissed');
     this.#window?.destroy();
     this.#window = undefined;
+  }
+
+  private clearTransientPresentation(): void {
+    if (this.#autoCloseTimer) clearTimeout(this.#autoCloseTimer);
+    this.#autoCloseTimer = undefined;
+    this.resolveConfirmation(false);
+    this.resolveDictionarySuggestion('dismissed');
   }
 
   destroy(): void {
@@ -431,6 +455,9 @@ export class CapsuleWindowController {
 
     this.sizeAndPositionWindow(window, currentStatus);
     window.setIgnoreMouseEvents(true, { forward: true });
+    if (process.platform === 'darwin') {
+      window.setFocusable(currentStatus.type === 'dictionary-suggestion');
+    }
     this.sendCurrentStatus();
     if (!window.isVisible()) window.showInactive();
 
@@ -500,6 +527,13 @@ export class CapsuleWindowController {
       skipTaskbar: true,
       transparent: true,
       width: capsuleBounds.compact.width,
+      ...(process.platform === 'darwin'
+        ? {
+            focusable: false,
+            hiddenInMissionControl: true,
+            type: 'panel' as const,
+          }
+        : {}),
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,

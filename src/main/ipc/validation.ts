@@ -413,6 +413,11 @@ export const parseProviderInput = (value: unknown): ClientProviderInput => {
   };
 };
 
+export const parseBooleanFlag = (value: unknown, label: string): boolean => {
+  if (typeof value !== 'boolean') throw new Error(`${label} is invalid`);
+  return value;
+};
+
 export const parseProfileId = (value: unknown): string => {
   if (typeof value !== 'string' || !profileIdPattern.test(value)) {
     throw new Error('Invalid provider profile id');

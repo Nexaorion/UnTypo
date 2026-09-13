@@ -22,17 +22,49 @@ files:
 extraResources:
   - from: assets/untypo-icon.ico
     to: untypo-icon.ico
-  - from: build/Release/untypo_native_helper.exe
-    to: bin/untypo_native_helper.exe
+  - from: assets/untypo-icon.png
+    to: untypo-icon.png
+  - from: assets/untypo-trayTemplate.png
+    to: untypo-trayTemplate.png
+  - from: assets/untypo-trayTemplate@2x.png
+    to: untypo-trayTemplate@2x.png
 win:
   executableName: UnTypo
   icon: untypo-icon.ico
+  extraResources:
+    - from: build/Release/untypo_native_helper.exe
+      to: bin/untypo_native_helper.exe
   target:
     - target: nsis
       arch:
         - x64
+mac:
+  category: public.app-category.productivity
+  icon: untypo-icon.png
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  identity: null
+  notarize: false
+  entitlements: assets/entitlements.mac.plist
+  entitlementsInherit: assets/entitlements.mac.inherit.plist
+  extraResources:
+    - from: build/Release/untypo_native_helper
+      to: bin/untypo_native_helper
+  extendInfo:
+    NSMicrophoneUsageDescription: UnTypo uses the microphone to transcribe dictation. UnTypo 使用麦克风进行听写转写。
+    LSMinimumSystemVersion: '13.0'
+  target:
+    - target: dmg
+      arch:
+        - arm64
+    - target: zip
+      arch:
+        - arm64
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false
   artifactName: ${productName}-${version}-${arch}.${ext}
+dmg:
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}

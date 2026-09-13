@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron';
+import { Menu, app, BrowserWindow, ipcMain, nativeTheme } from 'electron';
 import { userInfo } from 'node:os';
 import path from 'node:path';
 import { DIAGNOSTIC_CHANGED_CHANNEL } from '../shared/diagnostics.js';
@@ -73,10 +73,24 @@ app.on('child-process-gone', (_event, details) => {
 const windowBackground = (): string =>
   nativeTheme.shouldUseDarkColors ? '#111111' : '#ffffff';
 
-const applicationIconPath = (): string =>
-  app.isPackaged
-    ? path.join(process.resourcesPath, 'untypo-icon.ico')
-    : path.join(app.getAppPath(), 'assets', 'untypo-icon.ico');
+const applicationIconPath = (): string => {
+  const fileName =
+    process.platform === 'darwin' ? 'untypo-icon.png' : 'untypo-icon.ico';
+  return app.isPackaged
+    ? path.join(process.resourcesPath, fileName)
+    : path.join(app.getAppPath(), 'assets', fileName);
+};
+
+const installApplicationMenu = (): void => {
+  if (process.platform !== 'darwin') return;
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { role: 'appMenu' },
+      { role: 'editMenu' },
+      { role: 'windowMenu' },
+    ]),
+  );
+};
 
 const createMainWindow = async (): Promise<BrowserWindow> => {
   const window = new BrowserWindow({
@@ -96,7 +110,11 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
     },
   });
 
-  window.removeMenu();
+  if (process.platform === 'darwin') {
+    installApplicationMenu();
+  } else {
+    window.removeMenu();
+  }
   const syncWindowBackground = () =>
     window.setBackgroundColor(windowBackground());
   nativeTheme.on('updated', syncWindowBackground);

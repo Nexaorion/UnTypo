@@ -41,6 +41,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
   const [microphoneError, setMicrophoneError] = useState<string>();
   const [microphonesLoading, setMicrophonesLoading] = useState(false);
   const microphoneRequest = useRef(0);
+  const [accessibilityFlowActive, setAccessibilityFlowActive] = useState(false);
   const [retention, setRetention] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [preferredName, setPreferredName] = useState('');
@@ -58,6 +59,27 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
     setPreferredName(profile?.preferredName ?? '');
     setSignature(profile?.signature ?? '');
   }, [profile?.displayName, profile?.preferredName, profile?.signature]);
+
+  useEffect(() => {
+    if (!accessibilityFlowActive) return undefined;
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      void store.reloadSnapshot().catch(() => undefined);
+    };
+    const stopTimer = window.setTimeout(
+      () => setAccessibilityFlowActive(false),
+      30_000,
+    );
+    const interval = window.setInterval(refresh, 1_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.clearTimeout(stopTimer);
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [accessibilityFlowActive, store.reloadSnapshot]);
 
   const refreshMicrophones = useCallback(async () => {
     const request = microphoneRequest.current + 1;
@@ -275,7 +297,11 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
             error={hotkeyError}
             label={t('settings.hotkey')}
             listeningText={t('settings.hotkeyHint')}
+            onCaptureActive={(active) => {
+              void store.setHotkeyCaptureActive(active);
+            }}
             onChange={saveHotkey}
+            platform={store.runtime?.platform}
             value={hotkey}
           />
           <SwitchField
@@ -330,6 +356,37 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
           />
         </Stack>
       </Card>
+
+      {store.snapshot?.permissions ? (
+        <Card title={t('settings.group.permissions')}>
+          <Stack sx={{ gap: 2.5 }}>
+            <Typography color="text.secondary" variant="body2">
+              {store.snapshot.permissions.microphone === 'granted'
+                ? t('settings.microphoneAccessGranted')
+                : t('settings.microphoneAccessNeeded')}
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              {store.snapshot.permissions.accessibility === 'granted'
+                ? t('settings.accessibilityGranted')
+                : t('settings.accessibilityNeeded')}
+            </Typography>
+            {store.snapshot.permissions.accessibility !== 'granted' ? (
+              <Button
+                onClick={() =>
+                  void run('accessibility', async () => {
+                    setAccessibilityFlowActive(true);
+                    await store.requestAccessibilityAccess();
+                  })
+                }
+                sx={{ alignSelf: 'flex-start' }}
+                variant="outlined"
+              >
+                {t('settings.openAccessibilitySettings')}
+              </Button>
+            ) : null}
+          </Stack>
+        </Card>
+      ) : null}
 
       <Card title={t('settings.group.updates')}>
         <Stack sx={{ gap: 2.5 }}>

@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { parseHotkeyAccelerator } from '../../src/main/native/hotkey';
 import {
   acceleratorFromEvent,
+  applyHotkeyCaptureInput,
+  createHotkeyCaptureSession,
+  defaultHotkeyAccelerator,
   formatHotkeyAccelerator,
+  formatHotkeyDisplay,
   hotkeyKeycapLabels,
   isValidHotkeyAccelerator,
   modifierAcceleratorFromEvent,
@@ -10,6 +14,7 @@ import {
 
 const accepted = [
   'Ctrl+Shift+Space',
+  'Ctrl+Shift+D',
   'Alt+F4',
   'Win+K',
   'Alt',
@@ -50,6 +55,28 @@ describe('formatHotkeyAccelerator', () => {
     );
     expect(formatHotkeyAccelerator('meta+option+k')).toBe('Alt+Win+K');
     expect(formatHotkeyAccelerator('ctrl+f5')).toBe('Ctrl+F5');
+  });
+});
+
+describe('hotkeyKeycapLabels', () => {
+  it('keeps Windows modifier names by default', () => {
+    expect(hotkeyKeycapLabels('Ctrl+Alt+Space')).toEqual([
+      'Ctrl',
+      'Alt',
+      'Space',
+    ]);
+  });
+
+  it('uses macOS modifier names when the platform is darwin', () => {
+    expect(hotkeyKeycapLabels('Ctrl+Alt+Space', 'darwin')).toEqual([
+      'Control',
+      'Option',
+      'Space',
+    ]);
+    expect(hotkeyKeycapLabels('Win+K', 'darwin')).toEqual(['Command', 'K']);
+    expect(formatHotkeyDisplay('Ctrl+Alt+Space', 'darwin')).toBe(
+      'Control + Option + Space',
+    );
   });
 });
 
@@ -107,6 +134,207 @@ describe('acceleratorFromEvent', () => {
   it('identifies modifiers for keyup-only Alt capture', () => {
     expect(modifierAcceleratorFromEvent({ key: 'Alt' })).toBe('Alt');
     expect(modifierAcceleratorFromEvent({ key: 'Control' })).toBe('Ctrl');
+    expect(modifierAcceleratorFromEvent({ code: 'AltLeft', key: 'Dead' })).toBe(
+      'Alt',
+    );
+    expect(
+      modifierAcceleratorFromEvent({ code: 'MetaLeft', key: 'Meta' }),
+    ).toBe('Win');
+  });
+
+  it('uses the physical key code when Option remaps event.key on macOS', () => {
+    expect(
+      acceleratorFromEvent({
+        altKey: true,
+        code: 'KeyD',
+        ctrlKey: true,
+        key: '∂',
+        metaKey: false,
+        shiftKey: false,
+      }),
+    ).toBe('Ctrl+Alt+D');
+    expect(
+      acceleratorFromEvent({
+        altKey: true,
+        code: 'Space',
+        ctrlKey: true,
+        key: ' ',
+        metaKey: false,
+        shiftKey: false,
+      }),
+    ).toBe('Ctrl+Alt+Space');
+  });
+
+  it('accepts Electron before-input-event key names', () => {
+    expect(
+      acceleratorFromEvent({
+        altKey: true,
+        code: 'Space',
+        ctrlKey: true,
+        key: 'Space',
+        metaKey: false,
+        shiftKey: false,
+      }),
+    ).toBe('Ctrl+Alt+Space');
+  });
+});
+
+describe('applyHotkeyCaptureInput', () => {
+  it('commits Control+Option then Space from main-process input', () => {
+    const session = createHotkeyCaptureSession();
+    applyHotkeyCaptureInput(session, {
+      altKey: false,
+      code: 'ControlLeft',
+      ctrlKey: true,
+      key: 'Control',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyDown',
+    });
+    applyHotkeyCaptureInput(session, {
+      altKey: true,
+      code: 'AltLeft',
+      ctrlKey: true,
+      key: 'Alt',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyDown',
+    });
+    expect(session.preview).toBe('Ctrl+Alt');
+    const { commit } = applyHotkeyCaptureInput(session, {
+      altKey: true,
+      code: 'Space',
+      ctrlKey: true,
+      key: 'Space',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyDown',
+    });
+    expect(commit).toBe('Ctrl+Alt+Space');
+    expect(session.preview).toBe('Ctrl+Alt+Space');
+  });
+
+  it('commits a letter remapped by Option and keeps the preview after release', () => {
+    const session = createHotkeyCaptureSession();
+    applyHotkeyCaptureInput(session, {
+      altKey: false,
+      code: 'ControlLeft',
+      ctrlKey: true,
+      key: 'Control',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyDown',
+    });
+    applyHotkeyCaptureInput(session, {
+      altKey: true,
+      code: 'AltLeft',
+      ctrlKey: true,
+      key: 'Alt',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyDown',
+    });
+    const { commit } = applyHotkeyCaptureInput(session, {
+      altKey: true,
+      code: 'KeyD',
+      ctrlKey: true,
+      key: '∂',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyDown',
+    });
+    expect(commit).toBe('Ctrl+Alt+D');
+    applyHotkeyCaptureInput(session, {
+      altKey: true,
+      code: 'KeyD',
+      ctrlKey: true,
+      key: '∂',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyUp',
+    });
+    applyHotkeyCaptureInput(session, {
+      altKey: false,
+      code: 'AltLeft',
+      ctrlKey: true,
+      key: 'Alt',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyUp',
+    });
+    applyHotkeyCaptureInput(session, {
+      altKey: false,
+      code: 'ControlLeft',
+      ctrlKey: false,
+      key: 'Control',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyUp',
+    });
+    expect(session.preview).toBe('Ctrl+Alt+D');
+  });
+
+  it('clears a modifier-only chord that never received a key', () => {
+    const session = createHotkeyCaptureSession();
+    applyHotkeyCaptureInput(session, {
+      altKey: false,
+      code: 'ControlLeft',
+      ctrlKey: true,
+      key: 'Control',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyDown',
+    });
+    applyHotkeyCaptureInput(session, {
+      altKey: true,
+      code: 'AltLeft',
+      ctrlKey: true,
+      key: 'Alt',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyDown',
+    });
+    applyHotkeyCaptureInput(session, {
+      altKey: false,
+      code: 'AltLeft',
+      ctrlKey: true,
+      key: 'Alt',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyUp',
+    });
+    applyHotkeyCaptureInput(session, {
+      altKey: false,
+      code: 'ControlLeft',
+      ctrlKey: false,
+      key: 'Control',
+      metaKey: false,
+      shiftKey: false,
+      type: 'keyUp',
+    });
+    expect(session.preview).toBeUndefined();
+  });
+});
+
+describe('defaultHotkeyAccelerator', () => {
+  it('avoids Apple-reserved Space shortcuts on macOS', () => {
+    expect(defaultHotkeyAccelerator('darwin')).toBe('Ctrl+Shift+D');
+    expect(defaultHotkeyAccelerator('win32')).toBe('Ctrl+Alt+Space');
+  });
+});
+
+describe('acceleratorFromEvent', () => {
+  it('uses the logical key for alternate keyboard layouts', () => {
+    expect(
+      acceleratorFromEvent({
+        code: 'KeyZ',
+        ctrlKey: true,
+        key: 'y',
+        altKey: false,
+        metaKey: false,
+        shiftKey: false,
+      }),
+    ).toBe('Ctrl+Y');
   });
 });
 
