@@ -46,6 +46,7 @@ mac:
   gatekeeperAssess: false
   identity: null
   notarize: false
+  timestamp: http://timestamp.apple.com/ts01
   entitlements: assets/entitlements.mac.plist
   entitlementsInherit: assets/entitlements.mac.inherit.plist
   extraResources:
