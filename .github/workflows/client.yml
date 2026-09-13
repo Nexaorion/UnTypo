@@ -289,7 +289,7 @@ jobs:
       github.repository == 'Nexaorion/UnTypo'
     # macos-15 avoids electron-builder's CSC_LINK keychain bug on Darwin 25+.
     runs-on: macos-15
-    timeout-minutes: 120
+    timeout-minutes: 180
     concurrency:
       group: macos-release-${{ github.repository }}
       cancel-in-progress: false
@@ -424,7 +424,13 @@ jobs:
             echo "Imported identity does not match APPLE_TEAM_ID" >&2
             exit 1
           fi
-          echo "MACOS_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          # electron-builder rejects a name that still carries the certificate-type prefix.
+          signing_name="${identity#Developer ID Application: }"
+          if [[ "$signing_name" == "$identity" ]]; then
+            echo "Imported identity is not a Developer ID Application common name" >&2
+            exit 1
+          fi
+          echo "MACOS_CODESIGN_IDENTITY=$signing_name" >> "$GITHUB_ENV"
 
       - name: Prepare App Store Connect API key
         if: steps.branch.outputs.is_current == 'true'

@@ -30,6 +30,35 @@ cleanup() {
 }
 trap cleanup EXIT
 
+notarize_artifact() {
+  local artifact="$1"
+  local submit_json status submission_id
+  submit_json="$(
+    xcrun notarytool submit "$artifact" \
+      --key "$APPLE_API_KEY_PATH" \
+      --key-id "$APPLE_API_KEY_ID" \
+      --issuer "$APPLE_API_ISSUER" \
+      --no-s3-acceleration \
+      --wait \
+      --timeout 1h \
+      --output-format json
+  )"
+  status="$(printf '%s' "$submit_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))')"
+  if [[ "$status" != Accepted ]]; then
+    echo "Apple notarization of $artifact failed with status '$status'" >&2
+    printf '%s\n' "$submit_json" >&2
+    submission_id="$(printf '%s' "$submit_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))')"
+    if [[ -n "$submission_id" ]]; then
+      xcrun notarytool log "$submission_id" \
+        --key "$APPLE_API_KEY_PATH" \
+        --key-id "$APPLE_API_KEY_ID" \
+        --issuer "$APPLE_API_ISSUER" >&2 || true
+    fi
+    return 1
+  fi
+}
+
+# A repeated --config replaces earlier ones instead of merging, so inherit the base config here.
 sign_config="$tmp_dir/electron-builder.sign.json"
 python3 - "$sign_config" <<'PY'
 import json
@@ -40,6 +69,7 @@ path = sys.argv[1]
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(
         {
+            "extends": "electron-builder.yml",
             "mac": {
                 "forceCodeSigning": True,
                 "identity": os.environ["MACOS_CODESIGN_IDENTITY"],
@@ -51,7 +81,7 @@ with open(path, "w", encoding="utf-8") as handle:
     handle.write("\n")
 PY
 
-builder=(./node_modules/.bin/electron-builder --config electron-builder.yml --config "$sign_config")
+builder=(./node_modules/.bin/electron-builder --config "$sign_config")
 builder_env=(
   CSC_IDENTITY_AUTO_DISCOVERY=true
   CSC_NAME="$MACOS_CODESIGN_IDENTITY"
@@ -67,8 +97,7 @@ if [[ -z "$app" ]]; then
   echo "UnTypo.app was not produced in release/" >&2
   exit 1
 fi
-app_dir="$(cd "$(dirname "$app")" && pwd)"
-app="$app_dir/UnTypo.app"
+app="$(cd "$(dirname "$app")" && pwd)/UnTypo.app"
 helper="$app/Contents/Resources/bin/untypo_native_helper"
 
 codesign --verify --deep --strict --verbose=4 "$app"
@@ -85,10 +114,18 @@ if [[ "$identity_team" != "$APPLE_TEAM_ID" ]]; then
   exit 1
 fi
 
+notarize_zip="$tmp_dir/untypo-notarize.zip"
+ditto -c -k --sequesterRsrc --keepParent "$app" "$notarize_zip"
+notarize_artifact "$notarize_zip"
+
+xcrun stapler staple "$app"
+xcrun stapler validate "$app"
+codesign --verify --deep --strict --verbose=4 "$app"
+
 env "${builder_env[@]}" "${builder[@]}" \
   --mac dmg zip \
   --arm64 \
-  --prepackaged "$app_dir" \
+  --prepackaged "$app" \
   --publish never
 
 version="$(node -p "require('./package.json').version")"
@@ -100,29 +137,7 @@ if [[ ! -f "$dmg" || ! -f "$zip" ]]; then
   exit 1
 fi
 
-submit_json="$(
-  xcrun notarytool submit "$dmg" \
-    --key "$APPLE_API_KEY_PATH" \
-    --key-id "$APPLE_API_KEY_ID" \
-    --issuer "$APPLE_API_ISSUER" \
-    --no-s3-acceleration \
-    --wait \
-    --timeout 1h \
-    --output-format json
-)"
-status="$(printf '%s' "$submit_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))')"
-if [[ "$status" != Accepted ]]; then
-  echo "Apple notarization failed with status '$status'" >&2
-  printf '%s\n' "$submit_json" >&2
-  submission_id="$(printf '%s' "$submit_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))')"
-  if [[ -n "$submission_id" ]]; then
-    xcrun notarytool log "$submission_id" \
-      --key "$APPLE_API_KEY_PATH" \
-      --key-id "$APPLE_API_KEY_ID" \
-      --issuer "$APPLE_API_ISSUER" >&2 || true
-  fi
-  exit 1
-fi
+notarize_artifact "$dmg"
 
 xcrun stapler staple "$dmg"
 xcrun stapler validate "$dmg"
@@ -133,6 +148,7 @@ dmg_mount="$tmp_dir/dmg"
 mkdir -p "$dmg_mount"
 hdiutil attach -nobrowse -readonly -mountpoint "$dmg_mount" "$dmg"
 spctl --assess --type execute --verbose=4 "$dmg_mount/UnTypo.app"
+xcrun stapler validate "$dmg_mount/UnTypo.app"
 hdiutil detach "$dmg_mount" -quiet
 dmg_mount=""
 
