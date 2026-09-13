@@ -324,8 +324,23 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Confirm release commit is current branch head
+        id: branch
+        run: |
+          set -euo pipefail
+          git fetch origin "$RELEASE_BRANCH"
+          branch_head="$(git rev-parse "origin/${RELEASE_BRANCH}")"
+          is_current=false
+          if [[ "$branch_head" == "$GITHUB_SHA" ]]; then
+            is_current=true
+          else
+            echo "Skipping release because $GITHUB_SHA is no longer the $RELEASE_BRANCH branch head"
+          fi
+          echo "is_current=$is_current" >> "$GITHUB_OUTPUT"
+
       - name: Resolve release version
         id: version
+        if: steps.branch.outputs.is_current == 'true'
         run: |
           set -euo pipefail
           version="$(node -p "require('./package.json').version")"
@@ -344,20 +359,6 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
-      - name: Confirm release commit is current branch head
-        id: branch
-        run: |
-          set -euo pipefail
-          git fetch origin "$RELEASE_BRANCH"
-          branch_head="$(git rev-parse "origin/${RELEASE_BRANCH}")"
-          is_current=false
-          if [[ "$branch_head" == "$GITHUB_SHA" ]]; then
-            is_current=true
-          else
-            echo "Skipping release because $GITHUB_SHA is no longer the $RELEASE_BRANCH branch head"
-          fi
-          echo "is_current=$is_current" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
         if: steps.branch.outputs.is_current == 'true'
