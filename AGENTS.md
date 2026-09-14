@@ -88,13 +88,27 @@ Use `npm.cmd`/`npx.cmd` for local Windows commands and `npm`/`npx` on macOS. Run
 | Runnable directory package (macOS arm64)     | `npm run package:dir:mac` |
 | Local unsigned macOS DMG + zip               | `npm run package:mac`     |
 
-`npm run build` runs `clean` first and recursively deletes `dist/` and `release/`; `check`, `smoke`, `smoke:native`, and the packaging commands all pass through that build step. Copy or inspect deliverable artifacts before running those commands. `smoke` proves only the development Electron path; claim packaged-artifact verification only after creating and inspecting the actual installer or executable.
+`npm run build` runs `clean` first and recursively deletes `dist/` and `release/`; `check`, `smoke`, `smoke:native`, and the packaging commands all pass through that build step.
+Copy or inspect deliverable artifacts before running those commands.
+`smoke` proves only the development Electron path; claim packaged-artifact verification only after creating and inspecting the actual installer or executable.
 
-Preserve the `asarUnpack` and `extraResources` rules in `electron-builder.yml`: `better-sqlite3`, the application icon, and the platform native helper depend on them. Native Windows builds require the Visual Studio C++ x64 workload. Native macOS builds require CMake and the Xcode command-line tools, and produce `build/Release/untypo_native_helper` for arm64. Do not cross-compile Windows packages on macOS or macOS packages on Windows.
+Preserve the `asarUnpack` and `extraResources` rules in `electron-builder.yml`: `better-sqlite3`, the application icon, and the platform native helper depend on them.
+Native Windows builds require the Visual Studio C++ x64 workload.
+Native macOS builds require CMake and the Xcode command-line tools, and produce `build/Release/untypo_native_helper` for arm64.
+Do not cross-compile Windows packages on macOS or macOS packages on Windows.
 
-Local `package:mac` stays unsigned (`identity: null`, `CSC_IDENTITY_AUTO_DISCOVERY=false`). Signed macOS distribution is CI-only: `publish-macos-release` on `macos-15` imports a Developer ID from repository secrets, notarizes, staples, and uploads the arm64 DMG and ZIP to the same GitHub Release as Windows. Do not require a GitHub Environment approval for that job. Do not put `.p12` / `.p8` files or signing passwords in the repository. `latest-mac.yml` and darwin auto-update stay disabled until `ApplicationUpdateService` supports macOS.
+Local `package:mac` stays unsigned (`identity: null`, `CSC_IDENTITY_AUTO_DISCOVERY=false`).
+Signed macOS distribution is CI-only: `publish-macos-release` on `macos-15` imports a Developer ID from repository secrets, notarizes, staples, and uploads the arm64 DMG and ZIP to the same GitHub Release as Windows.
+Do not require a GitHub Environment approval for that job.
+Do not put `.p12` / `.p8` files or signing passwords in the repository.
+`latest-mac.yml` and darwin auto-update stay disabled until `ApplicationUpdateService` supports macOS.
 
-When changing CI or release behavior, keep the Windows runner for NSIS publishing, keep macOS verification on `macos-latest` without publishing, and keep signed macOS publishing on `macos-15` using repository secrets so any `master` / version-changing `preview` push can ship without a manual GitHub approval. Use locked dependency installation and Node 22. The Windows and macOS release jobs must explicitly run `node node_modules/electron/install.js` after `npm ci`. Every checkout uses `persist-credentials: false`, so a release job cannot push a branch or tag with `git`; write refs through the GitHub API with `GH_TOKEN` instead. Stable releases use `master`; `preview` releases only publish when the version changes. Inspect the current workflow's branch, tag, and release-asset logic before changing these rules.
+When changing CI or release behavior, keep the Windows runner for NSIS publishing, keep macOS verification on `macos-latest` without publishing, and keep signed macOS publishing on `macos-15` using repository secrets so any `master` / version-changing `preview` push can ship without a manual GitHub approval.
+Use locked dependency installation and Node 22.
+The Windows and macOS release jobs must explicitly run `node node_modules/electron/install.js` after `npm ci`.
+Every checkout uses `persist-credentials: false`, so a release job cannot push a branch or tag with `git`; write refs through the GitHub API with `GH_TOKEN` instead.
+Stable releases use `master`; `preview` releases only publish when the version changes.
+Inspect the current workflow's branch, tag, and release-asset logic before changing these rules.
 
 ## Git and delivery
 
