@@ -69,6 +69,7 @@ describe('HistoryRepository', () => {
               dictionaryTermCount: 3,
               forcedIntent: 'transcription',
               locale: 'zh-CN',
+              preferenceLearningEnabled: true,
               text: '原始文本',
             },
             kind: 'text-generation',

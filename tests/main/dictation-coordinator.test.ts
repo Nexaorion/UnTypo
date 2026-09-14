@@ -13,6 +13,7 @@ import {
 import {
   DictationCoordinator,
   type HistoryPort,
+  type RecorderPort,
 } from '../../src/main/dictation/coordinator';
 import { NativeHotkeyAction } from '../../src/main/native/protocol';
 import type { NativeTargetSnapshot } from '../../src/main/native/protocol';
@@ -120,8 +121,12 @@ const createCoordinator = ({
     events.push(`error:${reason}`);
   });
   const showConfirm = vi.fn(() => true);
-  const showProcessing = vi.fn(() => events.push('processing'));
-  const showRecording = vi.fn(() => events.push('recording'));
+  const showProcessing = vi.fn(() => {
+    events.push('processing');
+  });
+  const showRecording = vi.fn(() => {
+    events.push('recording');
+  });
   const showSuccess = vi.fn(
     (_result: unknown, delivery: 'copy' | 'inserted') => {
       events.push(`success:${delivery}`);
@@ -132,7 +137,9 @@ const createCoordinator = ({
   const handleCandidates = vi.fn();
   const handlePreferenceCandidates = vi.fn();
   const record = vi.fn<HistoryPort['record']>();
-  const start = vi.fn(() => Promise.resolve('recording-session'));
+  const start = vi
+    .fn<RecorderPort['start']>()
+    .mockResolvedValue('recording-session');
   const stop = vi.fn(() =>
     Promise.resolve({
       audio,
@@ -185,9 +192,10 @@ const createCoordinator = ({
   }));
   const diagnosticLog = vi.fn();
   const recordIssue = vi.fn<(input: DiagnosticIssueInput) => void>();
-  const runWithOperation = vi.fn(
-    <T>(_operationId: string, action: () => Promise<T>) => action(),
-  );
+  const runWithOperation = <T>(
+    _operationId: string,
+    action: () => Promise<T>,
+  ) => action();
   const selection = {
     prepareVoice: vi.fn().mockResolvedValue(selected),
     processVoice: vi.fn().mockResolvedValue(undefined),
