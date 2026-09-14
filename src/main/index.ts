@@ -144,115 +144,166 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
   return window;
 };
 
-const showMainWindow = async (): Promise<void> => {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    mainWindow = await createMainWindow();
-  }
-  mainWindow.show();
-  mainWindow.focus();
-};
-
-ipcMain.handle(IPC_CHANNELS.ping, (event): PingResponse => {
-  assertTrustedSender(event);
-  return {
-    appName: app.getName(),
-    platform: process.platform,
-    userName: userInfo().username,
-    version: app.getVersion(),
-  };
-});
-
-void app
-  .whenReady()
-  .then(async () => {
-    handleAppScheme();
-    diagnostics = new DiagnosticCollector({
-      appName: app.getName(),
-      appVersion: app.getVersion(),
-      rootDirectory: path.join(app.getPath('userData'), 'diagnostics'),
-    });
-    removeDiagnosticsListener = diagnostics.onChanged(() => {
-      if (!mainWindow || mainWindow.isDestroyed()) return;
-      mainWindow.webContents.send(DIAGNOSTIC_CHANGED_CHANNEL);
-    });
-    runtime = new DesktopRuntime({
-      applicationIconPath: applicationIconPath(),
-      diagnostics,
-      onSnapshotChanged: (snapshot) => {
-        if (!mainWindow || mainWindow.isDestroyed()) return;
-        mainWindow.webContents.send(IPC_CHANNELS.snapshotChanged, snapshot);
-      },
-      onUpdateChanged: (snapshot) => {
-        if (!mainWindow || mainWindow.isDestroyed()) return;
-        mainWindow.webContents.send(IPC_CHANNELS.updateChanged, snapshot);
-      },
-      showMainWindow,
-    });
-    await runtime.start();
-    // Handlers must exist before the renderer's first snapshot request.
-    clientIpc = new ClientIpcController(runtime);
-    mainWindow ??= await createMainWindow();
-
-    if (isSmokeTest) {
-      const [result, recorderReady, rendererReady] = await Promise.all([
-        mainWindow.webContents.executeJavaScript(
-          'window.untypo?.ping()',
-        ) as Promise<PingResponse>,
-        runtime.smokeTest(),
-        runRendererSmokeTest(mainWindow.webContents),
-      ]);
-      if (!recorderReady)
-        throw new Error('Runtime smoke surfaces are unavailable');
-      if (rendererReady !== 'ok')
-        throw new Error(`Renderer interactions failed at ${rendererReady}`);
-      await runtime.selectionSmokeTest();
-      console.log(
-        `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder native ui`,
-      );
-      clientIpc.destroy();
-      clientIpc = undefined;
-      await runtime.stop();
-      mainWindow.destroy();
-      app.exit(0);
+let settleMainIpcReady!: (error?: unknown) => void;
+const whenMainIpcReady = new Promise<void>((resolve, reject) => {
+  settleMainIpcReady = (error?: unknown) => {
+    if (error === undefined) {
+      resolve();
       return;
     }
+    reject(
+      error instanceof Error ? error : new Error('Application startup failed'),
+    );
+  };
+});
+void whenMainIpcReady.catch(() => undefined);
 
-    app.on('activate', () => {
+let openingMainWindow: Promise<BrowserWindow> | undefined;
+
+const ensureMainWindow = async (): Promise<BrowserWindow> => {
+  await whenMainIpcReady;
+  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
+  openingMainWindow ??= createMainWindow()
+    .then((window) => {
+      mainWindow = window;
+      return window;
+    })
+    .finally(() => {
+      openingMainWindow = undefined;
+    });
+  return openingMainWindow;
+};
+
+const showMainWindow = async (): Promise<void> => {
+  try {
+    const window = await ensureMainWindow();
+    if (isQuitting || window.isDestroyed()) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  } catch (error) {
+    if (!isQuitting) console.error(error);
+  }
+};
+
+const startPrimaryInstance = (): void => {
+  if (!isSmokeTest) {
+    app.on('second-instance', () => {
       void showMainWindow();
     });
-  })
-  .catch((error: unknown) => {
-    clientIpc?.destroy();
-    diagnostics?.recordIssue({
-      error,
-      kind: 'internal',
-      source: 'app.startup',
-    });
-    console.error(error);
-    app.exit(1);
+  }
+
+  ipcMain.handle(IPC_CHANNELS.ping, (event): PingResponse => {
+    assertTrustedSender(event);
+    return {
+      appName: app.getName(),
+      platform: process.platform,
+      userName: userInfo().username,
+      version: app.getVersion(),
+    };
   });
 
-app.on('before-quit', (event) => {
-  if (isQuitting) return;
-  event.preventDefault();
-  isQuitting = true;
-  const installUpdate = runtime?.isUpdateReady() === true;
-  clientIpc?.destroy();
-  clientIpc = undefined;
-  removeDiagnosticsListener?.();
-  removeDiagnosticsListener = undefined;
-  const stopping = runtime
-    ? runtime.stop().catch(console.error)
-    : Promise.resolve();
-  void stopping.catch(console.error).finally(() => {
-    if (installUpdate) {
-      try {
-        runtime?.quitAndInstallUpdate();
+  void app
+    .whenReady()
+    .then(async () => {
+      handleAppScheme();
+      diagnostics = new DiagnosticCollector({
+        appName: app.getName(),
+        appVersion: app.getVersion(),
+        rootDirectory: path.join(app.getPath('userData'), 'diagnostics'),
+      });
+      removeDiagnosticsListener = diagnostics.onChanged(() => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        mainWindow.webContents.send(DIAGNOSTIC_CHANGED_CHANNEL);
+      });
+      runtime = new DesktopRuntime({
+        applicationIconPath: applicationIconPath(),
+        diagnostics,
+        onSnapshotChanged: (snapshot) => {
+          if (!mainWindow || mainWindow.isDestroyed()) return;
+          mainWindow.webContents.send(IPC_CHANNELS.snapshotChanged, snapshot);
+        },
+        onUpdateChanged: (snapshot) => {
+          if (!mainWindow || mainWindow.isDestroyed()) return;
+          mainWindow.webContents.send(IPC_CHANNELS.updateChanged, snapshot);
+        },
+        showMainWindow,
+      });
+      await runtime.start();
+      // Handlers must exist before the renderer's first snapshot request.
+      clientIpc = new ClientIpcController(runtime);
+      settleMainIpcReady();
+      mainWindow = await ensureMainWindow();
+
+      if (isSmokeTest) {
+        const [result, recorderReady, rendererReady] = await Promise.all([
+          mainWindow.webContents.executeJavaScript(
+            'window.untypo?.ping()',
+          ) as Promise<PingResponse>,
+          runtime.smokeTest(),
+          runRendererSmokeTest(mainWindow.webContents),
+        ]);
+        if (!recorderReady)
+          throw new Error('Runtime smoke surfaces are unavailable');
+        if (rendererReady !== 'ok')
+          throw new Error(`Renderer interactions failed at ${rendererReady}`);
+        await runtime.selectionSmokeTest();
+        console.log(
+          `SMOKE_OK ${result.appName} ${result.version} ${result.platform} recorder native ui`,
+        );
+        clientIpc.destroy();
+        clientIpc = undefined;
+        await runtime.stop();
+        mainWindow.destroy();
+        app.exit(0);
         return;
-      } catch (error) {
-        console.error(error);
       }
-    }
-    app.exit(0);
+
+      app.on('activate', () => {
+        void showMainWindow();
+      });
+    })
+    .catch((error: unknown) => {
+      settleMainIpcReady(error);
+      clientIpc?.destroy();
+      diagnostics?.recordIssue({
+        error,
+        kind: 'internal',
+        source: 'app.startup',
+      });
+      console.error(error);
+      app.exit(1);
+    });
+
+  app.on('before-quit', (event) => {
+    if (isQuitting) return;
+    event.preventDefault();
+    isQuitting = true;
+    const installUpdate = runtime?.isUpdateReady() === true;
+    clientIpc?.destroy();
+    clientIpc = undefined;
+    removeDiagnosticsListener?.();
+    removeDiagnosticsListener = undefined;
+    const stopping = runtime
+      ? runtime.stop().catch(console.error)
+      : Promise.resolve();
+    void stopping.catch(console.error).finally(() => {
+      if (installUpdate) {
+        try {
+          runtime?.quitAndInstallUpdate();
+          return;
+        } catch (error) {
+          console.error(error);
+        }
+      }
+      app.exit(0);
+    });
   });
-});
+};
+
+const isPrimaryInstance = isSmokeTest || app.requestSingleInstanceLock();
+if (!isPrimaryInstance) {
+  app.quit();
+} else {
+  startPrimaryInstance();
+}
