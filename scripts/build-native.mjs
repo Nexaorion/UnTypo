@@ -32,13 +32,15 @@ const capture = (command, args) =>
 if (process.platform === 'darwin') {
   await mkdir('build/Release', { recursive: true });
   const cmakeCache = 'build/native-mac/CMakeCache.txt';
-  try {
-    const cache = await readFile(cmakeCache, 'utf8');
-    if (!cache.includes(process.cwd())) {
+  const cache = await readFile(cmakeCache, 'utf8').catch(() => undefined);
+  if (cache !== undefined) {
+    const sourceDirectory = cache
+      .split(/\r?\n/u)
+      .find((line) => line.startsWith('CMAKE_HOME_DIRECTORY:INTERNAL='))
+      ?.slice('CMAKE_HOME_DIRECTORY:INTERNAL='.length);
+    if (sourceDirectory !== path.resolve('native/helper')) {
       await rm('build/native-mac', { recursive: true, force: true });
     }
-  } catch {
-    // No existing cache, or it cannot be read.
   }
   await run('cmake', [
     '-S',
