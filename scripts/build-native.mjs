@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 const run = (command, args) =>
@@ -31,6 +31,15 @@ const capture = (command, args) =>
 
 if (process.platform === 'darwin') {
   await mkdir('build/Release', { recursive: true });
+  const cmakeCache = 'build/native-mac/CMakeCache.txt';
+  try {
+    const cache = await readFile(cmakeCache, 'utf8');
+    if (!cache.includes(process.cwd())) {
+      await rm('build/native-mac', { recursive: true, force: true });
+    }
+  } catch {
+    // No existing cache, or it cannot be read.
+  }
   await run('cmake', [
     '-S',
     'native/helper',
