@@ -55,6 +55,7 @@ mac:
   extendInfo:
     NSMicrophoneUsageDescription: UnTypo uses the microphone to transcribe dictation. UnTypo 使用麦克风进行听写转写。
     LSMinimumSystemVersion: '13.0'
+    LSMultipleInstancesProhibited: true
   target:
     - target: dmg
       arch:
