@@ -49,13 +49,13 @@ bool SocketServer::Start(std::string socket_path, std::string token,
 }
 
 void SocketServer::Stop() {
-  const bool was_running = running_.exchange(false);
+  running_.exchange(false);
   authenticated_ = false;
   const int detached_client = client_fd_.exchange(-1);
   if (detached_client >= 0) shutdown(detached_client, SHUT_RDWR);
   if (listen_fd_ >= 0) shutdown(listen_fd_, SHUT_RDWR);
-  if (was_running && thread_.joinable() &&
-      thread_.get_id() != std::this_thread::get_id()) {
+  // Run() can clear running_ before main calls Stop(); still join or ~thread_ aborts.
+  if (thread_.joinable() && thread_.get_id() != std::this_thread::get_id()) {
     thread_.join();
   }
   {
