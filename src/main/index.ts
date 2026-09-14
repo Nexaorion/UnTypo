@@ -144,13 +144,46 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
   return window;
 };
 
+let settleMainIpcReady!: (error?: unknown) => void;
+const whenMainIpcReady = new Promise<void>((resolve, reject) => {
+  settleMainIpcReady = (error?: unknown) => {
+    if (error === undefined) {
+      resolve();
+      return;
+    }
+    reject(
+      error instanceof Error ? error : new Error('Application startup failed'),
+    );
+  };
+});
+void whenMainIpcReady.catch(() => undefined);
+
+let openingMainWindow: Promise<BrowserWindow> | undefined;
+
+const ensureMainWindow = async (): Promise<BrowserWindow> => {
+  await whenMainIpcReady;
+  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
+  openingMainWindow ??= createMainWindow()
+    .then((window) => {
+      mainWindow = window;
+      return window;
+    })
+    .finally(() => {
+      openingMainWindow = undefined;
+    });
+  return openingMainWindow;
+};
+
 const showMainWindow = async (): Promise<void> => {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    mainWindow = await createMainWindow();
+  try {
+    const window = await ensureMainWindow();
+    if (isQuitting || window.isDestroyed()) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  } catch (error) {
+    if (!isQuitting) console.error(error);
   }
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show();
-  mainWindow.focus();
 };
 
 const startPrimaryInstance = (): void => {
@@ -199,7 +232,8 @@ const startPrimaryInstance = (): void => {
       await runtime.start();
       // Handlers must exist before the renderer's first snapshot request.
       clientIpc = new ClientIpcController(runtime);
-      mainWindow ??= await createMainWindow();
+      settleMainIpcReady();
+      mainWindow = await ensureMainWindow();
 
       if (isSmokeTest) {
         const [result, recorderReady, rendererReady] = await Promise.all([
@@ -230,6 +264,7 @@ const startPrimaryInstance = (): void => {
       });
     })
     .catch((error: unknown) => {
+      settleMainIpcReady(error);
       clientIpc?.destroy();
       diagnostics?.recordIssue({
         error,

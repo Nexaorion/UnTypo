@@ -13,4 +13,17 @@ describe('single application instance', () => {
     const source = await readFile('electron-builder.yml', 'utf8');
     expect(source).toMatch(/LSMultipleInstancesProhibited:\s*true/u);
   });
+
+  it('does not create the main window until client IPC handlers exist', async () => {
+    const source = await readFile('src/main/index.ts', 'utf8');
+    const ipcReady = source.indexOf(
+      'clientIpc = new ClientIpcController(runtime)',
+    );
+    const releaseGate = source.indexOf('settleMainIpcReady();', ipcReady);
+    const openWindow = source.indexOf('await ensureMainWindow();', releaseGate);
+    expect(source).toContain('await whenMainIpcReady');
+    expect(ipcReady).toBeGreaterThan(-1);
+    expect(releaseGate).toBeGreaterThan(ipcReady);
+    expect(openWindow).toBeGreaterThan(releaseGate);
+  });
 });
