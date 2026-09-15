@@ -89,7 +89,8 @@ export const messages = {
     'error.hotkeyUnavailable': '该快捷键无法启用',
     'error.invalidBackupCode': 'Backup Code 格式不正确，请按要求重新输入',
     'error.invalidServerAddress': '服务器地址无效，请检查后重试',
-    'error.microphoneUnavailable': 'UnTypo 没有麦克风访问权限，请在系统设置中允许后重试',
+    'error.microphoneUnavailable':
+      'UnTypo 没有麦克风访问权限，请在系统设置中允许后重试',
     'error.networkUnavailable': '无法连接到服务，请检查网络和服务器地址后重试',
     'error.permissionDenied': '当前账号没有执行此操作的权限',
     'error.providerConfiguration': '模型配置已失效，请检查设置后重试',
