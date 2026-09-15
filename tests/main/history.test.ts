@@ -201,6 +201,41 @@ describe('HistoryRepository', () => {
     });
   });
 
+  it('imports missing history records without replacing existing ids', () => {
+    repository.add({
+      createdAt: 10,
+      id: 'local-1',
+      intent: 'transcription',
+      language: 'zh-CN',
+      outputText: 'local',
+      providerId: 'mock',
+    });
+    const imported = repository.importMissing([
+      {
+        createdAt: 10,
+        id: 'local-1',
+        intent: 'transcription',
+        language: 'zh-CN',
+        outputText: 'changed',
+        providerId: 'mock',
+      },
+      {
+        createdAt: 20,
+        id: 'remote-1',
+        intent: 'transcription',
+        language: 'en-US',
+        outputText: 'remote',
+        providerId: 'mock',
+      },
+    ]);
+    expect(imported).toBe(1);
+    expect(repository.listAll().map((record) => record.id)).toEqual([
+      'remote-1',
+      'local-1',
+    ]);
+    expect(repository.listAll()[1]?.outputText).toBe('local');
+  });
+
   it('cleans expired records after recording a new result', () => {
     const service = new HistoryService(repository);
     const day = 24 * 60 * 60 * 1000;

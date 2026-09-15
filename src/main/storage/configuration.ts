@@ -10,6 +10,7 @@ import type {
   ModelProviderId,
   ModelProviderKind,
 } from '../../shared/ipc.js';
+import type { SyncProviderId, SyncStatus } from '../../shared/sync.js';
 import {
   DEFAULT_APPLICATION_WRITING_STYLES,
   PERSONALIZATION_LIMITS,
@@ -56,8 +57,45 @@ export interface StoredProviderProfile {
   values: Readonly<ClientProviderValues>;
 }
 
+export interface StoredSyncS3Config {
+  accessKeyId?: EncryptedValue;
+  bucket: string;
+  endpoint: string;
+  forcePathStyle?: boolean;
+  prefix: string;
+  region: string;
+  secretAccessKey?: EncryptedValue;
+}
+
+export interface StoredSyncWebDavConfig {
+  basePath: string;
+  password?: EncryptedValue;
+  url: string;
+  username: string;
+}
+
+export interface StoredSyncLogEntry {
+  at: number;
+  error?: string;
+  recordsMerged?: number;
+  status: SyncStatus;
+}
+
+export interface StoredSyncConfig {
+  backupCodeMode?: 'custom' | 'generated';
+  enabled: boolean;
+  encryptedBackupCode?: EncryptedValue;
+  lastSyncAt?: number;
+  lastSyncError?: string;
+  lastSyncStatus?: SyncStatus;
+  providerId?: SyncProviderId;
+  recentResults?: readonly StoredSyncLogEntry[];
+  s3?: StoredSyncS3Config;
+  webdav?: StoredSyncWebDavConfig;
+}
+
 export interface StoredClientConfig {
-  version: 4;
+  version: 5;
   diagnostics: DiagnosticPolicy;
   general: {
     launchAtLogin: boolean;
@@ -86,6 +124,7 @@ export interface StoredClientConfig {
     learningEnabled: boolean;
   };
   providers: readonly StoredProviderProfile[];
+  sync?: StoredSyncConfig;
   updates: UpdatePolicy;
 }
 
@@ -207,7 +246,7 @@ const isMigratedDefaultHotkey = (accelerator: unknown): boolean => {
 };
 
 const defaultConfig = (): StoredClientConfig => ({
-  version: 4,
+  version: 5,
   diagnostics: {
     automaticCollection: true,
     showErrorDialogs: false,
@@ -367,7 +406,7 @@ const parseLegacyDictionary = (value: unknown): readonly DictionaryEntry[] => {
   return entries;
 };
 
-const parseDictionary = (value: unknown): readonly DictionaryEntry[] => {
+export const parseDictionary = (value: unknown): readonly DictionaryEntry[] => {
   if (!Array.isArray(value) || value.length > DICTIONARY_LIMITS.entries) {
     throw new Error('Invalid dictionary');
   }
@@ -415,7 +454,7 @@ const parseDictionaryLearning = (
   };
 };
 
-const parsePersonalization = (
+export const parsePersonalization = (
   value: unknown,
 ): StoredClientConfig['personalization'] => {
   if (
@@ -473,7 +512,7 @@ const emptyPersonalizationState = (): PersonalizationPrivateState => ({
   rejections: [],
 });
 
-const parsePersonalizationState = (
+export const parsePersonalizationState = (
   value: unknown,
 ): PersonalizationPrivateState => {
   if (
@@ -565,7 +604,7 @@ const emptyDictionaryLearningState = (): DictionaryLearningPrivateState => ({
   rejections: [],
 });
 
-const parseDictionaryLearningState = (
+export const parseDictionaryLearningState = (
   value: unknown,
 ): DictionaryLearningPrivateState => {
   if (
@@ -631,6 +670,43 @@ const parseDictionaryLearningState = (
     },
   );
   return { candidates, rejections };
+};
+
+export const parseUserProfile = (value: unknown): UserProfileContext => {
+  if (!isRecord(value)) throw new Error('Invalid encrypted profile');
+  assertOnlyKeys(
+    value,
+    ['displayName', 'preferredName', 'signature'],
+    'Personal profile',
+  );
+  const displayName = optionalProfileString(
+    value.displayName,
+    'display name',
+    200,
+  );
+  const preferredName = optionalProfileString(
+    value.preferredName,
+    'preferred name',
+    200,
+  );
+  const signature = optionalProfileString(value.signature, 'signature', 1_000);
+  return {
+    ...(displayName === undefined ? {} : { displayName }),
+    ...(preferredName === undefined ? {} : { preferredName }),
+    ...(signature === undefined ? {} : { signature }),
+  };
+};
+
+const optionalProfileString = (
+  value: unknown,
+  label: string,
+  maximumLength: number,
+): string | undefined => {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string' || value.length > maximumLength) {
+    throw new Error(`Invalid ${label}`);
+  }
+  return value;
 };
 
 const parseEncryptedProfile = (
@@ -790,7 +866,7 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
     throw new Error('Active text provider profile is invalid');
   }
   return {
-    version: 4,
+    version: 5,
     ...parseCommonData(value),
     dictionary: parseLegacyDictionary(value.dictionary),
     dictionaryLearning: { enabled: true },
@@ -842,7 +918,7 @@ const parseV3Config = (value: Record<string, unknown>): StoredClientConfig => {
   });
   return {
     ...base,
-    version: 4,
+    version: 5,
     dictionary: parseDictionary(value.dictionary),
     dictionaryLearning: parseDictionaryLearning(value.dictionaryLearning),
   };
@@ -850,9 +926,221 @@ const parseV3Config = (value: Record<string, unknown>): StoredClientConfig => {
 
 const parseV4Config = (value: Record<string, unknown>): StoredClientConfig => ({
   ...parseV3Config(value),
-  version: 4,
+  version: 5,
   personalization: parsePersonalization(value.personalization),
 });
+
+const parseSyncLogEntry = (value: unknown): StoredSyncLogEntry => {
+  if (
+    !isRecord(value) ||
+    typeof value.at !== 'number' ||
+    !Number.isFinite(value.at) ||
+    value.at < 0 ||
+    (value.status !== 'success' && value.status !== 'error') ||
+    (value.error !== undefined && !isNonEmptyString(value.error, 2_000)) ||
+    (value.recordsMerged !== undefined &&
+      (typeof value.recordsMerged !== 'number' ||
+        !Number.isInteger(value.recordsMerged) ||
+        value.recordsMerged < 0))
+  ) {
+    throw new Error('Invalid sync history');
+  }
+  return {
+    at: value.at,
+    status: value.status,
+    ...(typeof value.error === 'string' ? { error: value.error } : {}),
+    ...(typeof value.recordsMerged === 'number'
+      ? { recordsMerged: value.recordsMerged }
+      : {}),
+  };
+};
+
+const parseSyncS3 = (value: unknown): StoredSyncS3Config => {
+  if (!isRecord(value)) throw new Error('Invalid S3 sync settings');
+  assertOnlyKeys(
+    value,
+    [
+      'accessKeyId',
+      'bucket',
+      'endpoint',
+      'forcePathStyle',
+      'prefix',
+      'region',
+      'secretAccessKey',
+    ],
+    'S3 sync settings',
+  );
+  if (
+    (value.endpoint !== undefined &&
+      (typeof value.endpoint !== 'string' || value.endpoint.length > 2_048)) ||
+    (value.region !== undefined &&
+      (typeof value.region !== 'string' || value.region.length > 64)) ||
+    (value.bucket !== undefined &&
+      (typeof value.bucket !== 'string' || value.bucket.length > 255)) ||
+    (value.prefix !== undefined &&
+      (typeof value.prefix !== 'string' || value.prefix.length > 512)) ||
+    (value.forcePathStyle !== undefined &&
+      typeof value.forcePathStyle !== 'boolean') ||
+    (value.accessKeyId !== undefined && !isEncryptedValue(value.accessKeyId)) ||
+    (value.secretAccessKey !== undefined &&
+      !isEncryptedValue(value.secretAccessKey))
+  ) {
+    throw new Error('Invalid S3 sync settings');
+  }
+  return {
+    bucket: typeof value.bucket === 'string' ? value.bucket : '',
+    endpoint: typeof value.endpoint === 'string' ? value.endpoint : '',
+    prefix: typeof value.prefix === 'string' ? value.prefix : 'untypo/',
+    region: typeof value.region === 'string' ? value.region : '',
+    ...(typeof value.forcePathStyle === 'boolean'
+      ? { forcePathStyle: value.forcePathStyle }
+      : {}),
+    ...(isEncryptedValue(value.accessKeyId)
+      ? { accessKeyId: structuredClone(value.accessKeyId) }
+      : {}),
+    ...(isEncryptedValue(value.secretAccessKey)
+      ? { secretAccessKey: structuredClone(value.secretAccessKey) }
+      : {}),
+  };
+};
+
+const parseSyncWebDav = (value: unknown): StoredSyncWebDavConfig => {
+  if (!isRecord(value)) throw new Error('Invalid WebDAV sync settings');
+  assertOnlyKeys(
+    value,
+    ['basePath', 'password', 'url', 'username'],
+    'WebDAV sync settings',
+  );
+  if (
+    (value.url !== undefined &&
+      (typeof value.url !== 'string' || value.url.length > 2_048)) ||
+    (value.username !== undefined &&
+      (typeof value.username !== 'string' || value.username.length > 200)) ||
+    (value.basePath !== undefined &&
+      (typeof value.basePath !== 'string' || value.basePath.length > 512)) ||
+    (value.password !== undefined && !isEncryptedValue(value.password))
+  ) {
+    throw new Error('Invalid WebDAV sync settings');
+  }
+  return {
+    basePath: typeof value.basePath === 'string' ? value.basePath : '/untypo/',
+    url: typeof value.url === 'string' ? value.url : '',
+    username: typeof value.username === 'string' ? value.username : '',
+    ...(isEncryptedValue(value.password)
+      ? { password: structuredClone(value.password) }
+      : {}),
+  };
+};
+
+export const parseSyncConfig = (
+  value: unknown,
+): StoredSyncConfig | undefined => {
+  if (value === undefined) return undefined;
+  if (!isRecord(value) || typeof value.enabled !== 'boolean') {
+    throw new Error('Invalid sync settings');
+  }
+  assertOnlyKeys(
+    value,
+    [
+      'backupCodeMode',
+      'enabled',
+      'encryptedBackupCode',
+      'lastSyncAt',
+      'lastSyncError',
+      'lastSyncStatus',
+      'providerId',
+      'recentResults',
+      's3',
+      'webdav',
+    ],
+    'Sync settings',
+  );
+  if (
+    value.backupCodeMode !== undefined &&
+    value.backupCodeMode !== 'custom' &&
+    value.backupCodeMode !== 'generated'
+  ) {
+    throw new Error('Invalid backup code mode');
+  }
+  if (
+    value.providerId !== undefined &&
+    value.providerId !== 's3' &&
+    value.providerId !== 'webdav'
+  ) {
+    throw new Error('Invalid sync provider');
+  }
+  if (
+    value.encryptedBackupCode !== undefined &&
+    !isEncryptedValue(value.encryptedBackupCode)
+  ) {
+    throw new Error('Invalid encrypted backup code');
+  }
+  if (
+    value.lastSyncAt !== undefined &&
+    (typeof value.lastSyncAt !== 'number' ||
+      !Number.isFinite(value.lastSyncAt) ||
+      value.lastSyncAt < 0)
+  ) {
+    throw new Error('Invalid last sync time');
+  }
+  if (
+    value.lastSyncStatus !== undefined &&
+    value.lastSyncStatus !== 'success' &&
+    value.lastSyncStatus !== 'error'
+  ) {
+    throw new Error('Invalid last sync status');
+  }
+  if (
+    value.lastSyncError !== undefined &&
+    !isNonEmptyString(value.lastSyncError, 2_000)
+  ) {
+    throw new Error('Invalid last sync error');
+  }
+  if (
+    value.recentResults !== undefined &&
+    (!Array.isArray(value.recentResults) || value.recentResults.length > 20)
+  ) {
+    throw new Error('Invalid sync history');
+  }
+  return {
+    ...(value.backupCodeMode === 'custom' ||
+    value.backupCodeMode === 'generated'
+      ? { backupCodeMode: value.backupCodeMode }
+      : {}),
+    enabled: value.enabled,
+    ...(isEncryptedValue(value.encryptedBackupCode)
+      ? { encryptedBackupCode: structuredClone(value.encryptedBackupCode) }
+      : {}),
+    ...(typeof value.lastSyncAt === 'number'
+      ? { lastSyncAt: value.lastSyncAt }
+      : {}),
+    ...(typeof value.lastSyncError === 'string'
+      ? { lastSyncError: value.lastSyncError }
+      : {}),
+    ...(value.lastSyncStatus === 'success' || value.lastSyncStatus === 'error'
+      ? { lastSyncStatus: value.lastSyncStatus }
+      : {}),
+    ...(value.providerId === 's3' || value.providerId === 'webdav'
+      ? { providerId: value.providerId }
+      : {}),
+    ...(Array.isArray(value.recentResults)
+      ? { recentResults: value.recentResults.map(parseSyncLogEntry) }
+      : {}),
+    ...(value.s3 === undefined ? {} : { s3: parseSyncS3(value.s3) }),
+    ...(value.webdav === undefined
+      ? {}
+      : { webdav: parseSyncWebDav(value.webdav) }),
+  };
+};
+
+const parseV5Config = (value: Record<string, unknown>): StoredClientConfig => {
+  const sync = parseSyncConfig(value.sync);
+  return {
+    ...parseV4Config(value),
+    version: 5,
+    ...(sync ? { sync } : {}),
+  };
+};
 
 const normalizeProfileId = (value: string, fallback: string): string => {
   const normalized = value
@@ -1026,7 +1314,7 @@ const migrateV1Config = (
         )
       : migratedIds[0];
   return {
-    version: 4,
+    version: 5,
     ...parseCommonData(value),
     dictionary: parseLegacyDictionary(value.dictionary),
     dictionaryLearning: { enabled: true },
@@ -1055,8 +1343,8 @@ const migrateV1Config = (
 const parseConfig = (source: string): ParsedConfig => {
   const value: unknown = JSON.parse(source);
   if (!isRecord(value)) throw new Error('Invalid configuration data');
-  if (value.version === 4) {
-    const config = parseV4Config(value);
+  if (value.version === 5) {
+    const config = parseV5Config(value);
     return {
       config,
       migrated:
@@ -1066,6 +1354,9 @@ const parseConfig = (source: string): ParsedConfig => {
           (isMigratedDefaultHotkey(value.dictation.hotkeyAccelerator) ||
             value.dictation.hotkeyMode !== undefined)),
     };
+  }
+  if (value.version === 4) {
+    return { config: parseV4Config(value), migrated: true };
   }
   if (value.version === 3) {
     return { config: parseV3Config(value), migrated: true };
@@ -1090,6 +1381,14 @@ export class ConfigurationService {
   constructor(configPath: string, protector: SecretProtector) {
     this.#configPath = configPath;
     this.#protector = protector;
+  }
+
+  protectSecret(plaintext: string): EncryptedValue {
+    return this.#protector.protect(plaintext);
+  }
+
+  revealSecret(encrypted: EncryptedValue): string {
+    return this.#protector.reveal(encrypted);
   }
 
   async load(): Promise<StoredClientConfig> {
@@ -1303,6 +1602,46 @@ export class ConfigurationService {
     });
   }
 
+  async replaceDictionaryLearningState(
+    state: DictionaryLearningPrivateState,
+  ): Promise<void> {
+    const nextState = parseDictionaryLearningState(structuredClone(state));
+    await this.update((config) => ({
+      ...config,
+      dictionaryLearning: {
+        enabled: config.dictionaryLearning.enabled,
+        ...(nextState.candidates.length > 0 || nextState.rejections.length > 0
+          ? {
+              encryptedState: this.#protector.protect(
+                JSON.stringify(nextState),
+              ),
+            }
+          : {}),
+      },
+    }));
+  }
+
+  async replacePersonalizationLearningState(
+    state: PersonalizationPrivateState,
+  ): Promise<void> {
+    const nextState = parsePersonalizationState(structuredClone(state));
+    await this.update((config) => ({
+      ...config,
+      personalization: {
+        ...config.personalization,
+        ...(nextState.candidates.length > 0 ||
+        nextState.preferences.length > 0 ||
+        nextState.rejections.length > 0
+          ? {
+              encryptedState: this.#protector.protect(
+                JSON.stringify(nextState),
+              ),
+            }
+          : {}),
+      },
+    }));
+  }
+
   async setProfile(profile?: UserProfileContext): Promise<StoredClientConfig> {
     const encryptedProfile = profile
       ? this.#protector.protect(JSON.stringify(profile))
@@ -1321,8 +1660,7 @@ export class ConfigurationService {
     const value: unknown = JSON.parse(
       this.#protector.reveal(config.encryptedProfile),
     );
-    if (!isRecord(value)) throw new Error('Invalid encrypted profile');
-    return value;
+    return parseUserProfile(value);
   }
 
   async upsertProvider(profile: ProviderProfile): Promise<StoredClientConfig> {

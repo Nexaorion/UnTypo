@@ -27,7 +27,7 @@ const platformDefaultHotkey =
 describe('ConfigurationService', () => {
   it('returns the bilingual Windows defaults before the first write', async () => {
     await expect(service.load()).resolves.toMatchObject({
-      version: 4,
+      version: 5,
       diagnostics: {
         automaticCollection: true,
         showErrorDialogs: false,
@@ -96,7 +96,7 @@ describe('ConfigurationService', () => {
         automaticCollection: true,
         showErrorDialogs: false,
       },
-      version: 4,
+      version: 5,
       personalization: {
         applicationStyles: { 'chat-app': 'casual', office: 'formal' },
         learningEnabled: false,
@@ -110,7 +110,7 @@ describe('ConfigurationService', () => {
       '"showErrorDialogs": false',
     );
     await expect(readFile(configPath, 'utf8')).resolves.toContain(
-      '"version": 4',
+      '"version": 5',
     );
   });
 
@@ -237,6 +237,44 @@ describe('ConfigurationService', () => {
     });
     await expect(readFile(configPath, 'utf8')).resolves.not.toContain(
       '"hotkeyMode"',
+    );
+  });
+
+  it('migrates a v4 configuration to v5 without requiring sync settings', async () => {
+    await writeFile(
+      configPath,
+      JSON.stringify({
+        version: 4,
+        diagnostics: { automaticCollection: true, showErrorDialogs: false },
+        general: { launchAtLogin: false, locale: 'zh-CN' },
+        dictation: {
+          defaultTargetLanguage: 'en-US',
+          hotkeyAccelerator: platformDefaultHotkey,
+          language: 'zh-CN',
+        },
+        dictionary: [],
+        dictionaryLearning: { enabled: true },
+        history: { enabled: true, retentionDays: 30 },
+        personalization: {
+          applicationStyles: {
+            'ai-tool': 'prompt',
+            browser: 'auto',
+            'chat-app': 'casual',
+            general: 'auto',
+            ide: 'concise',
+            office: 'formal',
+          },
+          learningEnabled: false,
+        },
+        providers: [],
+        updates: { autoCheck: true, autoDownload: true },
+      }),
+      'utf8',
+    );
+
+    await expect(service.load()).resolves.toMatchObject({ version: 5 });
+    await expect(readFile(configPath, 'utf8')).resolves.toContain(
+      '"version": 5',
     );
   });
 
@@ -537,7 +575,7 @@ describe('ConfigurationService', () => {
     const migrated = await service.load();
     const speech = migrated.providers.find(({ kind }) => kind === 'speech');
     const text = migrated.providers.find(({ kind }) => kind === 'text');
-    expect(migrated.version).toBe(4);
+    expect(migrated.version).toBe(5);
     expect(speech).toMatchObject({
       id: longId,
       providerId: 'openai-compatible-speech',
@@ -571,7 +609,7 @@ describe('ConfigurationService', () => {
     const persisted = JSON.parse(await readFile(configPath, 'utf8')) as {
       version: number;
     };
-    expect(persisted.version).toBe(4);
+    expect(persisted.version).toBe(5);
   });
 
   it('activates the first migrated pair when v1 had no explicit active profile', async () => {
