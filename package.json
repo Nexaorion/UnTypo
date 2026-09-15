@@ -31,13 +31,6 @@
     "node": ">=22.12.0",
     "npm": ">=9"
   },
-  "devEngines": {
-    "packageManager": {
-      "name": "npm",
-      "version": "12.0.2",
-      "onFail": "download"
-    }
-  },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/better-sqlite3": "9.6.0",
