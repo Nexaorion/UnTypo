@@ -18,6 +18,12 @@ import type {
   LearnedWritingPreference,
   ClientWritingPreferenceSuggestion,
 } from './personalization.js';
+import type {
+  ClientSyncConfigUpdate,
+  ClientSyncResult,
+  ClientSyncSnapshot,
+  SyncBackupInfo,
+} from './sync.js';
 
 export const IPC_CHANNELS = {
   acceptWritingPreference: 'client:accept-writing-preference',
@@ -30,9 +36,15 @@ export const IPC_CHANNELS = {
   copyText: 'client:copy-text',
   downloadUpdate: 'client:download-update',
   exportDiagnostics: 'client:export-diagnostics',
+  applyBackup: 'client:apply-backup',
+  createBackup: 'client:create-backup',
+  deleteBackup: 'client:delete-backup',
+  generateBackupCode: 'client:generate-backup-code',
   getDiagnostics: 'client:get-diagnostics',
   getSnapshot: 'client:get-snapshot',
+  getSyncConfig: 'client:get-sync-config',
   getUsageStats: 'client:get-usage-stats',
+  listRemoteBackups: 'client:list-remote-backups',
   listMicrophones: 'client:list-microphones',
   listHistory: 'client:list-history',
   ping: 'app:ping',
@@ -50,6 +62,8 @@ export const IPC_CHANNELS = {
   setProfile: 'client:set-profile',
   snapshotChanged: 'client:snapshot-changed',
   testProvider: 'client:test-provider',
+  testSyncConnection: 'client:test-sync-connection',
+  updateSyncConfig: 'client:update-sync-config',
   installUpdate: 'client:install-update',
   requestAccessibilityAccess: 'client:request-accessibility-access',
   updateChanged: 'client:update-changed',
@@ -196,6 +210,7 @@ export interface ClientSnapshot {
   profile?: UserProfileContext;
   providers: readonly ClientProviderSummary[];
   settings: ClientSettingsSnapshot;
+  sync: ClientSyncSnapshot;
   update: ClientUpdateSnapshot;
 }
 
@@ -264,6 +279,10 @@ export interface HotkeyCaptureInput {
 export interface UntypoApi {
   acceptWritingPreference: (id: string) => Promise<ClientSnapshot>;
   addDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
+  applyBackup: (remoteFile: string) => Promise<ClientSyncResult>;
+  createBackup: () => Promise<ClientSyncResult>;
+  deleteBackup: (remoteFile: string) => Promise<{ ok: true }>;
+  generateBackupCode: () => Promise<string>;
   acknowledgeDiagnostics: (
     issueIds: readonly string[],
   ) => Promise<ClientDiagnosticSnapshot>;
@@ -278,11 +297,13 @@ export interface UntypoApi {
   ) => Promise<ClientDiagnosticExportResult>;
   getDiagnostics: () => Promise<ClientDiagnosticSnapshot>;
   getSnapshot: () => Promise<ClientSnapshot>;
+  getSyncConfig: () => Promise<ClientSyncSnapshot>;
   getUsageStats: () => Promise<ClientUsageStats>;
   listHistory: (
     query?: ClientHistoryQuery,
   ) => Promise<readonly ClientHistoryRecord[]>;
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
+  listRemoteBackups: () => Promise<readonly SyncBackupInfo[]>;
   onHotkeyCaptureEvent: (
     listener: (input: HotkeyCaptureInput) => void,
   ) => () => void;
@@ -310,7 +331,9 @@ export interface UntypoApi {
   ) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
+  testSyncConnection: () => Promise<{ ok: true }>;
   installUpdate: () => Promise<void>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<ClientSnapshot>;
+  updateSyncConfig: (config: ClientSyncConfigUpdate) => Promise<ClientSnapshot>;
   upsertProvider: (profile: ClientProviderInput) => Promise<ClientSnapshot>;
 }
