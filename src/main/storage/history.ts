@@ -195,6 +195,50 @@ export class HistoryRepository {
       .changes;
   }
 
+  importMissing(records: readonly HistoryRecord[]): number {
+    const insert = this.#database.prepare(
+      `INSERT OR IGNORE INTO dictation_history
+        (id, created_at, provider_id, intent, output_text, raw_transcript, language, scene,
+         audio_duration_ms, model_name, processing_trace_json)
+       VALUES
+        (@id, @createdAt, @providerId, @intent, @outputText, @rawTranscript, @language, @scene,
+         @audioDurationMs, @modelName, @processingTraceJson)`,
+    );
+    let imported = 0;
+    const write = this.#database.transaction(
+      (entries: readonly HistoryRecord[]) => {
+        for (const record of entries) {
+          const result = insert.run({
+            ...record,
+            audioDurationMs: record.audioDurationMs ?? null,
+            modelName: record.modelName ?? null,
+            processingTraceJson: record.processingTrace
+              ? JSON.stringify(record.processingTrace)
+              : null,
+            rawTranscript: record.rawTranscript ?? null,
+            scene: record.scene ?? null,
+          });
+          imported += result.changes;
+        }
+      },
+    );
+    write(records);
+    return imported;
+  }
+
+  listAll(): readonly HistoryRecord[] {
+    const rows = this.#database
+      .prepare(
+        `SELECT id, created_at, provider_id, intent, output_text,
+                raw_transcript, language, scene, audio_duration_ms, model_name,
+                processing_trace_json
+         FROM dictation_history
+         ORDER BY created_at DESC, id DESC`,
+      )
+      .all() as HistoryRow[];
+    return rows.map(mapRow);
+  }
+
   close(): void {
     this.#database.close();
   }
