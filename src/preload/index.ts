@@ -17,6 +17,12 @@ import type {
   PingResponse,
   UntypoApi,
 } from '../shared/ipc.js';
+import type {
+  ClientSyncConfigUpdate,
+  ClientSyncResult,
+  ClientSyncSnapshot,
+  SyncBackupInfo,
+} from '../shared/sync.js';
 import type { ClientApplicationWritingStyleUpdate } from '../shared/personalization.js';
 
 const PING_CHANNEL = 'app:ping';
@@ -33,14 +39,20 @@ const channels = {
   clearHistory: 'client:clear-history',
   clearPersonalizationMemory: 'client:clear-personalization-memory',
   copyText: 'client:copy-text',
+  applyBackup: 'client:apply-backup',
+  createBackup: 'client:create-backup',
+  deleteBackup: 'client:delete-backup',
   downloadUpdate: 'client:download-update',
   exportDiagnostics: 'client:export-diagnostics',
+  generateBackupCode: 'client:generate-backup-code',
   getDiagnostics: 'client:get-diagnostics',
   getSnapshot: 'client:get-snapshot',
+  getSyncConfig: 'client:get-sync-config',
   getUsageStats: 'client:get-usage-stats',
   installUpdate: 'client:install-update',
   listHistory: 'client:list-history',
   listMicrophones: 'client:list-microphones',
+  listRemoteBackups: 'client:list-remote-backups',
   requestAccessibilityAccess: 'client:request-accessibility-access',
   removeProvider: 'client:remove-provider',
   removeDictionaryEntry: 'client:remove-dictionary-entry',
@@ -54,7 +66,9 @@ const channels = {
     'client:set-personalization-learning-enabled',
   setProfile: 'client:set-profile',
   testProvider: 'client:test-provider',
+  testSyncConnection: 'client:test-sync-connection',
   updateSettings: 'client:update-settings',
+  updateSyncConfig: 'client:update-sync-config',
   upsertProvider: 'client:upsert-provider',
 } as const;
 
@@ -90,6 +104,17 @@ const api: UntypoApi = {
     ) as Promise<ClientUpdateSnapshot>,
   copyText: (text: string) =>
     ipcRenderer.invoke(channels.copyText, text) as Promise<void>,
+  applyBackup: (remoteFile: string) =>
+    ipcRenderer.invoke(
+      channels.applyBackup,
+      remoteFile,
+    ) as Promise<ClientSyncResult>,
+  createBackup: () =>
+    ipcRenderer.invoke(channels.createBackup) as Promise<ClientSyncResult>,
+  deleteBackup: (remoteFile: string) =>
+    ipcRenderer.invoke(channels.deleteBackup, remoteFile) as Promise<{
+      ok: true;
+    }>,
   downloadUpdate: () =>
     ipcRenderer.invoke(
       channels.downloadUpdate,
@@ -103,8 +128,12 @@ const api: UntypoApi = {
     ipcRenderer.invoke(
       channels.getDiagnostics,
     ) as Promise<ClientDiagnosticSnapshot>,
+  generateBackupCode: () =>
+    ipcRenderer.invoke(channels.generateBackupCode) as Promise<string>,
   getSnapshot: () =>
     ipcRenderer.invoke(channels.getSnapshot) as Promise<ClientSnapshot>,
+  getSyncConfig: () =>
+    ipcRenderer.invoke(channels.getSyncConfig) as Promise<ClientSyncSnapshot>,
   getUsageStats: () =>
     ipcRenderer.invoke(channels.getUsageStats) as Promise<ClientUsageStats>,
   installUpdate: () =>
@@ -116,6 +145,10 @@ const api: UntypoApi = {
   listMicrophones: () =>
     ipcRenderer.invoke(channels.listMicrophones) as Promise<
       readonly ClientMicrophoneDevice[]
+    >,
+  listRemoteBackups: () =>
+    ipcRenderer.invoke(channels.listRemoteBackups) as Promise<
+      readonly SyncBackupInfo[]
     >,
   onHotkeyCaptureEvent: (listener: (input: HotkeyCaptureInput) => void) => {
     const handleCapture = (
@@ -203,10 +236,17 @@ const api: UntypoApi = {
     ipcRenderer.invoke(channels.testProvider, profileId) as Promise<{
       ok: true;
     }>,
+  testSyncConnection: () =>
+    ipcRenderer.invoke(channels.testSyncConnection) as Promise<{ ok: true }>,
   updateSettings: (update: ClientSettingsUpdate) =>
     ipcRenderer.invoke(
       channels.updateSettings,
       update,
+    ) as Promise<ClientSnapshot>,
+  updateSyncConfig: (config: ClientSyncConfigUpdate) =>
+    ipcRenderer.invoke(
+      channels.updateSyncConfig,
+      config,
     ) as Promise<ClientSnapshot>,
   upsertProvider: (profile: ClientProviderInput) =>
     ipcRenderer.invoke(

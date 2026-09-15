@@ -52,6 +52,12 @@ import type {
   ClientUpdateSnapshot,
   ClientUsageStats,
 } from '../../shared/ipc.js';
+import type {
+  ClientSyncConfigUpdate,
+  ClientSyncResult,
+  ClientSyncSnapshot,
+  SyncBackupInfo,
+} from '../../shared/sync.js';
 import {
   resolveMicrophoneSelection,
   type MicrophoneSelection,
@@ -92,6 +98,7 @@ import {
 import type { ProviderProfile } from '../storage/configuration.js';
 import { ElectronSecretProtector } from '../storage/electron-secret-protector.js';
 import { HistoryRepository, HistoryService } from '../storage/history.js';
+import { SyncService } from '../sync/sync-service.js';
 import { ApplicationUpdateService } from '../update/application-update-service.js';
 import { SelectionWindowController } from '../selection/selection-window.js';
 import { runSelectionSmokeTest } from '../selection/smoke.js';
@@ -260,6 +267,7 @@ export class DesktopRuntime {
       this.reconcileMicrophoneSelection(requested, resolved),
   );
   readonly #speechProviders = new SpeechProviderRegistry();
+  readonly #sync: SyncService;
   readonly #textProviders = new TextProviderRegistry();
   readonly #updates: ApplicationUpdateService;
   #coordinator?: DictationCoordinator;
@@ -294,6 +302,11 @@ export class DesktopRuntime {
       path.join(userDataPath, 'history.sqlite3'),
     );
     this.#history = new HistoryService(this.#historyRepository);
+    this.#sync = new SyncService({
+      appVersion: app.getVersion(),
+      configuration: this.#configuration,
+      history: this.#historyRepository,
+    });
     this.#updates = new ApplicationUpdateService({
       diagnostics: this.#diagnostics,
       onChanged: options.onUpdateChanged,
@@ -596,6 +609,7 @@ export class DesktopRuntime {
         history: config.history,
         updates: config.updates,
       },
+      sync: await this.#sync.snapshot(),
       update: this.#updates.snapshot(),
     };
   }
@@ -997,6 +1011,43 @@ export class DesktopRuntime {
   installUpdate(): void {
     if (!this.#updates.isReadyToInstall()) return;
     app.quit();
+  }
+
+  getSyncConfig(): Promise<ClientSyncSnapshot> {
+    return this.#sync.snapshot();
+  }
+
+  async updateSyncConfig(
+    update: ClientSyncConfigUpdate,
+  ): Promise<ClientSnapshot> {
+    await this.#sync.updateConfig(update);
+    return this.getClientSnapshot();
+  }
+
+  async testSyncConnection(): Promise<{ ok: true }> {
+    await this.#sync.testConnection();
+    return { ok: true };
+  }
+
+  createBackup(): Promise<ClientSyncResult> {
+    return this.#sync.createBackup();
+  }
+
+  listRemoteBackups(): Promise<readonly SyncBackupInfo[]> {
+    return this.#sync.listRemoteBackups();
+  }
+
+  applyBackup(remoteFile: string): Promise<ClientSyncResult> {
+    return this.#sync.applyBackup(remoteFile);
+  }
+
+  async deleteBackup(remoteFile: string): Promise<{ ok: true }> {
+    await this.#sync.deleteBackup(remoteFile);
+    return { ok: true };
+  }
+
+  async generateBackupCode(): Promise<string> {
+    return this.#sync.generateBackupCode();
   }
 
   async stop(): Promise<void> {

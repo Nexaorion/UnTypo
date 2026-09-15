@@ -38,14 +38,20 @@ const createBackend = (): ClientBackendPort => ({
   clearDiagnostics: vi.fn(),
   clearHistory: vi.fn(),
   clearPersonalizationMemory: vi.fn(),
+  applyBackup: vi.fn(),
+  createBackup: vi.fn(),
+  deleteBackup: vi.fn(),
   downloadUpdate: vi.fn(),
   exportDiagnostics: vi.fn(),
+  generateBackupCode: vi.fn(),
   getClientSnapshot: vi.fn(() => Promise.resolve({} as ClientSnapshot)),
   getDiagnostics: vi.fn(),
+  getSyncConfig: vi.fn(),
   getUsageStats: vi.fn(),
   installUpdate: vi.fn(),
   listHistory: vi.fn(),
   listMicrophones: vi.fn(),
+  listRemoteBackups: vi.fn(),
   requestAccessibilityAccess: vi.fn(),
   removeProvider: vi.fn(),
   removeDictionaryEntry: vi.fn(),
@@ -58,7 +64,9 @@ const createBackend = (): ClientBackendPort => ({
   setProfile: vi.fn(),
   setPersonalizationLearningEnabled: vi.fn(),
   testProvider: vi.fn(),
+  testSyncConnection: vi.fn(),
   updateSettings: vi.fn(),
+  updateSyncConfig: vi.fn(),
   upsertProvider: vi.fn(),
 });
 
@@ -144,6 +152,29 @@ describe('ClientIpcController', () => {
 
     expect(assertTrustedSender).toHaveBeenCalledOnce();
     expect(backend.clearDiagnostics).toHaveBeenCalledOnce();
+    controller.destroy();
+  });
+
+  it('routes backup actions through trusted and validated IPC handlers', async () => {
+    const backend = createBackend();
+    vi.mocked(backend.deleteBackup).mockResolvedValue({ ok: true });
+    const controller = new ClientIpcController(backend);
+    const event = {};
+
+    await electronMocks.handlers.get(IPC_CHANNELS.applyBackup)?.(
+      event,
+      'untypo/backup.untypo',
+    );
+    await electronMocks.handlers.get(IPC_CHANNELS.deleteBackup)?.(
+      event,
+      'untypo/backup.untypo',
+    );
+    await electronMocks.handlers.get(IPC_CHANNELS.createBackup)?.(event);
+
+    expect(backend.applyBackup).toHaveBeenCalledWith('untypo/backup.untypo');
+    expect(backend.deleteBackup).toHaveBeenCalledWith('untypo/backup.untypo');
+    expect(backend.createBackup).toHaveBeenCalledOnce();
+    expect(assertTrustedSender).toHaveBeenCalledTimes(3);
     controller.destroy();
   });
 

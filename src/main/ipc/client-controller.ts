@@ -22,6 +22,12 @@ import {
   type ClientUpdateSnapshot,
   type ClientUsageStats,
 } from '../../shared/ipc.js';
+import type {
+  ClientSyncConfigUpdate,
+  ClientSyncResult,
+  ClientSyncSnapshot,
+  SyncBackupInfo,
+} from '../../shared/sync.js';
 import type { ClientApplicationWritingStyleUpdate } from '../../shared/personalization.js';
 import { assertTrustedSender } from '../security.js';
 import {
@@ -40,7 +46,9 @@ import {
   parseProfile,
   parseProfileId,
   parseProviderInput,
+  parseRemoteBackupPath,
   parseSettingsUpdate,
+  parseSyncConfigUpdate,
   parseWritingPreferenceId,
 } from './validation.js';
 
@@ -54,16 +62,22 @@ export interface ClientBackendPort {
   clearHistory: () => number;
   clearPersonalizationMemory: () => Promise<ClientSnapshot>;
   checkForUpdates: () => Promise<ClientUpdateSnapshot>;
+  applyBackup: (remoteFile: string) => Promise<ClientSyncResult>;
+  createBackup: () => Promise<ClientSyncResult>;
+  deleteBackup: (remoteFile: string) => Promise<{ ok: true }>;
   downloadUpdate: () => Promise<ClientUpdateSnapshot>;
   exportDiagnostics: (
     request: ClientDiagnosticExportRequest,
   ) => Promise<ClientDiagnosticExportResult>;
+  generateBackupCode: () => Promise<string>;
   getDiagnostics: () => ClientDiagnosticSnapshot;
   getClientSnapshot: () => Promise<ClientSnapshot>;
+  getSyncConfig: () => Promise<ClientSyncSnapshot>;
   getUsageStats: () => ClientUsageStats;
   installUpdate: () => void;
   listHistory: (query: ClientHistoryQuery) => readonly ClientHistoryRecord[];
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
+  listRemoteBackups: () => Promise<readonly SyncBackupInfo[]>;
   requestAccessibilityAccess: () => Promise<ClientSnapshot>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
   removeDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
@@ -83,7 +97,9 @@ export interface ClientBackendPort {
     enabled: boolean,
   ) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
+  testSyncConnection: () => Promise<{ ok: true }>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<ClientSnapshot>;
+  updateSyncConfig: (config: ClientSyncConfigUpdate) => Promise<ClientSnapshot>;
   upsertProvider: (profile: ClientProviderInput) => Promise<ClientSnapshot>;
 }
 
@@ -155,8 +171,16 @@ export class ClientIpcController {
     ipcMain.handle(IPC_CHANNELS.clearHistory, this.clearHistory);
     ipcMain.handle(IPC_CHANNELS.checkForUpdates, this.checkForUpdates);
     ipcMain.handle(IPC_CHANNELS.copyText, this.copyText);
+    ipcMain.handle(IPC_CHANNELS.applyBackup, this.applyBackup);
+    ipcMain.handle(IPC_CHANNELS.createBackup, this.createBackup);
+    ipcMain.handle(IPC_CHANNELS.deleteBackup, this.deleteBackup);
     ipcMain.handle(IPC_CHANNELS.downloadUpdate, this.downloadUpdate);
+    ipcMain.handle(IPC_CHANNELS.generateBackupCode, this.generateBackupCode);
+    ipcMain.handle(IPC_CHANNELS.getSyncConfig, this.getSyncConfig);
     ipcMain.handle(IPC_CHANNELS.installUpdate, this.installUpdate);
+    ipcMain.handle(IPC_CHANNELS.listRemoteBackups, this.listRemoteBackups);
+    ipcMain.handle(IPC_CHANNELS.testSyncConnection, this.testSyncConnection);
+    ipcMain.handle(IPC_CHANNELS.updateSyncConfig, this.updateSyncConfig);
   }
 
   destroy(): void {
@@ -189,8 +213,16 @@ export class ClientIpcController {
       IPC_CHANNELS.clearHistory,
       IPC_CHANNELS.checkForUpdates,
       IPC_CHANNELS.copyText,
+      IPC_CHANNELS.applyBackup,
+      IPC_CHANNELS.createBackup,
+      IPC_CHANNELS.deleteBackup,
       IPC_CHANNELS.downloadUpdate,
+      IPC_CHANNELS.generateBackupCode,
+      IPC_CHANNELS.getSyncConfig,
       IPC_CHANNELS.installUpdate,
+      IPC_CHANNELS.listRemoteBackups,
+      IPC_CHANNELS.testSyncConnection,
+      IPC_CHANNELS.updateSyncConfig,
     ]) {
       ipcMain.removeHandler(channel);
     }
@@ -434,5 +466,64 @@ export class ClientIpcController {
   ): void => {
     trust(event);
     this.#backend.reportRendererIssue(parseRendererIssue(value));
+  };
+
+  private readonly getSyncConfig = (
+    event: IpcMainInvokeEvent,
+  ): Promise<ClientSyncSnapshot> => {
+    trust(event);
+    return this.#backend.getSyncConfig();
+  };
+
+  private readonly updateSyncConfig = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientSnapshot> => {
+    trust(event);
+    return this.#backend.updateSyncConfig(parseSyncConfigUpdate(value));
+  };
+
+  private readonly testSyncConnection = (
+    event: IpcMainInvokeEvent,
+  ): Promise<{ ok: true }> => {
+    trust(event);
+    return this.#backend.testSyncConnection();
+  };
+
+  private readonly createBackup = (
+    event: IpcMainInvokeEvent,
+  ): Promise<ClientSyncResult> => {
+    trust(event);
+    return this.#backend.createBackup();
+  };
+
+  private readonly listRemoteBackups = (
+    event: IpcMainInvokeEvent,
+  ): Promise<readonly SyncBackupInfo[]> => {
+    trust(event);
+    return this.#backend.listRemoteBackups();
+  };
+
+  private readonly applyBackup = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<ClientSyncResult> => {
+    trust(event);
+    return this.#backend.applyBackup(parseRemoteBackupPath(value));
+  };
+
+  private readonly deleteBackup = (
+    event: IpcMainInvokeEvent,
+    value: unknown,
+  ): Promise<{ ok: true }> => {
+    trust(event);
+    return this.#backend.deleteBackup(parseRemoteBackupPath(value));
+  };
+
+  private readonly generateBackupCode = (
+    event: IpcMainInvokeEvent,
+  ): Promise<string> => {
+    trust(event);
+    return this.#backend.generateBackupCode();
   };
 }

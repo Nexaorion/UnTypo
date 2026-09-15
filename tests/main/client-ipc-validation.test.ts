@@ -7,7 +7,9 @@ import {
   parsePersonalizationLearningEnabled,
   parseProfile,
   parseProviderInput,
+  parseRemoteBackupPath,
   parseSettingsUpdate,
+  parseSyncConfigUpdate,
   parseWritingPreferenceId,
 } from '../../src/main/ipc/validation';
 import {
@@ -84,6 +86,20 @@ describe('client IPC validation', () => {
     expect(parseWritingPreferenceId('1234567890abcdef12345678')).toBe(
       '1234567890abcdef12345678',
     );
+    expect(
+      parseSyncConfigUpdate({
+        enabled: true,
+        providerId: 's3',
+        s3: { bucket: 'backups', endpoint: 'https://s3.example.test' },
+      }),
+    ).toMatchObject({
+      enabled: true,
+      providerId: 's3',
+      s3: { bucket: 'backups' },
+    });
+    expect(parseRemoteBackupPath('untypo/latest.untypo')).toBe(
+      'untypo/latest.untypo',
+    );
   });
 
   it('rejects unknown fields and unbounded values', () => {
@@ -117,6 +133,15 @@ describe('client IPC validation', () => {
     expect(() =>
       parseSettingsUpdate({ updates: { autoCheck: 'yes' } }),
     ).toThrow('Invalid automatic update check setting');
+    expect(() => parseSyncConfigUpdate({ providerId: 'ftp' })).toThrow(
+      'Invalid sync provider',
+    );
+    expect(() => parseRemoteBackupPath('../secret.untypo')).toThrow(
+      'Invalid remote backup path',
+    );
+    expect(() => parseRemoteBackupPath('untypo/notes.txt')).toThrow(
+      'Invalid remote backup path',
+    );
     expect(() =>
       parseApplicationWritingStyleUpdate({
         application: 'chat-app',

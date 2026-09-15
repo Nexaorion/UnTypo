@@ -7,6 +7,14 @@ import type {
   ModelProviderKind,
 } from '../../shared/ipc.js';
 import {
+  SYNC_BACKUP_CODE_MAX_LENGTH,
+  SYNC_PROVIDER_IDS,
+  type ClientSyncConfigUpdate,
+  type ClientSyncS3Update,
+  type ClientSyncWebDavUpdate,
+  type SyncProviderId,
+} from '../../shared/sync.js';
+import {
   TARGET_APPLICATION_KINDS,
   WRITING_STYLE_PRESETS,
   type ClientApplicationWritingStyleUpdate,
@@ -455,6 +463,165 @@ export const parseHistoryQuery = (value: unknown): ClientHistoryQuery => {
 export const parseClipboardText = (value: unknown): string => {
   if (typeof value !== 'string' || value.length > maximumClipboardTextLength) {
     throw new Error('Invalid clipboard text');
+  }
+  return value;
+};
+
+const optionalBoundedString = (
+  value: unknown,
+  label: string,
+  maximumLength: number,
+): string | undefined => {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string' || value.length > maximumLength) {
+    throw new Error(`Invalid ${label}`);
+  }
+  return value;
+};
+
+const parseSyncS3Update = (value: unknown): ClientSyncS3Update => {
+  if (!isRecord(value)) throw new Error('Invalid S3 sync settings');
+  assertOnlyKeys(
+    value,
+    [
+      'accessKeyId',
+      'bucket',
+      'endpoint',
+      'forcePathStyle',
+      'prefix',
+      'region',
+      'secretAccessKey',
+    ],
+    'S3 sync settings',
+  );
+  if (
+    value.forcePathStyle !== undefined &&
+    typeof value.forcePathStyle !== 'boolean'
+  ) {
+    throw new Error('Invalid S3 path style setting');
+  }
+  return {
+    ...(optionalBoundedString(value.accessKeyId, 'S3 access key', 16_384)
+      ? { accessKeyId: value.accessKeyId as string }
+      : {}),
+    ...(optionalBoundedString(value.bucket, 'S3 bucket', 255)
+      ? { bucket: value.bucket as string }
+      : {}),
+    ...(optionalBoundedString(value.endpoint, 'S3 endpoint', 2_048)
+      ? { endpoint: value.endpoint as string }
+      : {}),
+    ...(typeof value.forcePathStyle === 'boolean'
+      ? { forcePathStyle: value.forcePathStyle }
+      : {}),
+    ...(optionalBoundedString(value.prefix, 'S3 prefix', 512)
+      ? { prefix: value.prefix as string }
+      : {}),
+    ...(optionalBoundedString(value.region, 'S3 region', 64)
+      ? { region: value.region as string }
+      : {}),
+    ...(optionalBoundedString(
+      value.secretAccessKey,
+      'S3 secret access key',
+      16_384,
+    )
+      ? { secretAccessKey: value.secretAccessKey as string }
+      : {}),
+  };
+};
+
+const parseSyncWebDavUpdate = (value: unknown): ClientSyncWebDavUpdate => {
+  if (!isRecord(value)) throw new Error('Invalid WebDAV sync settings');
+  assertOnlyKeys(
+    value,
+    ['basePath', 'password', 'url', 'username'],
+    'WebDAV sync settings',
+  );
+  return {
+    ...(optionalBoundedString(value.basePath, 'WebDAV base path', 512)
+      ? { basePath: value.basePath as string }
+      : {}),
+    ...(optionalBoundedString(value.password, 'WebDAV password', 16_384)
+      ? { password: value.password as string }
+      : {}),
+    ...(optionalBoundedString(value.url, 'WebDAV URL', 2_048)
+      ? { url: value.url as string }
+      : {}),
+    ...(optionalBoundedString(value.username, 'WebDAV username', 200)
+      ? { username: value.username as string }
+      : {}),
+  };
+};
+
+export const parseSyncConfigUpdate = (
+  value: unknown,
+): ClientSyncConfigUpdate => {
+  if (!isRecord(value)) throw new Error('Invalid sync configuration');
+  assertOnlyKeys(
+    value,
+    [
+      'backupCode',
+      'enabled',
+      'generateBackupCode',
+      'providerId',
+      's3',
+      'webdav',
+    ],
+    'Sync configuration',
+  );
+  if (value.enabled !== undefined && typeof value.enabled !== 'boolean') {
+    throw new Error('Invalid sync enabled setting');
+  }
+  if (
+    value.generateBackupCode !== undefined &&
+    typeof value.generateBackupCode !== 'boolean'
+  ) {
+    throw new Error('Invalid backup code generation setting');
+  }
+  if (
+    value.providerId !== undefined &&
+    (typeof value.providerId !== 'string' ||
+      !SYNC_PROVIDER_IDS.includes(value.providerId as SyncProviderId))
+  ) {
+    throw new Error('Invalid sync provider');
+  }
+  if (
+    value.backupCode !== undefined &&
+    (typeof value.backupCode !== 'string' ||
+      value.backupCode.length > SYNC_BACKUP_CODE_MAX_LENGTH)
+  ) {
+    throw new Error('Invalid backup code');
+  }
+  return {
+    ...(typeof value.backupCode === 'string'
+      ? { backupCode: value.backupCode }
+      : {}),
+    ...(typeof value.enabled === 'boolean' ? { enabled: value.enabled } : {}),
+    ...(typeof value.generateBackupCode === 'boolean'
+      ? { generateBackupCode: value.generateBackupCode }
+      : {}),
+    ...(typeof value.providerId === 'string'
+      ? { providerId: value.providerId as SyncProviderId }
+      : {}),
+    ...(value.s3 === undefined ? {} : { s3: parseSyncS3Update(value.s3) }),
+    ...(value.webdav === undefined
+      ? {}
+      : { webdav: parseSyncWebDavUpdate(value.webdav) }),
+  };
+};
+
+export const parseRemoteBackupPath = (value: unknown): string => {
+  if (
+    typeof value !== 'string' ||
+    value.trim().length === 0 ||
+    value.length > 1_024
+  ) {
+    throw new Error('Invalid remote backup path');
+  }
+  if (value.includes('..') || value.includes('\\')) {
+    throw new Error('Invalid remote backup path');
+  }
+  if (!value.toLowerCase().endsWith('.untypo')) {
+    throw new Error('Invalid remote backup path');
   }
   return value;
 };

@@ -16,6 +16,11 @@ import type {
   UntypoApi,
 } from '../../shared/ipc.js';
 import type { ClientApplicationWritingStyleUpdate } from '../../shared/personalization.js';
+import type {
+  ClientSyncConfigUpdate,
+  ClientSyncResult,
+  SyncBackupInfo,
+} from '../../shared/sync.js';
 import { HISTORY_PAGE_SIZE, mergeHistoryPage } from '../logic/history.js';
 
 export const describeError = (error: unknown): string | undefined =>
@@ -39,7 +44,11 @@ export interface ClientStore {
   clearPersonalizationMemory: () => Promise<void>;
   copyText: (text: string) => Promise<void>;
   diagnostics: ClientDiagnosticSnapshot | null;
+  applyBackup: (remoteFile: string) => Promise<ClientSyncResult>;
+  createBackup: () => Promise<ClientSyncResult>;
+  deleteBackup: (remoteFile: string) => Promise<void>;
   downloadUpdate: () => Promise<void>;
+  generateBackupCode: () => Promise<string>;
   exportDiagnostics: (
     request: ClientDiagnosticExportRequest,
   ) => Promise<ClientDiagnosticExportResult>;
@@ -48,6 +57,7 @@ export interface ClientStore {
   installUpdate: () => Promise<void>;
   loadMoreHistory: () => Promise<void>;
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
+  listRemoteBackups: () => Promise<readonly SyncBackupInfo[]>;
   reloadDiagnostics: () => Promise<void>;
   reloadHistory: () => Promise<void>;
   reloadSnapshot: () => Promise<void>;
@@ -67,7 +77,9 @@ export interface ClientStore {
   setPersonalizationLearningEnabled: (enabled: boolean) => Promise<void>;
   snapshot: ClientSnapshot | null;
   testProvider: (profileId: string) => Promise<void>;
+  testSyncConnection: () => Promise<void>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<void>;
+  updateSyncConfig: (update: ClientSyncConfigUpdate) => Promise<void>;
   upsertProvider: (profile: ClientProviderInput) => Promise<void>;
 }
 
@@ -202,6 +214,47 @@ export const useClientStore = (): ClientStore => {
   const copyText = useCallback(
     (text: string) => requireApi().copyText(text),
     [],
+  );
+
+  const applyBackup = useCallback(
+    async (remoteFile: string) => {
+      const result = await requireApi().applyBackup(remoteFile);
+      if (result.success) applySnapshot(await requireApi().getSnapshot());
+      return result;
+    },
+    [applySnapshot],
+  );
+
+  const createBackup = useCallback(async () => {
+    const result = await requireApi().createBackup();
+    if (result.success) applySnapshot(await requireApi().getSnapshot());
+    return result;
+  }, [applySnapshot]);
+
+  const deleteBackup = useCallback(async (remoteFile: string) => {
+    await requireApi().deleteBackup(remoteFile);
+  }, []);
+
+  const generateBackupCode = useCallback(async () => {
+    const code = await requireApi().generateBackupCode();
+    applySnapshot(await requireApi().getSnapshot());
+    return code;
+  }, [applySnapshot]);
+
+  const listRemoteBackups = useCallback(
+    () => requireApi().listRemoteBackups(),
+    [],
+  );
+
+  const testSyncConnection = useCallback(async () => {
+    await requireApi().testSyncConnection();
+  }, []);
+
+  const updateSyncConfig = useCallback(
+    async (update: ClientSyncConfigUpdate) => {
+      applySnapshot(await requireApi().updateSyncConfig(update));
+    },
+    [applySnapshot],
   );
 
   const acknowledgeDiagnostics = useCallback(
@@ -346,13 +399,18 @@ export const useClientStore = (): ClientStore => {
     clearPersonalizationMemory,
     copyText,
     diagnostics,
+    applyBackup,
+    createBackup,
+    deleteBackup,
     downloadUpdate,
     exportDiagnostics,
+    generateBackupCode,
     history,
     historyExhausted,
     installUpdate,
     loadMoreHistory,
     listMicrophones,
+    listRemoteBackups,
     reloadDiagnostics,
     reloadHistory,
     reloadSnapshot,
@@ -370,7 +428,9 @@ export const useClientStore = (): ClientStore => {
     setPersonalizationLearningEnabled,
     snapshot,
     testProvider,
+    testSyncConnection,
     updateSettings,
+    updateSyncConfig,
     upsertProvider,
   };
 };
