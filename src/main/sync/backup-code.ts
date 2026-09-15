@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import {
   SYNC_BACKUP_CODE_GENERATED_LENGTH,
   SYNC_BACKUP_CODE_MAX_LENGTH,
@@ -19,10 +19,9 @@ export const generateBackupCode = (
   ) {
     throw new Error('Backup code length is invalid');
   }
-  const bytes = randomBytes(length);
   let code = '';
-  for (const byte of bytes) {
-    code += BACKUP_CODE_ALPHABET[byte % BACKUP_CODE_ALPHABET.length];
+  for (let index = 0; index < length; index += 1) {
+    code += BACKUP_CODE_ALPHABET[randomInt(BACKUP_CODE_ALPHABET.length)];
   }
   return code;
 };
