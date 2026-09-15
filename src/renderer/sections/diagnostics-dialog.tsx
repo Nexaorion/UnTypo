@@ -20,7 +20,8 @@ import {
   diagnosticKindKey,
   latestDiagnosticIssue,
 } from '../logic/diagnostics.js';
-import { describeError, type ClientStore } from '../state/client.js';
+import { describeUserFacingError } from '../logic/user-facing-error.js';
+import type { ClientStore } from '../state/client.js';
 import { tokens } from '../theme.js';
 import { useToast } from '../ui/toast.js';
 
@@ -80,7 +81,7 @@ export const DiagnosticsDialog = ({
       }
     } catch (error) {
       notify(t('diagnostics.exportFailed'), {
-        description: describeError(error) ?? t('error.unknown'),
+        description: describeUserFacingError(error, t),
         type: 'error',
       });
     } finally {
@@ -96,7 +97,7 @@ export const DiagnosticsDialog = ({
       onOpenChange(false);
     } catch (error) {
       notify(t('diagnostics.acknowledgeFailed'), {
-        description: describeError(error) ?? t('error.unknown'),
+        description: describeUserFacingError(error, t),
         type: 'error',
       });
     } finally {
