@@ -81,6 +81,26 @@ export const messages = {
     'diagnostics.source': '来源：{source}',
     'diagnostics.title': 'UnTypo 出现问题！',
     'error.unknown': '操作失败',
+    'error.backupCodeMissing': '请先设置 Backup Code，再进行同步',
+    'error.backupMissing': '该备份已不存在，请刷新列表后重试',
+    'error.backupUnreadable': '备份文件已损坏或格式不受支持，无法读取',
+    'error.devicePermission': '没有访问设备的权限，请在系统设置中允许后重试',
+    'error.hotkeyConflict': '该快捷键已被其他应用占用，请换一个组合',
+    'error.hotkeyUnavailable': '该快捷键无法启用',
+    'error.invalidBackupCode': 'Backup Code 格式不正确，请按要求重新输入',
+    'error.invalidServerAddress': '服务器地址无效，请检查后重试',
+    'error.microphoneUnavailable': 'UnTypo 没有麦克风访问权限，请在系统设置中允许后重试',
+    'error.networkUnavailable': '无法连接到服务，请检查网络和服务器地址后重试',
+    'error.permissionDenied': '当前账号没有执行此操作的权限',
+    'error.providerConfiguration': '模型配置已失效，请检查设置后重试',
+    'error.remotePathInvalid': '远端备份路径无效，请检查存储路径设置',
+    'error.requestTimeout': '请求等待时间过长，请稍后重试',
+    'error.secureStorageUnavailable': '系统安全存储不可用，无法保存敏感信息',
+    'error.serviceAuthentication': '身份验证失败，请检查账号或密钥是否正确',
+    'error.serviceLimit': '服务额度不足或请求过于频繁，请稍后重试',
+    'error.syncNotConfigured': '云同步配置不完整，请先完成设置',
+    'error.tryAgain':
+      '操作未完成，请重试；仍然失败时可在“问题与反馈”中查看详情',
     'field.insecureUrl': '需使用 HTTPS，或允许 HTTP 私有端点',
     'field.hotkeyConflict': '该快捷键已被其他应用占用，请换一个组合',
     'field.hotkeyUnavailable': '快捷键注册失败，已保留原快捷键',
@@ -538,6 +558,42 @@ export const messages = {
     'diagnostics.source': 'Source: {source}',
     'diagnostics.title': 'UnTypo ran into a problem!',
     'error.unknown': 'Request failed',
+    'error.backupCodeMissing': 'Set a Backup Code before syncing',
+    'error.backupMissing':
+      'This remote backup no longer exists. Refresh the list and try again.',
+    'error.backupUnreadable':
+      'The backup is damaged or uses an unsupported format and cannot be read.',
+    'error.devicePermission':
+      'Device access is blocked. Allow access in system settings and try again.',
+    'error.hotkeyConflict':
+      'That shortcut is already used by another app. Choose a different one.',
+    'error.hotkeyUnavailable':
+      'The shortcut could not be enabled. The previous shortcut was kept.',
+    'error.invalidBackupCode':
+      'The Backup Code format is incorrect. Check it and enter it again.',
+    'error.invalidServerAddress':
+      'The server address is invalid. Check the address and security settings.',
+    'error.microphoneUnavailable':
+      'The microphone is unavailable. Check the device and system permissions.',
+    'error.networkUnavailable':
+      'Could not connect to the service. Check the network and server address.',
+    'error.permissionDenied':
+      'The current account does not have permission for this action.',
+    'error.providerConfiguration':
+      'The model configuration is no longer valid. Check its settings and retry.',
+    'error.remotePathInvalid':
+      'The remote backup path is invalid. Check the storage path setting.',
+    'error.requestTimeout': 'The request took too long. Try again later.',
+    'error.secureStorageUnavailable':
+      'Secure system storage is unavailable, so sensitive data cannot be saved.',
+    'error.serviceAuthentication':
+      'Authentication failed. Check the account or API key.',
+    'error.serviceLimit':
+      'The service limit was reached or requests are too frequent. Try again later.',
+    'error.syncNotConfigured':
+      'Cloud sync is not fully configured. Complete its settings first.',
+    'error.tryAgain':
+      'The action could not be completed. Try again, or open Issues & feedback for details.',
     'field.hotkeyConflict':
       'This shortcut is already used by another app. Choose another one.',
     'field.hotkeyUnavailable':

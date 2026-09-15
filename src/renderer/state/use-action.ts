@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useI18n } from '../i18n/context.js';
+import { describeUserFacingError } from '../logic/user-facing-error.js';
 import { useToast } from '../ui/toast.js';
-import { describeError } from './client.js';
 
 interface ActionOptions {
   describeError?: (error: unknown) => string | undefined;
@@ -31,7 +31,8 @@ export const useAction = () => {
       } catch (error) {
         options.onError?.(error);
         notify(t('error.unknown'), {
-          description: options.describeError?.(error) ?? describeError(error),
+          description:
+            options.describeError?.(error) ?? describeUserFacingError(error, t),
           type: 'error',
         });
         return false;

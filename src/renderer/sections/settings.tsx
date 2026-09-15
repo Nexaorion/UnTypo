@@ -12,7 +12,8 @@ import {
   formatHotkeyAccelerator,
   isValidHotkeyAccelerator,
 } from '../logic/hotkey.js';
-import { describeError, type ClientStore } from '../state/client.js';
+import { describeUserFacingError } from '../logic/user-facing-error.js';
+import type { ClientStore } from '../state/client.js';
 import { useAction } from '../state/use-action.js';
 import { Field } from '../ui/field.js';
 import { HotkeyField } from '../ui/hotkey-field.js';
@@ -91,9 +92,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
       if (microphoneRequest.current === request) setMicrophones(devices);
     } catch (error) {
       if (microphoneRequest.current === request) {
-        setMicrophoneError(
-          describeError(error) ?? t('settings.microphoneUnavailable'),
-        );
+        setMicrophoneError(describeUserFacingError(error, t));
       }
     } finally {
       if (microphoneRequest.current === request) setMicrophonesLoading(false);
