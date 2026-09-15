@@ -1,5 +1,6 @@
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
+import CloudSyncOutlinedIcon from '@mui/icons-material/CloudSyncOutlined';
 import FeedbackOutlinedIcon from '@mui/icons-material/FeedbackOutlined';
 import KeyboardRoundedIcon from '@mui/icons-material/KeyboardRounded';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
@@ -19,9 +20,10 @@ import { PersonalizationSection } from './personalization.js';
 import { ProblemsSection } from './problems.js';
 import { ProvidersSection } from './providers.js';
 import { SettingsSection } from './settings.js';
+import { SyncSection } from './sync.js';
 
 export type SettingsTab =
-  'settings' | 'models' | 'personalization' | 'problems';
+  'settings' | 'models' | 'personalization' | 'sync' | 'problems';
 
 const expandedNavigationQuery = '@media (min-width: 1000px)';
 
@@ -75,6 +77,11 @@ const SettingsNavigation = ({
       icon: <AutoAwesomeRoundedIcon fontSize="small" />,
       label: t('nav.personalization'),
       value: 'personalization',
+    },
+    {
+      icon: <CloudSyncOutlinedIcon fontSize="small" />,
+      label: t('nav.sync'),
+      value: 'sync',
     },
     {
       icon: <FeedbackOutlinedIcon fontSize="small" />,
@@ -217,9 +224,11 @@ export const SettingsDialog = ({
       ? t('nav.providers')
       : tab === 'personalization'
         ? t('nav.personalization')
-        : tab === 'problems'
-          ? t('nav.problems')
-          : t('nav.settings');
+        : tab === 'sync'
+          ? t('nav.sync')
+          : tab === 'problems'
+            ? t('nav.problems')
+            : t('nav.settings');
 
   return (
     <Dialog
@@ -294,6 +303,9 @@ export const SettingsDialog = ({
             </SettingsPanel>
             <SettingsPanel tab="personalization" value={tab}>
               <PersonalizationSection store={store} />
+            </SettingsPanel>
+            <SettingsPanel tab="sync" value={tab}>
+              <SyncSection store={store} />
             </SettingsPanel>
             <SettingsPanel tab="problems" value={tab}>
               <ProblemsSection store={store} />

@@ -30,9 +30,9 @@ export const PageHeader = ({
   title: string;
 }) => (
   <Stack
-    direction="row"
+    direction={{ xs: 'column', sm: 'row' }}
     sx={{
-      alignItems: 'center',
+      alignItems: { xs: 'flex-start', sm: 'center' },
       gap: 3,
       justifyContent: 'space-between',
       minHeight: 52,

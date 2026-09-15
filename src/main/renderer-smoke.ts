@@ -186,6 +186,39 @@ const smokeTestSource = `
       if (dictionaryLearning.checked) return 'dictionary-learning-restore';
     }
 
+    const syncTab = settingsRoot.querySelector('#settings-tab-sync');
+    if (!syncTab) return 'sync-tab';
+    syncTab.click();
+    await wait(120);
+    if (syncTab.getAttribute('aria-selected') !== 'true')
+      return 'sync-tab-state';
+    const syncPanel = settingsRoot.querySelector('#settings-panel-sync');
+    if (!syncPanel) return 'sync-panel';
+    if (!syncPanel.querySelector('[data-testid="sync-enabled"] input'))
+      return 'sync-enabled';
+    if (!syncPanel.querySelector('[data-testid="sync-backup-now"]'))
+      return 'sync-backup-now';
+    const syncSettingsOpen = syncPanel.querySelector(
+      '[data-testid="sync-settings-open"]',
+    );
+    if (!syncSettingsOpen) return 'sync-settings-open';
+    syncSettingsOpen.click();
+    await wait(200);
+    const syncSettingsDialog = document.querySelector(
+      '[data-testid="sync-settings-dialog"]',
+    );
+    if (!syncSettingsDialog) return 'sync-settings-dialog';
+    if (!syncSettingsDialog.getAttribute('aria-labelledby'))
+      return 'sync-settings-dialog-label';
+    const syncSettingsClose = document.querySelector(
+      '[data-testid="sync-settings-close"]',
+    );
+    if (!syncSettingsClose) return 'sync-settings-close';
+    syncSettingsClose.click();
+    await wait(200);
+    if (document.querySelector('[data-testid="sync-settings-dialog"]'))
+      return 'sync-settings-dialog-close';
+
     const problemsTab = settingsRoot.querySelector('#settings-tab-problems');
     if (!problemsTab) return 'problems-tab';
     problemsTab.click();
@@ -502,6 +535,45 @@ const responsiveSmokeTestSource = `
     );
     if (renderedIssues.length > 10)
       return 'diagnostic-page-size:' + renderedIssues.length;
+
+    const syncTab = settingsRoot.querySelector('#settings-tab-sync');
+    if (!syncTab) return 'sync-tab';
+    syncTab.click();
+    await wait(120);
+    const syncPanel = settingsRoot.querySelector('#settings-panel-sync');
+    if (!syncPanel) return 'sync-panel';
+    if (syncPanel.scrollWidth > syncPanel.clientWidth + 1)
+      return 'sync-horizontal-scroll';
+    const syncSettingsOpen = syncPanel.querySelector(
+      '[data-testid="sync-settings-open"]',
+    );
+    if (!syncSettingsOpen) return 'sync-settings-open';
+    syncSettingsOpen.click();
+    await wait(200);
+    const syncSettingsDialog = document.querySelector(
+      '[data-testid="sync-settings-dialog"]',
+    );
+    if (!syncSettingsDialog) return 'sync-settings-dialog';
+    const syncSettingsRect = syncSettingsDialog.getBoundingClientRect();
+    if (
+      syncSettingsRect.left < -1 ||
+      syncSettingsRect.right > viewportWidth + 1
+    ) {
+      return (
+        'sync-settings-bounds:' +
+        syncSettingsRect.left +
+        ':' +
+        syncSettingsRect.right
+      );
+    }
+    if (syncSettingsDialog.scrollWidth > syncSettingsDialog.clientWidth + 1)
+      return 'sync-settings-horizontal-scroll';
+    const syncSettingsClose = document.querySelector(
+      '[data-testid="sync-settings-close"]',
+    );
+    if (!syncSettingsClose) return 'sync-settings-close';
+    syncSettingsClose.click();
+    await wait(200);
 
     const modelsTab = settingsRoot.querySelector('#settings-tab-models');
     if (!modelsTab) return 'models-tab';
