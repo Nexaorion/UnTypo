@@ -8,6 +8,7 @@ import { useId } from 'react';
 
 export interface ConfirmDialogProps {
   cancelLabel: string;
+  confirmColor?: 'error' | 'primary';
   confirmLabel: string;
   description?: string;
   onConfirm: () => void;
@@ -19,6 +20,7 @@ export interface ConfirmDialogProps {
 
 export const ConfirmDialog = ({
   cancelLabel,
+  confirmColor = 'error',
   confirmLabel,
   description,
   onConfirm,
@@ -34,7 +36,9 @@ export const ConfirmDialog = ({
       aria-labelledby={titleId}
       fullWidth
       maxWidth="xs"
-      onClose={() => onOpenChange(false)}
+      onClose={() => {
+        if (!pending) onOpenChange(false);
+      }}
       open={open}
     >
       <DialogTitle id={titleId}>{title}</DialogTitle>
@@ -46,13 +50,14 @@ export const ConfirmDialog = ({
       <DialogActions sx={{ gap: 1, px: 3, pb: 2.5 }}>
         <Button
           color="inherit"
+          disabled={pending}
           onClick={() => onOpenChange(false)}
           variant="text"
         >
           {cancelLabel}
         </Button>
         <Button
-          color="error"
+          color={confirmColor}
           disabled={pending}
           onClick={onConfirm}
           variant="outlined"
