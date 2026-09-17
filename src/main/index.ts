@@ -3,6 +3,7 @@ import { userInfo } from 'node:os';
 import path from 'node:path';
 import { DIAGNOSTIC_CHANGED_CHANNEL } from '../shared/diagnostics.js';
 import { IPC_CHANNELS, type PingResponse } from '../shared/ipc.js';
+import { hideMainWindowOnClose, keepDarwinDockVisible } from './darwin-dock.js';
 import { DiagnosticCollector } from './diagnostics/collector.js';
 import { ClientIpcController } from './ipc/client-controller.js';
 import { handleAppScheme, registerAppScheme } from './protocol.js';
@@ -92,12 +93,6 @@ const installApplicationMenu = (): void => {
   );
 };
 
-const keepDarwinDockVisible = (): void => {
-  if (process.platform !== 'darwin' || isQuitting) return;
-  app.setActivationPolicy('regular');
-  void app.dock?.show();
-};
-
 const createMainWindow = async (): Promise<BrowserWindow> => {
   const window = new BrowserWindow({
     backgroundColor: windowBackground(),
@@ -138,10 +133,7 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
   });
 
   window.on('close', (event) => {
-    if (isQuitting || isSmokeTest) return;
-    event.preventDefault();
-    window.hide();
-    keepDarwinDockVisible();
+    hideMainWindowOnClose(event, window, { isQuitting, isSmokeTest });
   });
   window.once('closed', () => {
     nativeTheme.off('updated', syncWindowBackground);
@@ -237,7 +229,7 @@ const startPrimaryInstance = (): void => {
         showMainWindow,
       });
       await runtime.start();
-      keepDarwinDockVisible();
+      keepDarwinDockVisible({ isQuitting });
       // Handlers must exist before the renderer's first snapshot request.
       clientIpc = new ClientIpcController(runtime);
       settleMainIpcReady();
