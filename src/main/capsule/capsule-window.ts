@@ -542,7 +542,11 @@ export class CapsuleWindowController {
       },
     });
     window.setAlwaysOnTop(true, 'floating');
-    window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    // Skip the UIElement transform so the running Dock icon stays visible.
+    window.setVisibleOnAllWorkspaces(true, {
+      skipTransformProcessType: true,
+      visibleOnFullScreen: true,
+    });
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', (event) => event.preventDefault());
     window.once('closed', () => {

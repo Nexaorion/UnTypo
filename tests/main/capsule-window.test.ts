@@ -104,6 +104,7 @@ describe('CapsuleWindowController', () => {
       destroy: ReturnType<typeof vi.fn>;
       setIgnoreMouseEvents: ReturnType<typeof vi.fn>;
       setSize: ReturnType<typeof vi.fn>;
+      setVisibleOnAllWorkspaces: ReturnType<typeof vi.fn>;
       webContents: { send: ReturnType<typeof vi.fn> };
     };
     electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
@@ -119,6 +120,10 @@ describe('CapsuleWindowController', () => {
     );
 
     expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(1);
+    expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, {
+      skipTransformProcessType: true,
+      visibleOnFullScreen: true,
+    });
     expect(window.setSize).toHaveBeenNthCalledWith(1, 276, 56, false);
     expect(window.setSize).toHaveBeenLastCalledWith(540, 68, false);
     expect(window.webContents.send).toHaveBeenCalledWith(

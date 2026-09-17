@@ -92,6 +92,12 @@ const installApplicationMenu = (): void => {
   );
 };
 
+const keepDarwinDockVisible = (): void => {
+  if (process.platform !== 'darwin' || isQuitting) return;
+  app.setActivationPolicy('regular');
+  void app.dock?.show();
+};
+
 const createMainWindow = async (): Promise<BrowserWindow> => {
   const window = new BrowserWindow({
     backgroundColor: windowBackground(),
@@ -135,6 +141,7 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
     if (isQuitting || isSmokeTest) return;
     event.preventDefault();
     window.hide();
+    keepDarwinDockVisible();
   });
   window.once('closed', () => {
     nativeTheme.off('updated', syncWindowBackground);
@@ -230,6 +237,7 @@ const startPrimaryInstance = (): void => {
         showMainWindow,
       });
       await runtime.start();
+      keepDarwinDockVisible();
       // Handlers must exist before the renderer's first snapshot request.
       clientIpc = new ClientIpcController(runtime);
       settleMainIpcReady();
