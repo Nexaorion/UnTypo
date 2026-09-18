@@ -17,5 +17,6 @@ megalinter-reports/
 .idea/
 .vscode/
 .claude/settings.local.json
+.mimosa/
 .DS_Store
 Thumbs.db

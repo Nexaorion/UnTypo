@@ -2,3 +2,4 @@ coverage/
 dist/
 release/
 package-lock.json
+.mimosa/
