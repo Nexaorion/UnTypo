@@ -77,6 +77,7 @@ import { DictationCoordinator } from '../dictation/coordinator.js';
 import { DictionaryLearningService } from '../dictionary/learning.js';
 import { WritingPreferenceLearningService } from '../personalization/learning.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
+import { createLoginItemSettings } from '../login-item.js';
 import {
   NATIVE_HOTKEY_ALREADY_REGISTERED,
   NativeHelperClient,
@@ -248,6 +249,17 @@ const resolveNativeHelperPath = (): string => {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'bin', fileName)
     : path.resolve(app.getAppPath(), 'build/Release', fileName);
+};
+
+const setLaunchAtLogin = (openAtLogin: boolean): void => {
+  app.setLoginItemSettings(
+    createLoginItemSettings(openAtLogin, {
+      applicationPath: app.getAppPath(),
+      executablePath: process.execPath,
+      isPackaged: app.isPackaged,
+      platform: process.platform,
+    }),
+  );
 };
 
 export class DesktopRuntime {
@@ -483,7 +495,7 @@ export class DesktopRuntime {
         this.dispatchHotkey(action);
       });
       if (!process.argv.includes('--smoke-test')) {
-        app.setLoginItemSettings({ openAtLogin: config.general.launchAtLogin });
+        setLaunchAtLogin(config.general.launchAtLogin);
       }
       this.createTray(config.general.locale);
       if (!process.argv.includes('--smoke-test')) {
@@ -715,7 +727,7 @@ export class DesktopRuntime {
     }
     this.#diagnostics.setEnabled(next.diagnostics.automaticCollection);
     if (!process.argv.includes('--smoke-test')) {
-      app.setLoginItemSettings({ openAtLogin: next.general.launchAtLogin });
+      setLaunchAtLogin(next.general.launchAtLogin);
     }
     this.applyLocale(next.general.locale);
     this.#updates.configure(next.updates);
