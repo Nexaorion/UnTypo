@@ -204,11 +204,22 @@ const smokeTestSource = `
     if (!syncSettingsOpen) return 'sync-settings-open';
     syncSettingsOpen.click();
     await wait(200);
-    const syncSettingsDialog = document.querySelector(
+    const syncSettingsRoot = document.querySelector(
       '[data-testid="sync-settings-dialog"]',
     );
-    if (!syncSettingsDialog) return 'sync-settings-dialog';
-    if (!syncSettingsDialog.getAttribute('aria-labelledby'))
+    if (!syncSettingsRoot) return 'sync-settings-dialog';
+    // MUI puts role="dialog" and aria-labelledby on the Paper, not the root.
+    const syncSettingsDialog = syncSettingsRoot.matches('[role="dialog"]')
+      ? syncSettingsRoot
+      : syncSettingsRoot.querySelector('[role="dialog"]');
+    if (!syncSettingsDialog) return 'sync-settings-dialog-role';
+    const syncSettingsLabelledBy = syncSettingsDialog.getAttribute(
+      'aria-labelledby',
+    );
+    if (
+      !syncSettingsLabelledBy ||
+      !document.getElementById(syncSettingsLabelledBy)
+    )
       return 'sync-settings-dialog-label';
     const syncSettingsClose = document.querySelector(
       '[data-testid="sync-settings-close"]',
