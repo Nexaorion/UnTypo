@@ -104,6 +104,17 @@ export interface HistoryUsageStats {
 
 export class HistoryRepository {
   readonly #database: Database.Database;
+  readonly #insertStatement: Database.Statement;
+  readonly #insertOrIgnoreStatement: Database.Statement;
+  readonly #listStatement: Database.Statement;
+  readonly #listAllStatement: Database.Statement;
+  readonly #usageTotalsStatement: Database.Statement;
+  readonly #mostUsedModelStatement: Database.Statement;
+  readonly #deleteOlderThanStatement: Database.Statement;
+  readonly #clearStatement: Database.Statement;
+  readonly #importMissingTransaction: (
+    records: readonly HistoryRecord[],
+  ) => number;
 
   constructor(databasePath: string) {
     mkdirSync(path.dirname(databasePath), { recursive: true });
@@ -111,92 +122,15 @@ export class HistoryRepository {
     this.#database.pragma('journal_mode = WAL');
     this.#database.pragma('foreign_keys = ON');
     this.migrate();
-  }
-
-  add(input: NewHistoryRecord): HistoryRecord {
-    const record: HistoryRecord = {
-      ...input,
-      createdAt: input.createdAt ?? Date.now(),
-      id: input.id ?? randomUUID(),
-    };
-    this.#database
-      .prepare(
-        `INSERT INTO dictation_history
-          (id, created_at, provider_id, intent, output_text, raw_transcript, language, scene,
-           audio_duration_ms, model_name, processing_trace_json)
-         VALUES
-          (@id, @createdAt, @providerId, @intent, @outputText, @rawTranscript, @language, @scene,
-           @audioDurationMs, @modelName, @processingTraceJson)`,
-      )
-      .run({
-        ...record,
-        audioDurationMs: record.audioDurationMs ?? null,
-        modelName: record.modelName ?? null,
-        processingTraceJson: record.processingTrace
-          ? JSON.stringify(record.processingTrace)
-          : null,
-        rawTranscript: record.rawTranscript ?? null,
-        scene: record.scene ?? null,
-      });
-    return record;
-  }
-
-  list(limit = 100, offset = 0): readonly HistoryRecord[] {
-    const safeLimit = Math.max(1, Math.min(500, Math.trunc(limit)));
-    const safeOffset = Math.max(0, Math.trunc(offset));
-    const rows = this.#database
-      .prepare(
-        `SELECT id, created_at, provider_id, intent, output_text,
-                raw_transcript, language, scene, audio_duration_ms, model_name,
-                processing_trace_json
-         FROM dictation_history
-         ORDER BY created_at DESC, id DESC
-         LIMIT ? OFFSET ?`,
-      )
-      .all(safeLimit, safeOffset) as HistoryRow[];
-    return rows.map(mapRow);
-  }
-
-  getUsageStats(): HistoryUsageStats {
-    const totals = this.#database
-      .prepare(
-        `SELECT COUNT(*) AS usage_count,
-                COALESCE(SUM(audio_duration_ms), 0) AS transcription_duration_ms,
-                COALESCE(SUM(LENGTH(output_text)), 0) AS output_characters
-         FROM dictation_history`,
-      )
-      .get() as UsageStatsRow;
-    const model = this.#database
-      .prepare(
-        `SELECT COALESCE(NULLIF(model_name, ''), provider_id) AS model_name
-         FROM dictation_history
-         GROUP BY COALESCE(NULLIF(model_name, ''), provider_id)
-         ORDER BY COUNT(*) DESC, model_name ASC
-         LIMIT 1`,
-      )
-      .get() as MostUsedModelRow | undefined;
-
-    return {
-      ...(model ? { mostUsedModel: model.model_name } : {}),
-      outputCharacters: totals.output_characters,
-      transcriptionDurationMs: totals.transcription_duration_ms,
-      usageCount: totals.usage_count,
-    };
-  }
-
-  deleteOlderThan(cutoff: number): number {
-    return this.#database
-      .prepare('DELETE FROM dictation_history WHERE created_at < ?')
-      .run(cutoff).changes;
-  }
-
-  clear(): number {
-    return this.#database.prepare('DELETE FROM dictation_history').run()
-      .changes;
-  }
-
-  importMissing(records: readonly HistoryRecord[]): number {
-    const insert = this.#database.prepare(
+    this.#insertStatement = this.#database.prepare(
+      `INSERT INTO dictation_history
+        (id, created_at, provider_id, intent, output_text, raw_transcript, language, scene,
+         audio_duration_ms, model_name, processing_trace_json)
+       VALUES
+        (@id, @createdAt, @providerId, @intent, @outputText, @rawTranscript, @language, @scene,
+         @audioDurationMs, @modelName, @processingTraceJson)`,
+    );
+    this.#insertOrIgnoreStatement = this.#database.prepare(
       `INSERT OR IGNORE INTO dictation_history
         (id, created_at, provider_id, intent, output_text, raw_transcript, language, scene,
          audio_duration_ms, model_name, processing_trace_json)
@@ -204,11 +138,45 @@ export class HistoryRepository {
         (@id, @createdAt, @providerId, @intent, @outputText, @rawTranscript, @language, @scene,
          @audioDurationMs, @modelName, @processingTraceJson)`,
     );
-    let imported = 0;
-    const write = this.#database.transaction(
-      (entries: readonly HistoryRecord[]) => {
+    this.#listStatement = this.#database.prepare(
+      `SELECT id, created_at, provider_id, intent, output_text,
+              raw_transcript, language, scene, audio_duration_ms, model_name,
+              processing_trace_json
+       FROM dictation_history
+       ORDER BY created_at DESC, id DESC
+       LIMIT ? OFFSET ?`,
+    );
+    this.#listAllStatement = this.#database.prepare(
+      `SELECT id, created_at, provider_id, intent, output_text,
+              raw_transcript, language, scene, audio_duration_ms, model_name,
+              processing_trace_json
+       FROM dictation_history
+       ORDER BY created_at DESC, id DESC`,
+    );
+    this.#usageTotalsStatement = this.#database.prepare(
+      `SELECT COUNT(*) AS usage_count,
+              COALESCE(SUM(audio_duration_ms), 0) AS transcription_duration_ms,
+              COALESCE(SUM(LENGTH(output_text)), 0) AS output_characters
+       FROM dictation_history`,
+    );
+    this.#mostUsedModelStatement = this.#database.prepare(
+      `SELECT COALESCE(NULLIF(model_name, ''), provider_id) AS model_name
+       FROM dictation_history
+       GROUP BY COALESCE(NULLIF(model_name, ''), provider_id)
+       ORDER BY COUNT(*) DESC, model_name ASC
+       LIMIT 1`,
+    );
+    this.#deleteOlderThanStatement = this.#database.prepare(
+      'DELETE FROM dictation_history WHERE created_at < ?',
+    );
+    this.#clearStatement = this.#database.prepare(
+      'DELETE FROM dictation_history',
+    );
+    this.#importMissingTransaction = this.#database.transaction(
+      (entries: readonly HistoryRecord[]): number => {
+        let imported = 0;
         for (const record of entries) {
-          const result = insert.run({
+          const result = this.#insertOrIgnoreStatement.run({
             ...record,
             audioDurationMs: record.audioDurationMs ?? null,
             modelName: record.modelName ?? null,
@@ -220,22 +188,64 @@ export class HistoryRepository {
           });
           imported += result.changes;
         }
+        return imported;
       },
     );
-    write(records);
-    return imported;
+  }
+
+  add(input: NewHistoryRecord): HistoryRecord {
+    const record: HistoryRecord = {
+      ...input,
+      createdAt: input.createdAt ?? Date.now(),
+      id: input.id ?? randomUUID(),
+    };
+    this.#insertStatement.run({
+      ...record,
+      audioDurationMs: record.audioDurationMs ?? null,
+      modelName: record.modelName ?? null,
+      processingTraceJson: record.processingTrace
+        ? JSON.stringify(record.processingTrace)
+        : null,
+      rawTranscript: record.rawTranscript ?? null,
+      scene: record.scene ?? null,
+    });
+    return record;
+  }
+
+  list(limit = 100, offset = 0): readonly HistoryRecord[] {
+    const safeLimit = Math.max(1, Math.min(500, Math.trunc(limit)));
+    const safeOffset = Math.max(0, Math.trunc(offset));
+    const rows = this.#listStatement.all(safeLimit, safeOffset) as HistoryRow[];
+    return rows.map(mapRow);
+  }
+
+  getUsageStats(): HistoryUsageStats {
+    const totals = this.#usageTotalsStatement.get() as UsageStatsRow;
+    const model = this.#mostUsedModelStatement.get() as
+      MostUsedModelRow | undefined;
+
+    return {
+      ...(model ? { mostUsedModel: model.model_name } : {}),
+      outputCharacters: totals.output_characters,
+      transcriptionDurationMs: totals.transcription_duration_ms,
+      usageCount: totals.usage_count,
+    };
+  }
+
+  deleteOlderThan(cutoff: number): number {
+    return this.#deleteOlderThanStatement.run(cutoff).changes;
+  }
+
+  clear(): number {
+    return this.#clearStatement.run().changes;
+  }
+
+  importMissing(records: readonly HistoryRecord[]): number {
+    return this.#importMissingTransaction(records);
   }
 
   listAll(): readonly HistoryRecord[] {
-    const rows = this.#database
-      .prepare(
-        `SELECT id, created_at, provider_id, intent, output_text,
-                raw_transcript, language, scene, audio_duration_ms, model_name,
-                processing_trace_json
-         FROM dictation_history
-         ORDER BY created_at DESC, id DESC`,
-      )
-      .all() as HistoryRow[];
+    const rows = this.#listAllStatement.all() as HistoryRow[];
     return rows.map(mapRow);
   }
 

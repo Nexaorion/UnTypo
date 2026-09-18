@@ -1377,6 +1377,9 @@ export class ConfigurationService {
   readonly #configPath: string;
   readonly #protector: SecretProtector;
   #queue: Promise<void> = Promise.resolve();
+  // Last successfully persisted state; external edits to config.json while
+  // this process runs are intentionally not observed.
+  #cachedConfig: StoredClientConfig | undefined;
 
   constructor(configPath: string, protector: SecretProtector) {
     this.#configPath = configPath;
@@ -1392,18 +1395,16 @@ export class ConfigurationService {
   }
 
   async load(): Promise<StoredClientConfig> {
-    return this.runExclusive(async () => {
-      const parsed = await this.readFromDisk();
-      if (parsed.migrated) await this.writeAtomically(parsed.config);
-      return structuredClone(parsed.config);
-    });
+    return this.runExclusive(async () =>
+      structuredClone(await this.readCurrent()),
+    );
   }
 
   async update(
     mutate: (config: StoredClientConfig) => StoredClientConfig,
   ): Promise<StoredClientConfig> {
     return this.runExclusive(async () => {
-      const current = (await this.readFromDisk()).config;
+      const current = await this.readCurrent();
       const next = mutate(structuredClone(current));
       await this.writeAtomically(next);
       return structuredClone(next);
@@ -1491,7 +1492,7 @@ export class ConfigurationService {
     ) => PersonalizationPrivateState,
   ): Promise<PersonalizationPrivateState> {
     return this.runExclusive(async () => {
-      const current = (await this.readFromDisk()).config;
+      const current = await this.readCurrent();
       const stored = current.personalization.encryptedState;
       const state = stored
         ? parsePersonalizationState(
@@ -1499,7 +1500,9 @@ export class ConfigurationService {
           )
         : emptyPersonalizationState();
       const nextState = parsePersonalizationState(
-        structuredClone(mutate(structuredClone(state), current)),
+        structuredClone(
+          mutate(structuredClone(state), structuredClone(current)),
+        ),
       );
       const next: StoredClientConfig = {
         ...current,
@@ -1517,7 +1520,7 @@ export class ConfigurationService {
     enabled: boolean,
   ): Promise<StoredClientConfig> {
     return this.runExclusive(async () => {
-      const current = (await this.readFromDisk()).config;
+      const current = await this.readCurrent();
       const stored = current.personalization.encryptedState;
       const state = stored
         ? parsePersonalizationState(
@@ -1577,7 +1580,7 @@ export class ConfigurationService {
     ) => DictionaryLearningPrivateState,
   ): Promise<DictionaryLearningPrivateState> {
     return this.runExclusive(async () => {
-      const current = (await this.readFromDisk()).config;
+      const current = await this.readCurrent();
       const stored = current.dictionaryLearning.encryptedState;
       const state = stored
         ? parseDictionaryLearningState(
@@ -1588,7 +1591,9 @@ export class ConfigurationService {
         return emptyDictionaryLearningState();
       }
       const nextState = parseDictionaryLearningState(
-        structuredClone(mutate(structuredClone(state), current)),
+        structuredClone(
+          mutate(structuredClone(state), structuredClone(current)),
+        ),
       );
       const next: StoredClientConfig = {
         ...current,
@@ -1784,6 +1789,18 @@ export class ConfigurationService {
     }
   }
 
+  private async readCurrent(): Promise<StoredClientConfig> {
+    const cached = this.#cachedConfig;
+    if (cached) return cached;
+    const parsed = await this.readFromDisk();
+    if (!parsed.migrated) {
+      this.#cachedConfig = parsed.config;
+      return parsed.config;
+    }
+    await this.writeAtomically(parsed.config);
+    return parsed.config;
+  }
+
   private async writeAtomically(config: StoredClientConfig): Promise<void> {
     const directory = path.dirname(this.#configPath);
     const temporaryPath = `${this.#configPath}.${process.pid}.${randomUUID()}.tmp`;
@@ -1798,5 +1815,6 @@ export class ConfigurationService {
       await rm(temporaryPath, { force: true });
       throw error;
     }
+    this.#cachedConfig = structuredClone(config);
   }
 }

@@ -1,9 +1,30 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ConfigurationService } from '../../src/main/storage/configuration';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  ConfigurationService,
+  type StoredClientConfig,
+} from '../../src/main/storage/configuration';
 import { MemorySecretProtector } from '../../src/main/storage/secret-protector';
+import type { DictionaryEntry } from '../../src/shared/dictionary';
+import type * as NodeFsPromises from 'node:fs/promises';
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof NodeFsPromises>();
+  let readFileCount = 0;
+  return {
+    ...actual,
+    readFile: ((...args: Parameters<typeof actual.readFile>) => {
+      readFileCount += 1;
+      return actual.readFile(...args);
+    }) as typeof actual.readFile,
+    __untypoReadFileCount: () => readFileCount,
+    __untypoResetReadFileCount: () => {
+      readFileCount = 0;
+    },
+  };
+});
 
 let temporaryDirectory: string;
 let service: ConfigurationService;
@@ -721,5 +742,149 @@ describe('ConfigurationService', () => {
         },
       ],
     });
+  });
+
+  it('serves repeated loads from the in-memory cache, ignoring external edits', async () => {
+    await service.update((config) => ({
+      ...config,
+      general: { ...config.general, launchAtLogin: true },
+    }));
+
+    const onDisk = JSON.parse(await readFile(configPath, 'utf8')) as {
+      general: { launchAtLogin: boolean };
+      history: { enabled: boolean; retentionDays: number };
+    };
+    onDisk.general.launchAtLogin = false;
+    onDisk.history = { enabled: false, retentionDays: 7 };
+    await writeFile(configPath, JSON.stringify(onDisk), 'utf8');
+
+    await expect(service.load()).resolves.toMatchObject({
+      general: { launchAtLogin: true },
+      history: { enabled: true, retentionDays: 30 },
+    });
+  });
+
+  it('prevents load results from polluting the cache', async () => {
+    await service.addDictionaryEntry('UnTypo');
+    const loaded = await service.load();
+    (loaded.dictionary as DictionaryEntry[]).push({
+      source: 'manual',
+      term: 'Injected',
+    });
+    loaded.general.launchAtLogin = true;
+
+    await expect(service.load()).resolves.toMatchObject({
+      dictionary: [{ source: 'manual', term: 'UnTypo' }],
+      general: { launchAtLogin: false },
+    });
+  });
+
+  it('prevents mutate drafts from aliasing the cache', async () => {
+    let draft: StoredClientConfig | undefined;
+    await service.update((config) => {
+      draft = config;
+      return { ...config, history: { enabled: false, retentionDays: 7 } };
+    });
+    if (draft) {
+      draft.history = { enabled: true, retentionDays: 30 };
+      draft.general.launchAtLogin = true;
+    }
+
+    await expect(service.load()).resolves.toMatchObject({
+      general: { launchAtLogin: false },
+      history: { enabled: false, retentionDays: 7 },
+    });
+  });
+
+  it('prevents learning-state mutate config arguments from polluting the cache', async () => {
+    await service.setDictionaryLearningEnabled(true);
+    await service.updateDictionaryLearningState((_state, config) => {
+      config.general.launchAtLogin = true;
+      return { candidates: [], rejections: [] };
+    });
+
+    await expect(service.load()).resolves.toMatchObject({
+      general: { launchAtLogin: false },
+      dictionaryLearning: { enabled: true },
+    });
+  });
+
+  it('refreshes the cache after every independent learning write path', async () => {
+    await service.setDictionaryLearningEnabled(true);
+    await service.updateDictionaryLearningState(() => ({
+      candidates: [
+        {
+          candidate: { category: 'product', confidence: 0.9, term: 'UnTypo' },
+          firstSeenAt: 1,
+          lastSeenAt: 2,
+          occurrences: 3,
+        },
+      ],
+      rejections: [],
+    }));
+    await expect(service.getDictionaryLearningState()).resolves.toMatchObject({
+      candidates: [{ occurrences: 3 }],
+    });
+
+    await service.setPersonalizationLearningEnabled(true);
+    await service.updatePersonalizationState(() => ({
+      candidates: [],
+      preferences: [
+        {
+          application: 'general',
+          confirmedAt: 1,
+          id: 'pref-1',
+          kind: 'tone',
+          value: 'casual',
+        },
+      ],
+      rejections: [],
+    }));
+    await expect(service.getPersonalizationState()).resolves.toMatchObject({
+      preferences: [{ kind: 'tone', value: 'casual' }],
+    });
+
+    const config = await service.load();
+    expect(config.dictionaryLearning.encryptedState).toBeDefined();
+    expect(config.personalization.encryptedState).toBeDefined();
+  });
+
+  it('keeps the cache on the last persisted state when a write fails', async () => {
+    await service.update((config) => ({
+      ...config,
+      general: { ...config.general, launchAtLogin: true },
+    }));
+
+    const directory = path.dirname(configPath);
+    await rm(directory, { force: true, recursive: true });
+    await writeFile(directory, 'blocked', 'utf8');
+    await expect(
+      service.update((config) => ({
+        ...config,
+        history: { enabled: false, retentionDays: 7 },
+      })),
+    ).rejects.toThrow();
+
+    await expect(service.load()).resolves.toMatchObject({
+      general: { launchAtLogin: true },
+      history: { enabled: true, retentionDays: 30 },
+    });
+  });
+
+  it('reads the configuration file once for a snapshot-style call chain', async () => {
+    const fsPromises = (await import('node:fs/promises')) as unknown as {
+      __untypoReadFileCount: () => number;
+      __untypoResetReadFileCount: () => void;
+    };
+    fsPromises.__untypoResetReadFileCount();
+
+    // Mirrors the configuration reads behind DesktopRuntime.getClientSnapshot.
+    await service.load();
+    await service.getProfile();
+    await service.getDictionaryLearningState();
+    await service.getPersonalizationState();
+    await service.load();
+
+    expect(fsPromises.__untypoReadFileCount()).toBe(1);
   });
 });

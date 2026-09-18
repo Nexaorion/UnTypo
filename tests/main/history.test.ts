@@ -2,7 +2,7 @@ import Database from 'better-sqlite3';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   HistoryRepository,
   HistoryService,
@@ -288,5 +288,53 @@ describe('HistoryRepository', () => {
 
     expect(repository.clear()).toBe(1);
     expect(repository.list()).toEqual([]);
+  });
+
+  it('reuses prepared statements across repeated repository calls', () => {
+    const prepareSpy = vi.spyOn(Database.prototype, 'prepare');
+    const reused = new HistoryRepository(
+      path.join(temporaryDirectory, 'reuse.sqlite3'),
+    );
+    try {
+      const preparedDuringConstruction = prepareSpy.mock.calls.length;
+
+      reused.add({
+        createdAt: 100,
+        id: 'first',
+        intent: 'transcription',
+        language: 'en-US',
+        outputText: 'A',
+        providerId: 'mock',
+      });
+      reused.add({
+        createdAt: 200,
+        id: 'second',
+        intent: 'transcription',
+        language: 'en-US',
+        outputText: 'B',
+        providerId: 'mock',
+      });
+      reused.list();
+      reused.list(50, 10);
+      reused.listAll();
+      reused.getUsageStats();
+      reused.deleteOlderThan(150);
+      reused.importMissing([
+        {
+          createdAt: 300,
+          id: 'third',
+          intent: 'transcription',
+          language: 'en-US',
+          outputText: 'C',
+          providerId: 'mock',
+        },
+      ]);
+      reused.clear();
+
+      expect(prepareSpy.mock.calls.length).toBe(preparedDuringConstruction);
+    } finally {
+      reused.close();
+      prepareSpy.mockRestore();
+    }
   });
 });
