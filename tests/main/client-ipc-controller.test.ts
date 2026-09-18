@@ -11,7 +11,9 @@ const electronMocks = vi.hoisted(() => {
         handlers.set(channel, handler);
       },
     ),
-    removeHandler: vi.fn(),
+    removeHandler: vi.fn((channel: string) => {
+      handlers.delete(channel);
+    }),
   };
   return { clipboard, handlers, ipcMain };
 });
@@ -191,5 +193,41 @@ describe('ClientIpcController', () => {
     expect(assertTrustedSender).toHaveBeenCalledOnce();
     expect(backend.setHotkeyCaptureActive).toHaveBeenCalledWith(true, sender);
     controller.destroy();
+  });
+
+  it('removes exactly the channels it registered on destroy', () => {
+    const controller = new ClientIpcController(createBackend());
+    const registered = electronMocks.ipcMain.handle.mock.calls
+      .map(([channel]) => channel)
+      .sort();
+
+    controller.destroy();
+
+    const removed = electronMocks.ipcMain.removeHandler.mock.calls
+      .map(([channel]) => channel)
+      .sort();
+    expect(registered).toEqual(removed);
+    expect(new Set(registered).size).toBe(registered.length);
+  });
+
+  it('covers every renderer-invokable client channel', () => {
+    new ClientIpcController(createBackend()).destroy();
+
+    const registered = new Set(
+      electronMocks.ipcMain.handle.mock.calls.map(([channel]) => channel),
+    );
+    const mainToRendererOnly = new Set([
+      IPC_CHANNELS.hotkeyCaptureEvent,
+      IPC_CHANNELS.ping,
+      IPC_CHANNELS.snapshotChanged,
+      IPC_CHANNELS.updateChanged,
+    ]);
+    for (const channel of Object.values(IPC_CHANNELS)) {
+      if (mainToRendererOnly.has(channel)) {
+        expect(registered.has(channel)).toBe(false);
+        continue;
+      }
+      expect(registered.has(channel)).toBe(true);
+    }
   });
 });

@@ -105,125 +105,80 @@ export interface ClientBackendPort {
 
 const trust = (event: IpcMainInvokeEvent): void => assertTrustedSender(event);
 
+type IpcHandlerRegistration = readonly [
+  channel: string,
+  handler: (event: IpcMainInvokeEvent, ...arguments_: unknown[]) => unknown,
+];
+
 export class ClientIpcController {
   readonly #backend: ClientBackendPort;
+  readonly #registrations: readonly IpcHandlerRegistration[];
 
   constructor(backend: ClientBackendPort) {
     this.#backend = backend;
-    ipcMain.handle(
-      IPC_CHANNELS.acceptWritingPreference,
-      this.acceptWritingPreference,
-    );
-    ipcMain.handle(IPC_CHANNELS.addDictionaryEntry, this.addDictionaryEntry);
-    ipcMain.handle(
-      IPC_CHANNELS.acknowledgeDiagnostics,
-      this.acknowledgeDiagnostics,
-    );
-    ipcMain.handle(IPC_CHANNELS.clearDiagnostics, this.clearDiagnostics);
-    ipcMain.handle(
-      IPC_CHANNELS.clearPersonalizationMemory,
-      this.clearPersonalizationMemory,
-    );
-    ipcMain.handle(IPC_CHANNELS.exportDiagnostics, this.exportDiagnostics);
-    ipcMain.handle(IPC_CHANNELS.getDiagnostics, this.getDiagnostics);
-    ipcMain.handle(IPC_CHANNELS.getSnapshot, this.getSnapshot);
-    ipcMain.handle(IPC_CHANNELS.getUsageStats, this.getUsageStats);
-    ipcMain.handle(IPC_CHANNELS.listMicrophones, this.listMicrophones);
-    ipcMain.handle(
-      IPC_CHANNELS.requestAccessibilityAccess,
-      this.requestAccessibilityAccess,
-    );
-    ipcMain.handle(IPC_CHANNELS.updateSettings, this.updateSettings);
-    ipcMain.handle(
-      IPC_CHANNELS.removeDictionaryEntry,
-      this.removeDictionaryEntry,
-    );
-    ipcMain.handle(
-      IPC_CHANNELS.removeWritingPreference,
-      this.removeWritingPreference,
-    );
-    ipcMain.handle(
-      IPC_CHANNELS.rejectWritingPreference,
-      this.rejectWritingPreference,
-    );
-    ipcMain.handle(
-      IPC_CHANNELS.setDictionaryLearningEnabled,
-      this.setDictionaryLearningEnabled,
-    );
-    ipcMain.handle(
-      IPC_CHANNELS.setApplicationWritingStyle,
-      this.setApplicationWritingStyle,
-    );
-    ipcMain.handle(
-      IPC_CHANNELS.setPersonalizationLearningEnabled,
-      this.setPersonalizationLearningEnabled,
-    );
-    ipcMain.handle(IPC_CHANNELS.setProfile, this.setProfile);
-    ipcMain.handle(IPC_CHANNELS.upsertProvider, this.upsertProvider);
-    ipcMain.handle(IPC_CHANNELS.removeProvider, this.removeProvider);
-    ipcMain.handle(IPC_CHANNELS.reportRendererIssue, this.reportRendererIssue);
-    ipcMain.handle(
-      IPC_CHANNELS.setHotkeyCaptureActive,
-      this.setHotkeyCaptureActive,
-    );
-    ipcMain.handle(IPC_CHANNELS.testProvider, this.testProvider);
-    ipcMain.handle(IPC_CHANNELS.listHistory, this.listHistory);
-    ipcMain.handle(IPC_CHANNELS.clearHistory, this.clearHistory);
-    ipcMain.handle(IPC_CHANNELS.checkForUpdates, this.checkForUpdates);
-    ipcMain.handle(IPC_CHANNELS.copyText, this.copyText);
-    ipcMain.handle(IPC_CHANNELS.applyBackup, this.applyBackup);
-    ipcMain.handle(IPC_CHANNELS.createBackup, this.createBackup);
-    ipcMain.handle(IPC_CHANNELS.deleteBackup, this.deleteBackup);
-    ipcMain.handle(IPC_CHANNELS.downloadUpdate, this.downloadUpdate);
-    ipcMain.handle(IPC_CHANNELS.generateBackupCode, this.generateBackupCode);
-    ipcMain.handle(IPC_CHANNELS.getSyncConfig, this.getSyncConfig);
-    ipcMain.handle(IPC_CHANNELS.installUpdate, this.installUpdate);
-    ipcMain.handle(IPC_CHANNELS.listRemoteBackups, this.listRemoteBackups);
-    ipcMain.handle(IPC_CHANNELS.testSyncConnection, this.testSyncConnection);
-    ipcMain.handle(IPC_CHANNELS.updateSyncConfig, this.updateSyncConfig);
+    const registrations: readonly IpcHandlerRegistration[] = [
+      [IPC_CHANNELS.acceptWritingPreference, this.acceptWritingPreference],
+      [IPC_CHANNELS.addDictionaryEntry, this.addDictionaryEntry],
+      [IPC_CHANNELS.acknowledgeDiagnostics, this.acknowledgeDiagnostics],
+      [IPC_CHANNELS.clearDiagnostics, this.clearDiagnostics],
+      [
+        IPC_CHANNELS.clearPersonalizationMemory,
+        this.clearPersonalizationMemory,
+      ],
+      [IPC_CHANNELS.exportDiagnostics, this.exportDiagnostics],
+      [IPC_CHANNELS.getDiagnostics, this.getDiagnostics],
+      [IPC_CHANNELS.getSnapshot, this.getSnapshot],
+      [IPC_CHANNELS.getUsageStats, this.getUsageStats],
+      [IPC_CHANNELS.listMicrophones, this.listMicrophones],
+      [
+        IPC_CHANNELS.requestAccessibilityAccess,
+        this.requestAccessibilityAccess,
+      ],
+      [IPC_CHANNELS.updateSettings, this.updateSettings],
+      [IPC_CHANNELS.removeDictionaryEntry, this.removeDictionaryEntry],
+      [IPC_CHANNELS.removeWritingPreference, this.removeWritingPreference],
+      [IPC_CHANNELS.rejectWritingPreference, this.rejectWritingPreference],
+      [
+        IPC_CHANNELS.setDictionaryLearningEnabled,
+        this.setDictionaryLearningEnabled,
+      ],
+      [
+        IPC_CHANNELS.setApplicationWritingStyle,
+        this.setApplicationWritingStyle,
+      ],
+      [
+        IPC_CHANNELS.setPersonalizationLearningEnabled,
+        this.setPersonalizationLearningEnabled,
+      ],
+      [IPC_CHANNELS.setProfile, this.setProfile],
+      [IPC_CHANNELS.upsertProvider, this.upsertProvider],
+      [IPC_CHANNELS.removeProvider, this.removeProvider],
+      [IPC_CHANNELS.reportRendererIssue, this.reportRendererIssue],
+      [IPC_CHANNELS.setHotkeyCaptureActive, this.setHotkeyCaptureActive],
+      [IPC_CHANNELS.testProvider, this.testProvider],
+      [IPC_CHANNELS.listHistory, this.listHistory],
+      [IPC_CHANNELS.clearHistory, this.clearHistory],
+      [IPC_CHANNELS.checkForUpdates, this.checkForUpdates],
+      [IPC_CHANNELS.copyText, this.copyText],
+      [IPC_CHANNELS.applyBackup, this.applyBackup],
+      [IPC_CHANNELS.createBackup, this.createBackup],
+      [IPC_CHANNELS.deleteBackup, this.deleteBackup],
+      [IPC_CHANNELS.downloadUpdate, this.downloadUpdate],
+      [IPC_CHANNELS.generateBackupCode, this.generateBackupCode],
+      [IPC_CHANNELS.getSyncConfig, this.getSyncConfig],
+      [IPC_CHANNELS.installUpdate, this.installUpdate],
+      [IPC_CHANNELS.listRemoteBackups, this.listRemoteBackups],
+      [IPC_CHANNELS.testSyncConnection, this.testSyncConnection],
+      [IPC_CHANNELS.updateSyncConfig, this.updateSyncConfig],
+    ];
+    this.#registrations = registrations;
+    for (const [channel, handler] of registrations) {
+      ipcMain.handle(channel, handler);
+    }
   }
 
   destroy(): void {
-    for (const channel of [
-      IPC_CHANNELS.acceptWritingPreference,
-      IPC_CHANNELS.addDictionaryEntry,
-      IPC_CHANNELS.acknowledgeDiagnostics,
-      IPC_CHANNELS.clearDiagnostics,
-      IPC_CHANNELS.clearPersonalizationMemory,
-      IPC_CHANNELS.exportDiagnostics,
-      IPC_CHANNELS.getDiagnostics,
-      IPC_CHANNELS.getSnapshot,
-      IPC_CHANNELS.getUsageStats,
-      IPC_CHANNELS.listMicrophones,
-      IPC_CHANNELS.requestAccessibilityAccess,
-      IPC_CHANNELS.updateSettings,
-      IPC_CHANNELS.removeDictionaryEntry,
-      IPC_CHANNELS.removeWritingPreference,
-      IPC_CHANNELS.rejectWritingPreference,
-      IPC_CHANNELS.setDictionaryLearningEnabled,
-      IPC_CHANNELS.setApplicationWritingStyle,
-      IPC_CHANNELS.setPersonalizationLearningEnabled,
-      IPC_CHANNELS.setProfile,
-      IPC_CHANNELS.upsertProvider,
-      IPC_CHANNELS.removeProvider,
-      IPC_CHANNELS.reportRendererIssue,
-      IPC_CHANNELS.setHotkeyCaptureActive,
-      IPC_CHANNELS.testProvider,
-      IPC_CHANNELS.listHistory,
-      IPC_CHANNELS.clearHistory,
-      IPC_CHANNELS.checkForUpdates,
-      IPC_CHANNELS.copyText,
-      IPC_CHANNELS.applyBackup,
-      IPC_CHANNELS.createBackup,
-      IPC_CHANNELS.deleteBackup,
-      IPC_CHANNELS.downloadUpdate,
-      IPC_CHANNELS.generateBackupCode,
-      IPC_CHANNELS.getSyncConfig,
-      IPC_CHANNELS.installUpdate,
-      IPC_CHANNELS.listRemoteBackups,
-      IPC_CHANNELS.testSyncConnection,
-      IPC_CHANNELS.updateSyncConfig,
-    ]) {
+    for (const [channel] of this.#registrations) {
       ipcMain.removeHandler(channel);
     }
   }
