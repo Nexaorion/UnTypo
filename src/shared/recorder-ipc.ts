@@ -35,6 +35,7 @@ export interface RecorderStopMetadata extends RecorderStartMetadata {
 export type RecorderDeviceInfo = MicrophoneDeviceInfo;
 
 export interface RecorderApi {
+  onAudioChannel: (listener: (port: MessagePort) => void) => void;
   onListDevices: (listener: (requestId: string) => void) => void;
   onStart: (
     listener: (

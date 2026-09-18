@@ -1,7 +1,9 @@
 import {
   BrowserWindow,
   ipcMain,
+  MessageChannelMain,
   type IpcMainEvent,
+  type MessagePortMain,
   type Session,
 } from 'electron';
 import { randomUUID } from 'node:crypto';
@@ -122,6 +124,7 @@ export class RecorderWindowController {
   readonly #sessions: RecordingSessionManager;
   readonly #pendingDeviceRequests = new Map<string, PendingDeviceRequest>();
   #activeSessionId?: string;
+  #audioPort?: MessagePortMain;
   #initializing?: Promise<void>;
   #pendingStart?: PendingStart;
   #pendingStop?: PendingStop;
@@ -166,6 +169,14 @@ export class RecorderWindowController {
     this.#realtimeAudioSink = onRealtimeAudioChunk
       ? { listener: onRealtimeAudioChunk, sessionId }
       : undefined;
+    const channel = new MessageChannelMain();
+    this.#audioPort = channel.port1;
+    channel.port1.on('message', this.handleAudioMessage);
+    channel.port1.on('close', this.handleAudioPortClose);
+    channel.port1.start();
+    this.#window?.webContents.postMessage('recorder:audio-channel', null, [
+      channel.port2,
+    ]);
     const started = new Promise<MicrophoneSelection | undefined>(
       (resolve, reject) => {
         const timer = setTimeout(() => {
@@ -200,6 +211,7 @@ export class RecorderWindowController {
       this.#pendingStop = { reject, resolve, sessionId };
     });
     this.#window?.webContents.send(RECORDER_CHANNELS.commandStop, sessionId);
+    this.closeAudioPort();
     return result;
   }
 
@@ -257,6 +269,7 @@ export class RecorderWindowController {
     this.#pendingStop = undefined;
     this.#activeSessionId = undefined;
     this.#realtimeAudioSink = undefined;
+    this.closeAudioPort();
     this.#window?.destroy();
     this.#window = undefined;
   }
@@ -458,6 +471,49 @@ export class RecorderWindowController {
     if (this.#pendingStop?.sessionId === sessionId) {
       this.#pendingStop.reject(error);
       this.#pendingStop = undefined;
+    }
+    this.closeAudioPort();
+  }
+
+  private readonly handleAudioMessage = (event: { data: unknown }): void => {
+    const data = event.data as { sessionId?: unknown; chunk?: unknown };
+    const sessionId =
+      typeof data.sessionId === 'string' ? data.sessionId : undefined;
+    const chunk = data.chunk instanceof ArrayBuffer ? data.chunk : undefined;
+
+    if (
+      !sessionId ||
+      !chunk ||
+      chunk.byteLength === 0 ||
+      chunk.byteLength > 10 * 1024 * 1024
+    ) {
+      if (sessionId) {
+        this.rejectSession(
+          sessionId,
+          new Error('Recorder sent invalid audio chunk'),
+        );
+      }
+      return;
+    }
+
+    try {
+      this.#sessions.append(sessionId, new Uint8Array(chunk));
+    } catch (error) {
+      this.rejectSession(
+        sessionId,
+        error instanceof Error ? error : new Error('Recorder buffer failed'),
+      );
+    }
+  };
+
+  private readonly handleAudioPortClose = (): void => {
+    this.#audioPort = undefined;
+  };
+
+  private closeAudioPort(): void {
+    if (this.#audioPort) {
+      this.#audioPort.close();
+      this.#audioPort = undefined;
     }
   }
 

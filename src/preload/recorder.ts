@@ -21,6 +21,17 @@ const channels = {
 } as const;
 
 const api: RecorderApi = {
+  onAudioChannel: (listener) => {
+    window.addEventListener('message', (event) => {
+      if (
+        event.source === window &&
+        event.data === 'recorder:audio-channel' &&
+        event.ports[0]
+      ) {
+        listener(event.ports[0]);
+      }
+    });
+  },
   onListDevices: (listener) => {
     ipcRenderer.on(channels.commandListDevices, (_event, requestId: string) =>
       listener(requestId),

@@ -57,6 +57,11 @@ interface RecorderRealtimePcm {
 const LEVEL_INTERVAL_MILLISECONDS = 80;
 
 let activeRecorder: ActiveRecorder | undefined;
+let audioPort: MessagePort | undefined;
+
+window.recorder.onAudioChannel((port) => {
+  audioPort = port;
+});
 
 const listMicrophones = async (): Promise<readonly MicrophoneDeviceInfo[]> => {
   const devices = await navigator.mediaDevices.enumerateDevices();
@@ -354,7 +359,15 @@ const start = async (
       return;
     }
     const pending = event.data.arrayBuffer().then((chunk) => {
-      window.recorder.sendChunk(sessionId, chunk);
+      if (audioPort) {
+        try {
+          audioPort.postMessage({ sessionId, chunk }, [chunk]);
+        } catch {
+          window.recorder.sendChunk(sessionId, chunk);
+        }
+      } else {
+        window.recorder.sendChunk(sessionId, chunk);
+      }
     });
     recorder.pendingChunks.add(pending);
     void pending.finally(() => recorder.pendingChunks.delete(pending));
