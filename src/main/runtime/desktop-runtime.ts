@@ -627,7 +627,7 @@ export class DesktopRuntime implements ClientBackendPort {
     return this.#diagnostics.acknowledge(issueIds);
   }
 
-  clearDiagnostics(): ClientDiagnosticSnapshot {
+  async clearDiagnostics(): Promise<ClientDiagnosticSnapshot> {
     return this.#diagnostics.clear();
   }
 
@@ -642,6 +642,7 @@ export class DesktopRuntime implements ClientBackendPort {
       title: 'Export UnTypo diagnostic package',
     });
     if (result.canceled || !result.filePath) return { canceled: true };
+    await this.#diagnostics.flush();
     await writeFile(result.filePath, this.#diagnostics.buildArchive(request));
     return { canceled: false, filePath: result.filePath };
   }
@@ -750,6 +751,7 @@ export class DesktopRuntime implements ClientBackendPort {
       message: 'Desktop runtime stopped',
       scope: 'app.runtime',
     });
+    await this.#diagnostics.flush();
   }
 
   private handleDictionaryCandidates(

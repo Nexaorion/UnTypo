@@ -1,7 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
 import {
-  appendFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -11,6 +10,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { appendFile } from 'node:fs/promises';
 import { arch, platform, release } from 'node:os';
 import path from 'node:path';
 import type { AudioPayload } from '../../core/providers/contracts.js';
@@ -161,6 +161,8 @@ export class DiagnosticCollector {
   #enabled = true;
   #issues: StoredDiagnosticIssue[] = [];
   #recentEntries: ClientDiagnosticLogEntry[] = [];
+  #writeEpoch = 0;
+  #writeQueue: Promise<void> = Promise.resolve();
 
   constructor(options: DiagnosticCollectorOptions) {
     this.#appName = options.appName;
@@ -214,9 +216,11 @@ export class DiagnosticCollector {
     return this.snapshot();
   }
 
-  clear(): ClientDiagnosticSnapshot {
+  async clear(): Promise<ClientDiagnosticSnapshot> {
+    this.#writeEpoch += 1;
     this.#issues = [];
     this.#recentEntries = [];
+    await this.flush();
     this.persistIssues();
     for (const directory of [this.#attachmentsDirectory, this.#logsDirectory]) {
       for (const fileName of readdirSync(directory)) {
@@ -401,13 +405,10 @@ export class DiagnosticCollector {
         this.#recentEntries.length - maxRecentEntries,
       );
     }
-    try {
-      appendFileSync(this.currentLogPath(), `${JSON.stringify(entry)}\n`, {
-        encoding: 'utf8',
-      });
-    } catch (error) {
-      console.error('Diagnostic log write failed', error);
-    }
+    const serialized = `${JSON.stringify(entry)}\n`;
+    this.enqueueWrite(async () => {
+      await appendFile(this.currentLogPath(), serialized, { encoding: 'utf8' });
+    });
     return entry;
   }
 
@@ -419,6 +420,10 @@ export class DiagnosticCollector {
   setEnabled(enabled: boolean): void {
     this.#enabled = enabled;
     if (!enabled) this.#recentEntries = [];
+  }
+
+  flush(): Promise<void> {
+    return this.#writeQueue;
   }
 
   recordIssue(input: DiagnosticIssueInput): ClientDiagnosticIssue {
@@ -554,9 +559,21 @@ export class DiagnosticCollector {
         );
       }
     } catch {
-      // appendFileSync below will surface any real write failure.
+      // enqueueWrite will surface any real write failure.
     }
     return candidate;
+  }
+
+  private enqueueWrite(task: () => Promise<void>): void {
+    const epoch = this.#writeEpoch;
+    this.#writeQueue = this.#writeQueue
+      .then(async () => {
+        if (epoch !== this.#writeEpoch) return;
+        await task();
+      })
+      .catch((error: unknown) => {
+        console.error('Diagnostic log write failed', error);
+      });
   }
 
   private emitChanged(): void {

@@ -1,9 +1,10 @@
 import {
   createCipheriv,
   createDecipheriv,
-  pbkdf2Sync,
+  pbkdf2,
   randomBytes,
 } from 'node:crypto';
+import { promisify } from 'node:util';
 import { parseBackupCode } from './backup-code.js';
 
 export const UNTYPO_FILE_MAGIC = Buffer.from('UNTYPO\x01\x00', 'latin1');
@@ -74,8 +75,10 @@ const encodeLengthPrefixed = (value: Buffer): Buffer => {
   return Buffer.concat([prefix, value]);
 };
 
-const deriveKey = (backupCode: string, salt: Buffer): Buffer =>
-  pbkdf2Sync(
+const pbkdf2Async = promisify(pbkdf2);
+
+const deriveKey = async (backupCode: string, salt: Buffer): Promise<Buffer> =>
+  pbkdf2Async(
     backupCode,
     salt,
     PBKDF2_ITERATIONS,
@@ -157,7 +160,7 @@ const parsePayload = (value: unknown): UntypoSyncPayload => {
   };
 };
 
-const packEncryptedPayload = (
+const packEncryptedPayload = async (
   payload: unknown,
   backupCode: string,
   options: {
@@ -165,11 +168,11 @@ const packEncryptedPayload = (
     contentType: UntypoFileContentType;
     createdAt: number;
   },
-): Buffer => {
+): Promise<Buffer> => {
   const code = parseBackupCode(backupCode);
   const salt = randomBytes(SALT_LENGTH);
   const iv = randomBytes(AES_IV_LENGTH);
-  const key = deriveKey(code, salt);
+  const key = await deriveKey(code, salt);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
   const plaintext = Buffer.from(JSON.stringify(payload), 'utf8');
   const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final()]);
@@ -199,7 +202,7 @@ export const packSyncFile = (
     contentType?: UntypoFileContentType;
     createdAt?: number;
   },
-): Buffer => {
+): Promise<Buffer> => {
   const createdAt = options.createdAt ?? Date.now();
   return packEncryptedPayload(payload, backupCode, {
     appVersion: options.appVersion,
@@ -208,10 +211,10 @@ export const packSyncFile = (
   });
 };
 
-const unpackEncryptedPayload = (
+const unpackEncryptedPayload = async (
   buffer: Buffer,
   backupCode: string,
-): { header: UntypoFileHeader; payload: unknown } => {
+): Promise<{ header: UntypoFileHeader; payload: unknown }> => {
   if (buffer.length > MAXIMUM_FILE_LENGTH) {
     throw new UntypoFileError('TOO_LARGE', 'Sync file is too large');
   }
@@ -244,7 +247,7 @@ const unpackEncryptedPayload = (
   const salt = decodeBase64Exact(header.salt, SALT_LENGTH);
   const iv = decodeBase64Exact(header.iv, AES_IV_LENGTH);
   const authTag = decodeBase64Exact(header.authTag, AES_AUTH_TAG_LENGTH);
-  const key = deriveKey(code, salt);
+  const key = await deriveKey(code, salt);
   const decipher = createDecipheriv('aes-256-gcm', key, iv);
   decipher.setAuthTag(authTag);
   let decrypted: Buffer;
@@ -268,10 +271,10 @@ const unpackEncryptedPayload = (
   return { header, payload: parsedPayload };
 };
 
-export const unpackSyncFile = (
+export const unpackSyncFile = async (
   buffer: Buffer,
   backupCode: string,
-): UntypoSyncPayload => {
-  const { payload } = unpackEncryptedPayload(buffer, backupCode);
+): Promise<UntypoSyncPayload> => {
+  const { payload } = await unpackEncryptedPayload(buffer, backupCode);
   return parsePayload(payload);
 };

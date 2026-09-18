@@ -81,13 +81,19 @@ export class DictationPipeline {
 
     const modelCalls: ModelCallTrace[] = [];
     const speechStartedAt = Date.now();
-    const transcript =
-      prefetchedTranscription?.result ??
-      (await this.speechProvider.transcribe(audio, {
-        dictionary: options.dictionary,
-        language: options.language,
-        signal: options.signal,
-      }));
+    let transcript: TranscriptResult;
+    try {
+      transcript =
+        prefetchedTranscription?.result ??
+        (await this.speechProvider.transcribe(audio, {
+          dictionary: options.dictionary,
+          language: options.language,
+          signal: options.signal,
+        }));
+    } catch (error) {
+      throwIfAborted(options.signal);
+      throw error;
+    }
     throwIfAborted(options.signal);
 
     const rawTranscript = transcript.text.trim();

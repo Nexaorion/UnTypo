@@ -314,6 +314,27 @@ describe('DictationPipeline', () => {
     ).rejects.toMatchObject({ code: 'ABORTED' });
   });
 
+  it('keeps an abort during speech recognition hard', async () => {
+    const controller = new AbortController();
+    const speech = new MockDictationProvider({ transcript: 'raw transcript' });
+    vi.spyOn(speech, 'transcribe').mockImplementationOnce(() => {
+      controller.abort();
+      return Promise.reject(
+        new DOMException('This operation was aborted', 'AbortError'),
+      );
+    });
+
+    await expect(
+      new DictationPipeline(speech, new MockDictationProvider()).process(
+        audio,
+        {
+          ...options,
+          signal: controller.signal,
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'ABORTED' });
+  });
+
   it('stops before provider work when cancelled', async () => {
     const controller = new AbortController();
     controller.abort();

@@ -224,7 +224,7 @@ export class SyncService {
       await this.assertKnownBackup(provider, remoteFile);
       const backupCode = await this.requireBackupCode();
       const packed = await provider.download(remoteFile);
-      const payload = unpackSyncFile(packed, backupCode);
+      const payload = await unpackSyncFile(packed, backupCode);
       const remote = parseSyncPayload(payload);
       const config = await this.#configuration.load();
       const [profile, dictionaryLearning, personalizationLearning] =
@@ -298,7 +298,7 @@ export class SyncService {
         this.#configuration.getDictionaryLearningState(),
         this.#configuration.getPersonalizationState(),
       ]);
-    return packSyncFile(
+    return await packSyncFile(
       {
         deviceName,
         dictionary: config.dictionary,

@@ -27,18 +27,24 @@ const payload = {
 };
 
 describe('untypo packer', () => {
-  it('round-trips an encrypted backup', () => {
-    const packed = packSyncFile(payload, 'K7M2NX4P', {
+  it('round-trips an encrypted backup asynchronously', async () => {
+    const packedPromise = packSyncFile(payload, 'K7M2NX4P', {
       appVersion: '0.1.10',
       createdAt: payload.exportedAt,
     });
+    expect(packedPromise).toBeInstanceOf(Promise);
+    const packed = await packedPromise;
     expect(packed.subarray(0, 8).equals(UNTYPO_FILE_MAGIC)).toBe(true);
-    expect(unpackSyncFile(packed, 'K7M2NX4P')).toMatchObject(payload);
+    await expect(unpackSyncFile(packed, 'K7M2NX4P')).resolves.toMatchObject(
+      payload,
+    );
   });
 
-  it('rejects the wrong backup code', () => {
-    const packed = packSyncFile(payload, 'K7M2NX4P', { appVersion: '0.1.10' });
-    expect(() => unpackSyncFile(packed, 'K7M2NX4Q')).toThrow(
+  it('rejects the wrong backup code', async () => {
+    const packed = await packSyncFile(payload, 'K7M2NX4P', {
+      appVersion: '0.1.10',
+    });
+    await expect(unpackSyncFile(packed, 'K7M2NX4Q')).rejects.toThrow(
       'The password is incorrect or the file is damaged',
     );
   });

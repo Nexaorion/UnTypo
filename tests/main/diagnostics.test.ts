@@ -11,11 +11,20 @@ import {
 } from '../../src/main/diagnostics/redaction';
 
 const temporaryDirectories: string[] = [];
+const collectors: DiagnosticCollector[] = [];
 
 const temporaryDirectory = (): string => {
   const directory = mkdtempSync(path.join(tmpdir(), 'untypo-diagnostics-'));
   temporaryDirectories.push(directory);
   return directory;
+};
+
+const createCollector = (
+  options: ConstructorParameters<typeof DiagnosticCollector>[0],
+): DiagnosticCollector => {
+  const collector = new DiagnosticCollector(options);
+  collectors.push(collector);
+  return collector;
 };
 
 const unzipEntries = (archive: Buffer): ReadonlyMap<string, Buffer> => {
@@ -39,8 +48,9 @@ const unzipEntries = (archive: Buffer): ReadonlyMap<string, Buffer> => {
   return entries;
 };
 
-afterEach(() => {
+afterEach(async () => {
   vi.unstubAllGlobals();
+  await Promise.all(collectors.splice(0).map((collector) => collector.flush()));
   for (const directory of temporaryDirectories.splice(0)) {
     rmSync(directory, { force: true, recursive: true });
   }
@@ -102,13 +112,14 @@ describe('diagnostic redaction', () => {
 });
 
 describe('DiagnosticCollector', () => {
-  it('clears issues, collected logs, and recording attachments together', () => {
+  it('clears issues, collected logs, and recording attachments together', async () => {
     const rootDirectory = temporaryDirectory();
-    const collector = new DiagnosticCollector({
+    const collector = createCollector({
       appName: 'UnTypo',
       appVersion: '0.1.0',
       rootDirectory,
     });
+    await collector.flush();
     collector.recordIssue({
       audio: {
         bytes: new Uint8Array([1, 2, 3, 4]),
@@ -122,7 +133,7 @@ describe('DiagnosticCollector', () => {
       source: 'test.clear',
     });
 
-    const snapshot = collector.clear();
+    const snapshot = await collector.clear();
 
     expect(snapshot.issues).toEqual([]);
     expect(readdirSync(path.join(rootDirectory, 'attachments'))).toEqual([]);
@@ -132,13 +143,14 @@ describe('DiagnosticCollector', () => {
     ).toEqual({ issues: [], version: 1 });
   });
 
-  it('stops persisting logs and issues while automatic collection is disabled', () => {
+  it('stops persisting logs and issues while automatic collection is disabled', async () => {
     const rootDirectory = temporaryDirectory();
-    const collector = new DiagnosticCollector({
+    const collector = createCollector({
       appName: 'UnTypo',
       appVersion: '0.1.0',
       rootDirectory,
     });
+    await collector.flush();
     const logsDirectory = path.join(rootDirectory, 'logs');
     const logFiles = readdirSync(logsDirectory);
     const originalLogs = logFiles.map((fileName) =>
@@ -181,7 +193,7 @@ describe('DiagnosticCollector', () => {
   it('persists a redacted issue and exports audio only with explicit opt-in', async () => {
     let now = Date.UTC(2026, 7, 24, 10, 0, 0);
     const rootDirectory = temporaryDirectory();
-    const collector = new DiagnosticCollector({
+    const collector = createCollector({
       appName: 'UnTypo',
       appVersion: '0.1.0',
       now: () => now,
@@ -228,6 +240,7 @@ describe('DiagnosticCollector', () => {
       kind: 'provider',
       source: 'provider.speech-processing',
     });
+    await collector.flush();
 
     const snapshot = collector.snapshot();
     expect(snapshot.issues).toHaveLength(1);
@@ -264,7 +277,7 @@ describe('DiagnosticCollector', () => {
       true,
     );
 
-    const reloaded = new DiagnosticCollector({
+    const reloaded = createCollector({
       appName: 'UnTypo',
       appVersion: '0.1.0',
       now: () => now,
@@ -282,10 +295,10 @@ describe('DiagnosticCollector', () => {
     ).not.toContain('audioFileName');
   });
 
-  it('removes expired issues and their recordings even when they were not acknowledged', () => {
+  it('removes expired issues and their recordings even when they were not acknowledged', async () => {
     let now = Date.UTC(2026, 7, 1, 10, 0, 0);
     const rootDirectory = temporaryDirectory();
-    const collector = new DiagnosticCollector({
+    const collector = createCollector({
       appName: 'UnTypo',
       appVersion: '0.1.0',
       now: () => now,
@@ -303,9 +316,10 @@ describe('DiagnosticCollector', () => {
       kind: 'provider',
       source: 'provider.speech-processing',
     });
+    await collector.flush();
 
     now += 15 * 24 * 60 * 60 * 1_000;
-    const reloaded = new DiagnosticCollector({
+    const reloaded = createCollector({
       appName: 'UnTypo',
       appVersion: '0.1.0',
       now: () => now,
@@ -314,5 +328,34 @@ describe('DiagnosticCollector', () => {
 
     expect(reloaded.snapshot().issues).toEqual([]);
     expect(readdirSync(path.join(rootDirectory, 'attachments'))).toEqual([]);
+  });
+
+  it('writes redacted log lines in order after flush', async () => {
+    const rootDirectory = temporaryDirectory();
+    const collector = createCollector({
+      appName: 'UnTypo',
+      appVersion: '0.1.0',
+      rootDirectory,
+    });
+    collector.log({
+      context: { apiKey: 'must-not-leak' },
+      message: 'First Bearer must-not-leak',
+      scope: 'test.order',
+    });
+    collector.log({ message: 'Second', scope: 'test.order' });
+    await collector.flush();
+
+    const logsDirectory = path.join(rootDirectory, 'logs');
+    const contents = readdirSync(logsDirectory)
+      .map((fileName) =>
+        readFileSync(path.join(logsDirectory, fileName), 'utf8'),
+      )
+      .join('');
+    expect(contents).toContain('"message":"First Bearer [redacted]"');
+    expect(contents).toContain('"message":"Second"');
+    expect(contents).not.toContain('must-not-leak');
+    expect(contents.indexOf('First Bearer')).toBeLessThan(
+      contents.indexOf('"message":"Second"'),
+    );
   });
 });

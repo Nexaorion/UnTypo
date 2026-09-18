@@ -57,8 +57,9 @@ export interface ClientBackendPort {
   addDictionaryEntry: (term: string) => Promise<ClientSnapshot>;
   acknowledgeDiagnostics: (
     issueIds: readonly string[],
-  ) => ClientDiagnosticSnapshot;
-  clearDiagnostics: () => ClientDiagnosticSnapshot;
+  ) => ClientDiagnosticSnapshot | Promise<ClientDiagnosticSnapshot>;
+  clearDiagnostics: () =>
+    ClientDiagnosticSnapshot | Promise<ClientDiagnosticSnapshot>;
   clearHistory: () => number;
   clearPersonalizationMemory: () => Promise<ClientSnapshot>;
   checkForUpdates: () => Promise<ClientUpdateSnapshot>;
@@ -204,14 +205,14 @@ export class ClientIpcController {
   private readonly acknowledgeDiagnostics = (
     event: IpcMainInvokeEvent,
     value: unknown,
-  ): ClientDiagnosticSnapshot => {
+  ): ClientDiagnosticSnapshot | Promise<ClientDiagnosticSnapshot> => {
     trust(event);
     return this.#backend.acknowledgeDiagnostics(parseDiagnosticIssueIds(value));
   };
 
   private readonly clearDiagnostics = (
     event: IpcMainInvokeEvent,
-  ): ClientDiagnosticSnapshot => {
+  ): ClientDiagnosticSnapshot | Promise<ClientDiagnosticSnapshot> => {
     trust(event);
     return this.#backend.clearDiagnostics();
   };
