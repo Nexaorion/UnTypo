@@ -246,10 +246,10 @@ Native macOS builds require CMake and the Xcode command-line tools, and produce 
 Do not cross-compile Windows packages on macOS or macOS packages on Windows.
 
 Local `package:mac` stays unsigned (`identity: null`, `CSC_IDENTITY_AUTO_DISCOVERY=false`).
-Signed macOS distribution is CI-only: `publish-macos-release` on `macos-15` imports a Developer ID from repository secrets, notarizes, staples, and uploads the arm64 DMG and ZIP to the same GitHub Release as Windows.
+Signed macOS distribution is CI-only: `publish-macos-release` on `macos-15` imports a Developer ID from repository secrets, notarizes, staples, and uploads the arm64 DMG, ZIP, `latest-mac.yml`, and ZIP blockmap to the same GitHub Release as Windows.
 Do not require a GitHub Environment approval for that job.
 Do not put `.p12` / `.p8` files or signing passwords in the repository.
-`latest-mac.yml` and darwin auto-update stay disabled until `ApplicationUpdateService` supports macOS.
+macOS auto-update is supported via `darwin_arm64` Hazel route and signed ZIP with `latest-mac.yml` metadata.
 
 When changing CI or release behavior, keep the Windows runner for NSIS publishing, keep macOS verification on `macos-latest` without publishing, and keep signed macOS publishing on `macos-15` using repository secrets so any `master` / version-changing `preview` push can ship without a manual GitHub approval.
 Use locked dependency installation and Node 22.
