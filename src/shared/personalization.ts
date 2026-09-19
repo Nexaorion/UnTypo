@@ -14,19 +14,11 @@ export interface TargetApplicationContext {
   name?: string;
 }
 
-export const WRITING_STYLE_PRESETS = [
-  'auto',
-  'casual',
-  'formal',
-  'concise',
-  'prompt',
-] as const;
+export const WRITING_STYLE_PRESETS = ['auto', 'casual', 'formal', 'concise', 'prompt'] as const;
 
 export type WritingStylePreset = (typeof WRITING_STYLE_PRESETS)[number];
 
-export type ApplicationWritingStyles = Readonly<
-  Record<TargetApplicationKind, WritingStylePreset>
->;
+export type ApplicationWritingStyles = Readonly<Record<TargetApplicationKind, WritingStylePreset>>;
 
 export const DEFAULT_APPLICATION_WRITING_STYLES: ApplicationWritingStyles = {
   'ai-tool': 'prompt',
@@ -97,8 +89,7 @@ const preferenceValues: Readonly<
   verbosity: ['concise', 'detailed'],
 };
 
-const privateExpressionPattern =
-  /(?:https?:\/\/|\bapi[_-]?key\b|\bsk-[a-z0-9]|@|[a-f0-9]{32,})/iu;
+const privateExpressionPattern = /(?:https?:\/\/|\bapi[_-]?key\b|\bsk-[a-z0-9]|@|[a-f0-9]{32,})/iu;
 
 export const normalizeWritingPreferenceCandidate = (
   value: unknown,
@@ -119,15 +110,10 @@ export const normalizeWritingPreferenceCandidate = (
     return undefined;
   }
   const normalized = value.value.normalize('NFKC').replace(/\s+/gu, ' ').trim();
-  if (
-    !normalized ||
-    normalized.length > PERSONALIZATION_LIMITS.candidateValueLength
-  ) {
+  if (!normalized || normalized.length > PERSONALIZATION_LIMITS.candidateValueLength) {
     return undefined;
   }
-  const kind = WRITING_PREFERENCE_KINDS.find(
-    (candidate) => candidate === value.kind,
-  );
+  const kind = WRITING_PREFERENCE_KINDS.find((candidate) => candidate === value.kind);
   if (!kind) return undefined;
   if (kind === 'expression') {
     if (privateExpressionPattern.test(normalized)) return undefined;

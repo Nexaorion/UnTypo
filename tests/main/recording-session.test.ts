@@ -42,9 +42,7 @@ describe('RecordingSessionManager', () => {
     const sessionId = manager.begin(target);
     manager.markStarted(sessionId, metadata);
 
-    expect(() => manager.append('stale', new Uint8Array([1]))).toThrow(
-      'stale recorder session',
-    );
+    expect(() => manager.append('stale', new Uint8Array([1]))).toThrow('stale recorder session');
   });
 
   it('rejects invalid microphone level metadata', () => {

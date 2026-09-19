@@ -67,12 +67,9 @@ describe('provider preset catalog', () => {
   });
 
   it('allocates deterministic collision-free profile ids', () => {
-    expect(
-      createProviderProfileId(
-        'openai-text',
-        new Set(['openai-text', 'openai-text-2']),
-      ),
-    ).toBe('openai-text-3');
+    expect(createProviderProfileId('openai-text', new Set(['openai-text', 'openai-text-2']))).toBe(
+      'openai-text-3',
+    );
   });
 
   it('falls back to the matching custom preset for unknown endpoints', () => {

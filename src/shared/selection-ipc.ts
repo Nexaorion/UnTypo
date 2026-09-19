@@ -10,8 +10,7 @@ export const SELECTION_CHANNELS = {
   close: 'selection:close',
 } as const;
 
-export type SelectionError =
-  'capture' | 'provider' | 'processing' | 'replace' | 'copy' | 'busy';
+export type SelectionError = 'capture' | 'provider' | 'processing' | 'replace' | 'copy' | 'busy';
 export interface SelectionState {
   sessionId: string;
   locale: SupportedLanguage;

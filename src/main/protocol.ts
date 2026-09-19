@@ -28,12 +28,10 @@ export const handleAppScheme = (): void => {
       return new Response('Not found', { status: 404 });
     }
 
-    const relativePath =
-      decodeURIComponent(url.pathname.slice(1)) || 'index.html';
+    const relativePath = decodeURIComponent(url.pathname.slice(1)) || 'index.html';
     const requestedPath = path.resolve(rendererRoot, relativePath);
     const isInsideRenderer =
-      requestedPath === rendererRoot ||
-      requestedPath.startsWith(`${rendererRoot}${path.sep}`);
+      requestedPath === rendererRoot || requestedPath.startsWith(`${rendererRoot}${path.sep}`);
 
     if (!isInsideRenderer || !existsSync(requestedPath)) {
       return new Response('Not found', { status: 404 });

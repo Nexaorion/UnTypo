@@ -19,8 +19,7 @@ const throwIfAborted = (signal?: AbortSignal): void => {
   }
 };
 
-const elapsedSince = (startedAt: number): number =>
-  Math.max(0, Date.now() - startedAt);
+const elapsedSince = (startedAt: number): number => Math.max(0, Date.now() - startedAt);
 
 const traceError = (error: unknown): string =>
   (error instanceof Error ? error.message : String(error))
@@ -49,10 +48,7 @@ export class DictationPipeline {
   readonly speechProvider: SpeechRecognitionProvider;
   readonly textProvider?: TextGenerationProvider;
 
-  constructor(
-    speechProvider: SpeechRecognitionProvider,
-    textProvider?: TextGenerationProvider,
-  ) {
+  constructor(speechProvider: SpeechRecognitionProvider, textProvider?: TextGenerationProvider) {
     assertSpeechProviderContract(speechProvider);
     if (textProvider) assertTextProviderContract(textProvider);
     this.provider = speechProvider;
@@ -98,14 +94,10 @@ export class DictationPipeline {
 
     const rawTranscript = transcript.text.trim();
     if (!rawTranscript) {
-      throw new ProviderContractError(
-        'EMPTY_RESULT',
-        'Provider returned an empty transcript',
-      );
+      throw new ProviderContractError('EMPTY_RESULT', 'Provider returned an empty transcript');
     }
     modelCalls.push({
-      durationMs:
-        prefetchedTranscription?.durationMs ?? elapsedSince(speechStartedAt),
+      durationMs: prefetchedTranscription?.durationMs ?? elapsedSince(speechStartedAt),
       input: {
         audioDurationMs: audio.durationMs,
         channels: audio.channels,
@@ -133,9 +125,7 @@ export class DictationPipeline {
 
     const forcedIntent =
       options.forcedIntent ??
-      (this.textProvider.capabilities.intentDetection
-        ? undefined
-        : 'transcription');
+      (this.textProvider.capabilities.intentDetection ? undefined : 'transcription');
     const textInput = {
       defaultTargetLanguage: options.defaultTargetLanguage,
       dictionaryLearningEnabled: options.dictionaryLearningEnabled === true,
@@ -153,46 +143,37 @@ export class DictationPipeline {
     const textStartedAt = Date.now();
     let firstOutputMs: number | undefined;
     try {
-      const processed = await this.textProvider.processTranscript(
-        rawTranscript,
-        {
-          defaultTargetLanguage: options.defaultTargetLanguage,
-          dictionary: options.dictionary,
-          ...(options.dictionaryLearningEnabled !== undefined
-            ? {
-                dictionaryLearningEnabled: options.dictionaryLearningEnabled,
-              }
-            : {}),
-          ...(options.explicitTargetLanguage
-            ? { explicitTargetLanguage: options.explicitTargetLanguage }
-            : {}),
-          ...(forcedIntent ? { forcedIntent } : {}),
-          ...(options.learnedPreferences
-            ? { learnedPreferences: options.learnedPreferences }
-            : {}),
-          locale: options.language,
-          onOutputTextUpdate: (outputText) => {
-            firstOutputMs ??= elapsedSince(textStartedAt);
-            options.onOutputTextUpdate?.(outputText);
-          },
-          ...(this.textProvider.kind === 'official-cloud' && options.profile
-            ? { profile: options.profile }
-            : {}),
-          ...(options.preferenceLearningEnabled !== undefined
-            ? {
-                preferenceLearningEnabled: options.preferenceLearningEnabled,
-              }
-            : {}),
-          signal: options.signal,
-          ...(options.tone ? { tone: options.tone } : {}),
-          ...(options.windowContext
-            ? { windowContext: options.windowContext }
-            : {}),
-          ...(options.writingStyle
-            ? { writingStyle: options.writingStyle }
-            : {}),
+      const processed = await this.textProvider.processTranscript(rawTranscript, {
+        defaultTargetLanguage: options.defaultTargetLanguage,
+        dictionary: options.dictionary,
+        ...(options.dictionaryLearningEnabled !== undefined
+          ? {
+              dictionaryLearningEnabled: options.dictionaryLearningEnabled,
+            }
+          : {}),
+        ...(options.explicitTargetLanguage
+          ? { explicitTargetLanguage: options.explicitTargetLanguage }
+          : {}),
+        ...(forcedIntent ? { forcedIntent } : {}),
+        ...(options.learnedPreferences ? { learnedPreferences: options.learnedPreferences } : {}),
+        locale: options.language,
+        onOutputTextUpdate: (outputText) => {
+          firstOutputMs ??= elapsedSince(textStartedAt);
+          options.onOutputTextUpdate?.(outputText);
         },
-      );
+        ...(this.textProvider.kind === 'official-cloud' && options.profile
+          ? { profile: options.profile }
+          : {}),
+        ...(options.preferenceLearningEnabled !== undefined
+          ? {
+              preferenceLearningEnabled: options.preferenceLearningEnabled,
+            }
+          : {}),
+        signal: options.signal,
+        ...(options.tone ? { tone: options.tone } : {}),
+        ...(options.windowContext ? { windowContext: options.windowContext } : {}),
+        ...(options.writingStyle ? { writingStyle: options.writingStyle } : {}),
+      });
       if (forcedIntent && processed.intent !== forcedIntent) {
         throw new ProviderContractError(
           'INVALID_PROVIDER',
@@ -264,18 +245,12 @@ export class DictationPipeline {
       audio.sampleRateHz <= 0 ||
       !audio.mimeType.trim()
     ) {
-      throw new ProviderContractError(
-        'INVALID_OPTIONS',
-        'Audio payload is incomplete',
-      );
+      throw new ProviderContractError('INVALID_OPTIONS', 'Audio payload is incomplete');
     }
   }
 
   private integratedProvider(): DictationProvider | undefined {
-    if (
-      !this.textProvider ||
-      !Object.is(this.speechProvider, this.textProvider)
-    ) {
+    if (!this.textProvider || !Object.is(this.speechProvider, this.textProvider)) {
       return undefined;
     }
     return this.speechProvider as DictationProvider;

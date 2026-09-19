@@ -6,10 +6,7 @@ import type {
   RealtimeTranscriptionSession,
 } from '../../src/core/providers/contracts';
 import { MockDictationProvider } from '../../src/core/providers/mock-provider';
-import {
-  SpeechProviderRegistry,
-  TextProviderRegistry,
-} from '../../src/core/providers/registry';
+import { SpeechProviderRegistry, TextProviderRegistry } from '../../src/core/providers/registry';
 import {
   DictationCoordinator,
   type HistoryPort,
@@ -127,19 +124,15 @@ const createCoordinator = ({
   const showRecording = vi.fn(() => {
     events.push('recording');
   });
-  const showSuccess = vi.fn(
-    (_result: unknown, delivery: 'copy' | 'inserted') => {
-      events.push(`success:${delivery}`);
-      return 7;
-    },
-  );
+  const showSuccess = vi.fn((_result: unknown, delivery: 'copy' | 'inserted') => {
+    events.push(`success:${delivery}`);
+    return 7;
+  });
   const updateProcessing = vi.fn();
   const handleCandidates = vi.fn();
   const handlePreferenceCandidates = vi.fn();
   const record = vi.fn<HistoryPort['record']>();
-  const start = vi
-    .fn<RecorderPort['start']>()
-    .mockResolvedValue('recording-session');
+  const start = vi.fn<RecorderPort['start']>().mockResolvedValue('recording-session');
   const stop = vi.fn(() =>
     Promise.resolve({
       audio,
@@ -192,10 +185,7 @@ const createCoordinator = ({
   }));
   const diagnosticLog = vi.fn();
   const recordIssue = vi.fn<(input: DiagnosticIssueInput) => void>();
-  const runWithOperation = <T>(
-    _operationId: string,
-    action: () => Promise<T>,
-  ) => action();
+  const runWithOperation = <T>(_operationId: string, action: () => Promise<T>) => action();
   const selection = {
     prepareVoice: vi.fn().mockResolvedValue(selected),
     processVoice: vi.fn().mockResolvedValue(undefined),
@@ -254,10 +244,7 @@ const createCoordinator = ({
   };
 };
 
-type TextFailureSetup = (
-  provider: MockDictationProvider,
-  failure: Error,
-) => void;
+type TextFailureSetup = (provider: MockDictationProvider, failure: Error) => void;
 
 const textFailureCases: ReadonlyArray<readonly [string, TextFailureSetup]> = [
   [
@@ -281,9 +268,9 @@ describe('DictationCoordinator', () => {
       const process = vi.spyOn(runtime.provider, 'processTranscript');
       await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
       expect(runtime.selection.prepareVoice).toHaveBeenCalledWith(target);
-      expect(
-        runtime.selection.prepareVoice.mock.invocationCallOrder[0],
-      ).toBeLessThan(runtime.start.mock.invocationCallOrder[0]!);
+      expect(runtime.selection.prepareVoice.mock.invocationCallOrder[0]).toBeLessThan(
+        runtime.start.mock.invocationCallOrder[0]!,
+      );
       expect(runtime.selection.processVoice).not.toHaveBeenCalled();
       await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
       expect(runtime.selection.processVoice).toHaveBeenCalledWith(
@@ -340,9 +327,7 @@ describe('DictationCoordinator', () => {
       intent: 'translation',
     });
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    runtime.selection.showResult.mockRejectedValueOnce(
-      new Error('Window unavailable'),
-    );
+    runtime.selection.showResult.mockRejectedValueOnce(new Error('Window unavailable'));
     await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
     await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
     expect(runtime.showSuccess).toHaveBeenCalledWith(
@@ -355,13 +340,11 @@ describe('DictationCoordinator', () => {
 
   it('clears captured text when voice recognition fails', async () => {
     const runtime = createCoordinator({ withSelection: true, selected: true });
-    vi.spyOn(runtime.provider, 'transcribe').mockRejectedValueOnce(
-      new Error('ASR failed'),
-    );
+    vi.spyOn(runtime.provider, 'transcribe').mockRejectedValueOnce(new Error('ASR failed'));
     await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
-    await expect(
-      runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle),
-    ).rejects.toThrow('ASR failed');
+    await expect(runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle)).rejects.toThrow(
+      'ASR failed',
+    );
     expect(runtime.selection.close).toHaveBeenCalledOnce();
     expect(runtime.selection.processVoice).not.toHaveBeenCalled();
     expect(runtime.inject).not.toHaveBeenCalled();
@@ -371,9 +354,9 @@ describe('DictationCoordinator', () => {
   it('clears captured text when recording fails to start', async () => {
     const runtime = createCoordinator({ withSelection: true, selected: true });
     runtime.start.mockRejectedValueOnce(new Error('Microphone unavailable'));
-    await expect(
-      runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle),
-    ).rejects.toThrow('Microphone unavailable');
+    await expect(runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle)).rejects.toThrow(
+      'Microphone unavailable',
+    );
     expect(runtime.selection.close).toHaveBeenCalledOnce();
     expect(runtime.selection.processVoice).not.toHaveBeenCalled();
   });
@@ -391,9 +374,7 @@ describe('DictationCoordinator', () => {
     realtimeSink?.(new Uint8Array([1, 2, 3, 4]));
     await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
 
-    expect(runtime.appendRealtimeAudio).toHaveBeenCalledWith(
-      new Uint8Array([1, 2, 3, 4]),
-    );
+    expect(runtime.appendRealtimeAudio).toHaveBeenCalledWith(new Uint8Array([1, 2, 3, 4]));
     expect(runtime.finishRealtime).toHaveBeenCalledWith(audio.durationMs);
     expect(transcribe).not.toHaveBeenCalled();
     expect(runtime.inject).toHaveBeenCalledWith('Realtime raw result', target);
@@ -441,11 +422,7 @@ describe('DictationCoordinator', () => {
     expect(runtime.getContext).toHaveBeenCalledTimes(1);
     expect(runtime.inject).toHaveBeenCalledWith('Final mock result', target);
     expect(runtime.updateProcessing).toHaveBeenCalledWith('Final mock result');
-    expect(runtime.events).toEqual([
-      'recording',
-      'processing',
-      'success:inserted',
-    ]);
+    expect(runtime.events).toEqual(['recording', 'processing', 'success:inserted']);
     expect(runtime.record).toHaveBeenCalledWith(
       expect.objectContaining({
         audioDurationMs: 500,
@@ -470,9 +447,9 @@ describe('DictationCoordinator', () => {
       outputText: 'Final mock result',
     });
     expect(textCall?.firstOutputMs).toBeTypeOf('number');
-    expect(
-      textCall?.kind === 'text-generation' ? textCall.input.text : undefined,
-    ).toBe('raw mock result');
+    expect(textCall?.kind === 'text-generation' ? textCall.input.text : undefined).toBe(
+      'raw mock result',
+    );
     expect(trace?.injectionMs).toBeTypeOf('number');
     expect(trace?.modelProcessingMs).toBeTypeOf('number');
     expect(trace?.operationId).toBeTypeOf('string');
@@ -501,10 +478,9 @@ describe('DictationCoordinator', () => {
     await runtime.coordinator.stop();
 
     expect(runtime.handleCandidates).toHaveBeenCalledWith([candidate], 7);
-    expect(runtime.handlePreferenceCandidates).toHaveBeenCalledWith(
-      [preferenceCandidate],
-      { kind: 'general' },
-    );
+    expect(runtime.handlePreferenceCandidates).toHaveBeenCalledWith([preferenceCandidate], {
+      kind: 'general',
+    });
     expect(runtime.events.at(-1)).toBe('success:inserted');
   });
 
@@ -525,9 +501,7 @@ describe('DictationCoordinator', () => {
     await runtime.coordinator.stop();
 
     expect(processTranscript).toHaveBeenCalledOnce();
-    expect(processTranscript.mock.calls[0]?.[0]).toBe(
-      '帮我生成一个 SECURITY.md 并推送到 GitHub',
-    );
+    expect(processTranscript.mock.calls[0]?.[0]).toBe('帮我生成一个 SECURITY.md 并推送到 GitHub');
     expect(processTranscript.mock.calls[0]?.[1]).toMatchObject({
       forcedIntent: 'transcription',
       writingStyle: 'prompt',
@@ -535,9 +509,7 @@ describe('DictationCoordinator', () => {
         application: { kind: 'ai-tool', name: 'ChatGPT/Codex' },
       },
     });
-    expect(
-      processTranscript.mock.calls[0]?.[1].windowContext,
-    ).not.toHaveProperty('windowTitle');
+    expect(processTranscript.mock.calls[0]?.[1].windowContext).not.toHaveProperty('windowTitle');
     expect(runtime.record).toHaveBeenCalledWith(
       expect.objectContaining({ intent: 'transcription' }),
       expect.anything(),
@@ -574,9 +546,7 @@ describe('DictationCoordinator', () => {
   it('keeps a copyable result when automatic insertion throws', async () => {
     const runtime = createCoordinator();
     runtime.inject.mockRejectedValueOnce(new Error('paste failed'));
-    const consoleError = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
     await runtime.coordinator.handleHotkey(NativeHotkeyAction.Toggle);
@@ -613,9 +583,7 @@ describe('DictationCoordinator', () => {
       const runtime = createCoordinator();
       const failure = new Error('text provider unavailable');
       configureFailure(runtime.provider, failure);
-      const consoleError = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       await runtime.coordinator.start();
       await runtime.coordinator.stop();
@@ -638,11 +606,7 @@ describe('DictationCoordinator', () => {
         'inserted',
       );
       expect(runtime.showError).not.toHaveBeenCalled();
-      expect(runtime.events).toEqual([
-        'recording',
-        'processing',
-        'success:inserted',
-      ]);
+      expect(runtime.events).toEqual(['recording', 'processing', 'success:inserted']);
       expect(consoleError).toHaveBeenCalledWith(
         'Dictation text post-processing failed; using raw transcript',
         failure,
@@ -655,9 +619,7 @@ describe('DictationCoordinator', () => {
   it('shows configuration errors before starting the microphone', async () => {
     const runtime = createCoordinator({ speechProviderId: 'missing' });
 
-    await expect(runtime.coordinator.start()).rejects.toThrow(
-      'Provider missing is not registered',
-    );
+    await expect(runtime.coordinator.start()).rejects.toThrow('Provider missing is not registered');
 
     expect(runtime.events).toEqual(['error:configuration']);
     expect(runtime.start).not.toHaveBeenCalled();
@@ -668,9 +630,7 @@ describe('DictationCoordinator', () => {
     const runtime = createCoordinator();
     runtime.start.mockRejectedValueOnce(new Error('microphone denied'));
 
-    await expect(runtime.coordinator.start()).rejects.toThrow(
-      'microphone denied',
-    );
+    await expect(runtime.coordinator.start()).rejects.toThrow('microphone denied');
     expect(runtime.events).toEqual(['error:microphone']);
     expect(runtime.coordinator.state).toBe('idle');
 
@@ -681,20 +641,12 @@ describe('DictationCoordinator', () => {
 
   it('keeps speech-provider failures hard', async () => {
     const runtime = createCoordinator();
-    vi.spyOn(runtime.provider, 'transcribe').mockRejectedValueOnce(
-      new Error('speech unavailable'),
-    );
+    vi.spyOn(runtime.provider, 'transcribe').mockRejectedValueOnce(new Error('speech unavailable'));
 
     await runtime.coordinator.start();
-    await expect(runtime.coordinator.stop()).rejects.toThrow(
-      'speech unavailable',
-    );
+    await expect(runtime.coordinator.stop()).rejects.toThrow('speech unavailable');
 
-    expect(runtime.events).toEqual([
-      'recording',
-      'processing',
-      'error:provider',
-    ]);
+    expect(runtime.events).toEqual(['recording', 'processing', 'error:provider']);
     expect(runtime.inject).not.toHaveBeenCalled();
     expect(runtime.record).not.toHaveBeenCalled();
     expect(runtime.recordIssue).toHaveBeenCalledWith(
@@ -721,9 +673,7 @@ describe('DictationCoordinator', () => {
     });
 
     await runtime.coordinator.start();
-    await expect(runtime.coordinator.stop()).rejects.toThrow(
-      'No microphone signal was detected',
-    );
+    await expect(runtime.coordinator.stop()).rejects.toThrow('No microphone signal was detected');
 
     expect(runtime.showError).toHaveBeenLastCalledWith(
       'microphone',
@@ -766,9 +716,7 @@ describe('DictationCoordinator', () => {
     const runtime = createCoordinator({ transcript: '   ' });
 
     await runtime.coordinator.start();
-    await expect(runtime.coordinator.stop()).rejects.toThrow(
-      'empty transcript',
-    );
+    await expect(runtime.coordinator.stop()).rejects.toThrow('empty transcript');
 
     expect(runtime.events).toEqual(['recording', 'processing', 'error:empty']);
     expect(runtime.showSuccess).not.toHaveBeenCalled();
@@ -785,11 +733,7 @@ describe('DictationCoordinator', () => {
       code: 'ABORTED',
     });
 
-    expect(runtime.events).toEqual([
-      'recording',
-      'processing',
-      'error:provider',
-    ]);
+    expect(runtime.events).toEqual(['recording', 'processing', 'error:provider']);
     expect(runtime.inject).not.toHaveBeenCalled();
     expect(runtime.record).not.toHaveBeenCalled();
     expect(runtime.showSuccess).not.toHaveBeenCalled();
@@ -801,19 +745,14 @@ describe('DictationCoordinator', () => {
     runtime.record.mockImplementationOnce(() => {
       throw new Error('database unavailable');
     });
-    const consoleError = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await runtime.coordinator.start();
     await runtime.coordinator.stop();
 
     expect(runtime.events.at(-1)).toBe('success:inserted');
     expect(runtime.showError).not.toHaveBeenCalled();
-    expect(consoleError).toHaveBeenCalledWith(
-      'Dictation history write failed',
-      expect.any(Error),
-    );
+    expect(consoleError).toHaveBeenCalledWith('Dictation history write failed', expect.any(Error));
     consoleError.mockRestore();
   });
 });

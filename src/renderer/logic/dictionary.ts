@@ -20,11 +20,7 @@ export const addDictionaryEntry = (
   if (trimmed.length > DICTIONARY_LIMITS.termLength) {
     return { ok: false, reason: 'tooLong' };
   }
-  if (
-    entries.some(
-      (entry) => dictionaryTermKey(entry.term) === dictionaryTermKey(trimmed),
-    )
-  ) {
+  if (entries.some((entry) => dictionaryTermKey(entry.term) === dictionaryTermKey(trimmed))) {
     return { ok: false, reason: 'duplicate' };
   }
   if (entries.length >= DICTIONARY_LIMITS.entries) {

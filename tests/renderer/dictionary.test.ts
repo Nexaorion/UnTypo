@@ -7,12 +7,7 @@ import {
 
 describe('addDictionaryEntry', () => {
   it('appends a trimmed term', () => {
-    expect(
-      addDictionaryEntry(
-        [{ source: 'manual', term: 'UnTypo' }],
-        '  Electron  ',
-      ),
-    ).toEqual({
+    expect(addDictionaryEntry([{ source: 'manual', term: 'UnTypo' }], '  Electron  ')).toEqual({
       entry: { source: 'manual', term: 'Electron' },
       ok: true,
     });
@@ -26,9 +21,7 @@ describe('addDictionaryEntry', () => {
   });
 
   it('rejects case-insensitive duplicates', () => {
-    expect(
-      addDictionaryEntry([{ source: 'manual', term: 'UnTypo' }], 'untypo'),
-    ).toEqual({
+    expect(addDictionaryEntry([{ source: 'manual', term: 'UnTypo' }], 'untypo')).toEqual({
       ok: false,
       reason: 'duplicate',
     });
@@ -43,13 +36,10 @@ describe('addDictionaryEntry', () => {
   });
 
   it('rejects additions past the stored entry limit', () => {
-    const entries = Array.from(
-      { length: DICTIONARY_LIMITS.entries },
-      (_value, index) => ({
-        source: 'manual' as const,
-        term: `term-${index}`,
-      }),
-    );
+    const entries = Array.from({ length: DICTIONARY_LIMITS.entries }, (_value, index) => ({
+      source: 'manual' as const,
+      term: `term-${index}`,
+    }));
     expect(addDictionaryEntry(entries, 'one-more')).toEqual({
       ok: false,
       reason: 'full',

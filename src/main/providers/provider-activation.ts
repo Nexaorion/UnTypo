@@ -1,18 +1,12 @@
 import type { TextGenerationProvider } from '../../core/providers/contracts.js';
-import {
-  SpeechProviderRegistry,
-  TextProviderRegistry,
-} from '../../core/providers/registry.js';
+import { SpeechProviderRegistry, TextProviderRegistry } from '../../core/providers/registry.js';
 import type { DiagnosticCollector } from '../diagnostics/collector.js';
 import type {
   ConfigurationService,
   ProviderProfile,
   StoredClientConfig,
 } from '../storage/configuration.js';
-import {
-  createSpeechProvider,
-  createTextProvider,
-} from './provider-factory.js';
+import { createSpeechProvider, createTextProvider } from './provider-factory.js';
 
 export interface ProviderActivationOptions {
   configuration: ConfigurationService;
@@ -49,9 +43,7 @@ export class ProviderActivationService {
   }
 
   get activeTextProvider(): TextGenerationProvider | undefined {
-    return this.#textProviderId
-      ? this.#textProviders.get(this.#textProviderId)
-      : undefined;
+    return this.#textProviderId ? this.#textProviders.get(this.#textProviderId) : undefined;
   }
 
   async activate(config: StoredClientConfig): Promise<void> {
@@ -66,10 +58,7 @@ export class ProviderActivationService {
       if (!profile) {
         throw new Error('Active speech provider profile does not exist');
       }
-      const provider = createSpeechProvider(
-        profile,
-        this.providerFetch(profile),
-      );
+      const provider = createSpeechProvider(profile, this.providerFetch(profile));
       this.#speechProviders.replace(provider);
       this.#speechProviderId = provider.id;
     }

@@ -54,13 +54,7 @@ describe('validateProviderForm', () => {
   });
 
   it('rejects ids the backend pattern would reject', () => {
-    for (const id of [
-      'Upper',
-      '-leading',
-      'has space',
-      '.dot',
-      'a'.repeat(65),
-    ]) {
+    for (const id of ['Upper', '-leading', 'has space', '.dot', 'a'.repeat(65)]) {
       expect(validateProviderForm({ ...validForm(), id }).id).toBe('invalidId');
     }
   });
@@ -94,9 +88,7 @@ describe('validateBaseUrlInput', () => {
   });
 
   it('accepts https endpoints', () => {
-    expect(
-      validateBaseUrlInput('https://api.openai.com/v1', false),
-    ).toBeUndefined();
+    expect(validateBaseUrlInput('https://api.openai.com/v1', false)).toBeUndefined();
   });
 
   it('rejects unparsable values', () => {
@@ -104,15 +96,9 @@ describe('validateBaseUrlInput', () => {
   });
 
   it('rejects http endpoints unless private access is enabled', () => {
-    expect(validateBaseUrlInput('http://localhost:11434/v1', false)).toBe(
-      'insecureUrl',
-    );
-    expect(
-      validateBaseUrlInput('http://localhost:11434/v1', true),
-    ).toBeUndefined();
-    expect(validateBaseUrlInput('http://example.com/v1', true)).toBe(
-      'insecureUrl',
-    );
+    expect(validateBaseUrlInput('http://localhost:11434/v1', false)).toBe('insecureUrl');
+    expect(validateBaseUrlInput('http://localhost:11434/v1', true)).toBeUndefined();
+    expect(validateBaseUrlInput('http://example.com/v1', true)).toBe('insecureUrl');
   });
 });
 
@@ -184,10 +170,7 @@ describe('selectTextEndpointType', () => {
     if (!custom) return;
     const form = selectProviderPreset(validForm(), custom, new Set(), false);
 
-    const selected = selectTextEndpointType(
-      { ...form, hasStoredApiKey: true },
-      'anthropic-text',
-    );
+    const selected = selectTextEndpointType({ ...form, hasStoredApiKey: true }, 'anthropic-text');
 
     expect(selected).toMatchObject({
       apiKey: '',

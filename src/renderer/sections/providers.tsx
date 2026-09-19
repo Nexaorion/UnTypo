@@ -11,10 +11,7 @@ import Typography from '@mui/material/Typography';
 import { useMemo, useState, type ReactElement } from 'react';
 import type { ClientProviderSummary } from '../../shared/ipc.js';
 import { useI18n } from '../i18n/context.js';
-import {
-  resolveProviderPreset,
-  type ProviderKind,
-} from '../logic/provider-catalog.js';
+import { resolveProviderPreset, type ProviderKind } from '../logic/provider-catalog.js';
 import {
   emptyProviderForm,
   providerFormFromSummary,
@@ -27,8 +24,7 @@ import { Card, EmptyState, Page, PageHeader } from '../ui/page.js';
 import { ProviderIcon } from '../ui/provider-icon.js';
 import { ProviderDialog } from './provider-dialog.js';
 
-const asString = (value: unknown): string =>
-  typeof value === 'string' ? value : '';
+const asString = (value: unknown): string => (typeof value === 'string' ? value : '');
 
 const providerPresentation = (provider: ClientProviderSummary) => {
   const preset = resolveProviderPreset({
@@ -74,15 +70,10 @@ const ProviderCard = ({
           justifyContent: 'space-between',
         }}
       >
-        <Stack
-          direction="row"
-          sx={{ alignItems: 'center', gap: 1.5, minWidth: 0 }}
-        >
+        <Stack direction="row" sx={{ alignItems: 'center', gap: 1.5, minWidth: 0 }}>
           <ProviderIcon icon={presentation.icon} />
           <Stack sx={{ gap: 0.35, minWidth: 0 }}>
-            <Typography sx={{ fontSize: 14.5, fontWeight: 700 }}>
-              {presentation.name}
-            </Typography>
+            <Typography sx={{ fontSize: 14.5, fontWeight: 700 }}>{presentation.name}</Typography>
             <Typography color="text.secondary" variant="caption">
               {presentation.model}
             </Typography>
@@ -111,11 +102,7 @@ const ProviderCard = ({
           <IconButton aria-label={t('action.edit')} onClick={onEdit}>
             <EditRoundedIcon fontSize="small" />
           </IconButton>
-          <IconButton
-            aria-label={t('action.remove')}
-            color="error"
-            onClick={onRemove}
-          >
+          <IconButton aria-label={t('action.remove')} color="error" onClick={onRemove}>
             <DeleteOutlineRoundedIcon fontSize="small" />
           </IconButton>
         </Stack>
@@ -164,10 +151,7 @@ const ProviderKindSection = ({
         justifyContent: 'space-between',
       }}
     >
-      <Stack
-        direction="row"
-        sx={{ alignItems: 'flex-start', flex: 1, gap: 1.5, minWidth: 0 }}
-      >
+      <Stack direction="row" sx={{ alignItems: 'flex-start', flex: 1, gap: 1.5, minWidth: 0 }}>
         <Stack
           sx={{
             alignItems: 'center',
@@ -229,16 +213,9 @@ export const ProvidersSection = ({ store }: { store: ClientStore }) => {
   const [removing, setRemoving] = useState<ClientProviderSummary | null>(null);
 
   const providers = store.snapshot?.providers ?? [];
-  const existingIds = useMemo(
-    () => new Set(providers.map((provider) => provider.id)),
-    [providers],
-  );
-  const textProviders = providers.filter(
-    (provider) => provider.kind === 'text',
-  );
-  const speechProviders = providers.filter(
-    (provider) => provider.kind === 'speech',
-  );
+  const existingIds = useMemo(() => new Set(providers.map((provider) => provider.id)), [providers]);
+  const textProviders = providers.filter((provider) => provider.kind === 'text');
+  const speechProviders = providers.filter((provider) => provider.kind === 'speech');
   const dictation = store.snapshot?.settings.dictation;
 
   const addProvider = (kind: ProviderKind) => {

@@ -9,10 +9,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import type { ReactNode } from 'react';
-import type {
-  ClientHistoryRecord,
-  ClientUsageStats,
-} from '../../shared/ipc.js';
+import type { ClientHistoryRecord, ClientUsageStats } from '../../shared/ipc.js';
 import { useI18n } from '../i18n/context.js';
 import { formatTimestamp } from '../logic/history.js';
 import { formatHotkeyDisplay } from '../logic/hotkey.js';
@@ -47,15 +44,7 @@ const estimateSavedMilliseconds = (usage: ClientUsageStats): number =>
     ),
   );
 
-const StatCard = ({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) => (
+const StatCard = ({ icon, label, value }: { icon: ReactNode; label: string; value: string }) => (
   <Paper
     sx={{
       border: '1px solid',
@@ -67,10 +56,7 @@ const StatCard = ({
     }}
   >
     <Stack sx={{ gap: 2.5, '@media (max-height: 680px)': { gap: 1 } }}>
-      <Stack
-        direction="row"
-        sx={{ alignItems: 'center', color: 'text.secondary', gap: 1 }}
-      >
+      <Stack direction="row" sx={{ alignItems: 'center', color: 'text.secondary', gap: 1 }}>
         {icon}
         <Typography variant="caption">{label}</Typography>
       </Stack>
@@ -152,15 +138,9 @@ export const HomeSection = ({
 
       <Paper
         sx={(currentTheme) => ({
-          backgroundColor: themeAlpha(
-            themePalette(currentTheme).primary.main,
-            0.055,
-          ),
+          backgroundColor: themeAlpha(themePalette(currentTheme).primary.main, 0.055),
           border: '1px solid',
-          borderColor: themeAlpha(
-            themePalette(currentTheme).primary.main,
-            0.18,
-          ),
+          borderColor: themeAlpha(themePalette(currentTheme).primary.main, 0.18),
           borderRadius: `${tokens.radiusCard + 2}px`,
           p: { xs: 2.25, sm: 2.75 },
           '@media (max-height: 680px)': { p: 1.75 },
@@ -277,10 +257,7 @@ export const HomeSection = ({
         }}
       >
         <Stack sx={{ gap: 1.5 }}>
-          <Stack
-            direction="row"
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-          >
+          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography component="h2" variant="h2">
               {t('home.history.title')}
             </Typography>

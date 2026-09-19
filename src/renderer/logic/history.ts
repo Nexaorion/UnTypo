@@ -2,10 +2,7 @@ import type { SupportedLanguage } from '../../core/providers/contracts.js';
 
 export const HISTORY_PAGE_SIZE = 30;
 
-export const formatTimestamp = (
-  createdAt: number,
-  locale: SupportedLanguage,
-): string => {
+export const formatTimestamp = (createdAt: number, locale: SupportedLanguage): string => {
   if (!Number.isFinite(createdAt)) return '';
   return new Intl.DateTimeFormat(locale, {
     day: '2-digit',

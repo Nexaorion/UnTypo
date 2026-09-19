@@ -1,15 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type {
-  SupportedLanguage,
-  UserProfileContext,
-} from '../../core/providers/contracts.js';
-import type {
-  ClientProviderValues,
-  ModelProviderId,
-  ModelProviderKind,
-} from '../../shared/ipc.js';
+import type { SupportedLanguage, UserProfileContext } from '../../core/providers/contracts.js';
+import type { ClientProviderValues, ModelProviderId, ModelProviderKind } from '../../shared/ipc.js';
 import type { SyncProviderId, SyncStatus } from '../../shared/sync.js';
 import {
   DEFAULT_APPLICATION_WRITING_STYLES,
@@ -165,10 +158,7 @@ export interface PersonalizationPrivateState {
 }
 
 export type DictionaryEntryErrorCode =
-  | 'DICTIONARY_DUPLICATE'
-  | 'DICTIONARY_EMPTY'
-  | 'DICTIONARY_FULL'
-  | 'DICTIONARY_TOO_LONG';
+  'DICTIONARY_DUPLICATE' | 'DICTIONARY_EMPTY' | 'DICTIONARY_FULL' | 'DICTIONARY_TOO_LONG';
 
 export class DictionaryEntryError extends Error {
   readonly code: DictionaryEntryErrorCode;
@@ -230,9 +220,7 @@ const isLegacyDarwinHotkey = (accelerator: string): boolean =>
 
 const migrateDefaultHotkey = (accelerator: string): string => {
   if (process.platform === 'darwin') {
-    return isLegacyDarwinHotkey(accelerator)
-      ? DARWIN_DEFAULT_HOTKEY_ACCELERATOR
-      : accelerator;
+    return isLegacyDarwinHotkey(accelerator) ? DARWIN_DEFAULT_HOTKEY_ACCELERATOR : accelerator;
   }
   return accelerator === LEGACY_WINDOWS_HOTKEY_ACCELERATOR
     ? WINDOWS_DEFAULT_HOTKEY_ACCELERATOR
@@ -290,13 +278,8 @@ const assertOnlyKeys = (
   }
 };
 
-const isNonEmptyString = (
-  value: unknown,
-  maximumLength: number,
-): value is string =>
-  typeof value === 'string' &&
-  value.trim().length > 0 &&
-  value.length <= maximumLength;
+const isNonEmptyString = (value: unknown, maximumLength: number): value is string =>
+  typeof value === 'string' && value.trim().length > 0 && value.length <= maximumLength;
 
 const isProviderId = (value: unknown): value is ModelProviderId =>
   typeof value === 'string' && value in providerKinds;
@@ -334,11 +317,7 @@ const parseDiagnostics = (value: unknown): DiagnosticPolicy => {
   ) {
     throw new Error('Invalid diagnostic settings');
   }
-  assertOnlyKeys(
-    value,
-    ['automaticCollection', 'showErrorDialogs'],
-    'Diagnostic settings',
-  );
+  assertOnlyKeys(value, ['automaticCollection', 'showErrorDialogs'], 'Diagnostic settings');
   return {
     automaticCollection: value.automaticCollection,
     showErrorDialogs: value.showErrorDialogs,
@@ -384,9 +363,7 @@ const parseLegacyDictionary = (value: unknown): readonly DictionaryEntry[] => {
     !Array.isArray(value) ||
     value.length > DICTIONARY_LIMITS.entries ||
     !value.every(
-      (entry) =>
-        typeof entry === 'string' &&
-        entry.length <= DICTIONARY_LIMITS.termLength,
+      (entry) => typeof entry === 'string' && entry.length <= DICTIONARY_LIMITS.termLength,
     )
   ) {
     throw new Error('Invalid dictionary');
@@ -433,17 +410,12 @@ export const parseDictionary = (value: unknown): readonly DictionaryEntry[] => {
   return entries;
 };
 
-const parseDictionaryLearning = (
-  value: unknown,
-): StoredClientConfig['dictionaryLearning'] => {
+const parseDictionaryLearning = (value: unknown): StoredClientConfig['dictionaryLearning'] => {
   if (!isRecord(value) || typeof value.enabled !== 'boolean') {
     throw new Error('Invalid dictionary learning settings');
   }
   assertOnlyKeys(value, ['enabled', 'encryptedState'], 'Dictionary learning');
-  if (
-    value.encryptedState !== undefined &&
-    !isEncryptedValue(value.encryptedState)
-  ) {
+  if (value.encryptedState !== undefined && !isEncryptedValue(value.encryptedState)) {
     throw new Error('Invalid dictionary learning state');
   }
   return {
@@ -454,9 +426,7 @@ const parseDictionaryLearning = (
   };
 };
 
-export const parsePersonalization = (
-  value: unknown,
-): StoredClientConfig['personalization'] => {
+export const parsePersonalization = (value: unknown): StoredClientConfig['personalization'] => {
   if (
     !isRecord(value) ||
     !isRecord(value.applicationStyles) ||
@@ -470,22 +440,13 @@ export const parsePersonalization = (
     ['applicationStyles', 'encryptedState', 'learningEnabled'],
     'Personalization settings',
   );
-  if (
-    value.encryptedState !== undefined &&
-    !isEncryptedValue(value.encryptedState)
-  ) {
+  if (value.encryptedState !== undefined && !isEncryptedValue(value.encryptedState)) {
     throw new Error('Invalid personalization learning state');
   }
-  assertOnlyKeys(
-    rawApplicationStyles,
-    TARGET_APPLICATION_KINDS,
-    'Application writing styles',
-  );
+  assertOnlyKeys(rawApplicationStyles, TARGET_APPLICATION_KINDS, 'Application writing styles');
   const parseStyle = (application: string) => {
     const valueForApplication = rawApplicationStyles[application];
-    const style = WRITING_STYLE_PRESETS.find(
-      (candidate) => candidate === valueForApplication,
-    );
+    const style = WRITING_STYLE_PRESETS.find((candidate) => candidate === valueForApplication);
     if (!style) throw new Error('Invalid application writing style');
     return style;
   };
@@ -512,9 +473,7 @@ const emptyPersonalizationState = (): PersonalizationPrivateState => ({
   rejections: [],
 });
 
-export const parsePersonalizationState = (
-  value: unknown,
-): PersonalizationPrivateState => {
+export const parsePersonalizationState = (value: unknown): PersonalizationPrivateState => {
   if (
     !isRecord(value) ||
     !Array.isArray(value.candidates) ||
@@ -527,11 +486,8 @@ export const parsePersonalizationState = (
     throw new Error('Invalid encrypted personalization state');
   }
   const parseApplication = (entry: unknown): TargetApplicationKind => {
-    const application = TARGET_APPLICATION_KINDS.find(
-      (candidate) => candidate === entry,
-    );
-    if (!application)
-      throw new Error('Invalid encrypted personalization state');
+    const application = TARGET_APPLICATION_KINDS.find((candidate) => candidate === entry);
+    if (!application) throw new Error('Invalid encrypted personalization state');
     return application;
   };
   const parseTimestamp = (entry: unknown): number => {
@@ -540,62 +496,56 @@ export const parsePersonalizationState = (
     }
     return entry;
   };
-  const candidates: StoredWritingPreferenceCandidate[] = value.candidates.map(
-    (entry) => {
-      if (
-        !isRecord(entry) ||
-        !Number.isInteger(entry.occurrences) ||
-        typeof entry.occurrences !== 'number' ||
-        entry.occurrences < 1
-      ) {
-        throw new Error('Invalid encrypted personalization state');
-      }
-      const candidate = normalizeWritingPreferenceCandidate(entry.candidate);
-      if (!candidate) {
-        throw new Error('Invalid encrypted personalization state');
-      }
-      return {
-        application: parseApplication(entry.application),
-        candidate,
-        firstSeenAt: parseTimestamp(entry.firstSeenAt),
-        lastSeenAt: parseTimestamp(entry.lastSeenAt),
-        occurrences: entry.occurrences,
-      };
-    },
-  );
-  const preferences: LearnedWritingPreference[] = value.preferences.map(
-    (entry) => {
-      if (!isRecord(entry) || !isNonEmptyString(entry.id, 64)) {
-        throw new Error('Invalid encrypted personalization state');
-      }
-      const candidate = normalizeWritingPreferenceCandidate({
-        confidence: 1,
-        kind: entry.kind,
-        value: entry.value,
-      });
-      if (!candidate) {
-        throw new Error('Invalid encrypted personalization state');
-      }
-      return {
-        application: parseApplication(entry.application),
-        confirmedAt: parseTimestamp(entry.confirmedAt),
-        id: entry.id,
-        kind: candidate.kind,
-        value: candidate.value,
-      };
-    },
-  );
-  const rejections: StoredWritingPreferenceRejection[] = value.rejections.map(
-    (entry) => {
-      if (!isRecord(entry) || !isNonEmptyString(entry.fingerprint, 64)) {
-        throw new Error('Invalid encrypted personalization state');
-      }
-      return {
-        fingerprint: entry.fingerprint,
-        until: parseTimestamp(entry.until),
-      };
-    },
-  );
+  const candidates: StoredWritingPreferenceCandidate[] = value.candidates.map((entry) => {
+    if (
+      !isRecord(entry) ||
+      !Number.isInteger(entry.occurrences) ||
+      typeof entry.occurrences !== 'number' ||
+      entry.occurrences < 1
+    ) {
+      throw new Error('Invalid encrypted personalization state');
+    }
+    const candidate = normalizeWritingPreferenceCandidate(entry.candidate);
+    if (!candidate) {
+      throw new Error('Invalid encrypted personalization state');
+    }
+    return {
+      application: parseApplication(entry.application),
+      candidate,
+      firstSeenAt: parseTimestamp(entry.firstSeenAt),
+      lastSeenAt: parseTimestamp(entry.lastSeenAt),
+      occurrences: entry.occurrences,
+    };
+  });
+  const preferences: LearnedWritingPreference[] = value.preferences.map((entry) => {
+    if (!isRecord(entry) || !isNonEmptyString(entry.id, 64)) {
+      throw new Error('Invalid encrypted personalization state');
+    }
+    const candidate = normalizeWritingPreferenceCandidate({
+      confidence: 1,
+      kind: entry.kind,
+      value: entry.value,
+    });
+    if (!candidate) {
+      throw new Error('Invalid encrypted personalization state');
+    }
+    return {
+      application: parseApplication(entry.application),
+      confirmedAt: parseTimestamp(entry.confirmedAt),
+      id: entry.id,
+      kind: candidate.kind,
+      value: candidate.value,
+    };
+  });
+  const rejections: StoredWritingPreferenceRejection[] = value.rejections.map((entry) => {
+    if (!isRecord(entry) || !isNonEmptyString(entry.fingerprint, 64)) {
+      throw new Error('Invalid encrypted personalization state');
+    }
+    return {
+      fingerprint: entry.fingerprint,
+      until: parseTimestamp(entry.until),
+    };
+  });
   return { candidates, preferences, rejections };
 };
 
@@ -604,9 +554,7 @@ const emptyDictionaryLearningState = (): DictionaryLearningPrivateState => ({
   rejections: [],
 });
 
-export const parseDictionaryLearningState = (
-  value: unknown,
-): DictionaryLearningPrivateState => {
+export const parseDictionaryLearningState = (value: unknown): DictionaryLearningPrivateState => {
   if (
     !isRecord(value) ||
     !Array.isArray(value.candidates) ||
@@ -616,79 +564,61 @@ export const parseDictionaryLearningState = (
   ) {
     throw new Error('Invalid encrypted dictionary learning state');
   }
-  const candidates: StoredDictionaryCandidate[] = value.candidates.map(
-    (entry) => {
-      if (
-        !isRecord(entry) ||
-        !isRecord(entry.candidate) ||
-        typeof entry.candidate.term !== 'string' ||
-        entry.candidate.term.length > DICTIONARY_LIMITS.termLength ||
-        !DICTIONARY_CANDIDATE_CATEGORIES.includes(
-          entry.candidate.category as never,
-        ) ||
-        typeof entry.candidate.confidence !== 'number' ||
-        !Number.isFinite(entry.candidate.confidence) ||
-        entry.candidate.confidence < 0 ||
-        entry.candidate.confidence > 1 ||
-        typeof entry.firstSeenAt !== 'number' ||
-        !Number.isFinite(entry.firstSeenAt) ||
-        typeof entry.lastSeenAt !== 'number' ||
-        !Number.isFinite(entry.lastSeenAt) ||
-        typeof entry.occurrences !== 'number' ||
-        !Number.isInteger(entry.occurrences) ||
-        entry.occurrences < 1
-      ) {
-        throw new Error('Invalid encrypted dictionary candidate');
-      }
-      const term = normalizeDictionaryTerm(entry.candidate.term);
-      if (!term || term.length > DICTIONARY_LIMITS.termLength) {
-        throw new Error('Invalid encrypted dictionary candidate');
-      }
-      return {
-        candidate: {
-          category: entry.candidate.category as DictionaryCandidate['category'],
-          confidence: entry.candidate.confidence,
-          term,
-        },
-        firstSeenAt: entry.firstSeenAt,
-        lastSeenAt: entry.lastSeenAt,
-        occurrences: entry.occurrences,
-      };
-    },
-  );
-  const rejections: StoredDictionaryRejection[] = value.rejections.map(
-    (entry) => {
-      if (
-        !isRecord(entry) ||
-        !isNonEmptyString(entry.fingerprint, 128) ||
-        typeof entry.until !== 'number' ||
-        !Number.isFinite(entry.until)
-      ) {
-        throw new Error('Invalid encrypted dictionary rejection');
-      }
-      return { fingerprint: entry.fingerprint, until: entry.until };
-    },
-  );
+  const candidates: StoredDictionaryCandidate[] = value.candidates.map((entry) => {
+    if (
+      !isRecord(entry) ||
+      !isRecord(entry.candidate) ||
+      typeof entry.candidate.term !== 'string' ||
+      entry.candidate.term.length > DICTIONARY_LIMITS.termLength ||
+      !DICTIONARY_CANDIDATE_CATEGORIES.includes(entry.candidate.category as never) ||
+      typeof entry.candidate.confidence !== 'number' ||
+      !Number.isFinite(entry.candidate.confidence) ||
+      entry.candidate.confidence < 0 ||
+      entry.candidate.confidence > 1 ||
+      typeof entry.firstSeenAt !== 'number' ||
+      !Number.isFinite(entry.firstSeenAt) ||
+      typeof entry.lastSeenAt !== 'number' ||
+      !Number.isFinite(entry.lastSeenAt) ||
+      typeof entry.occurrences !== 'number' ||
+      !Number.isInteger(entry.occurrences) ||
+      entry.occurrences < 1
+    ) {
+      throw new Error('Invalid encrypted dictionary candidate');
+    }
+    const term = normalizeDictionaryTerm(entry.candidate.term);
+    if (!term || term.length > DICTIONARY_LIMITS.termLength) {
+      throw new Error('Invalid encrypted dictionary candidate');
+    }
+    return {
+      candidate: {
+        category: entry.candidate.category as DictionaryCandidate['category'],
+        confidence: entry.candidate.confidence,
+        term,
+      },
+      firstSeenAt: entry.firstSeenAt,
+      lastSeenAt: entry.lastSeenAt,
+      occurrences: entry.occurrences,
+    };
+  });
+  const rejections: StoredDictionaryRejection[] = value.rejections.map((entry) => {
+    if (
+      !isRecord(entry) ||
+      !isNonEmptyString(entry.fingerprint, 128) ||
+      typeof entry.until !== 'number' ||
+      !Number.isFinite(entry.until)
+    ) {
+      throw new Error('Invalid encrypted dictionary rejection');
+    }
+    return { fingerprint: entry.fingerprint, until: entry.until };
+  });
   return { candidates, rejections };
 };
 
 export const parseUserProfile = (value: unknown): UserProfileContext => {
   if (!isRecord(value)) throw new Error('Invalid encrypted profile');
-  assertOnlyKeys(
-    value,
-    ['displayName', 'preferredName', 'signature'],
-    'Personal profile',
-  );
-  const displayName = optionalProfileString(
-    value.displayName,
-    'display name',
-    200,
-  );
-  const preferredName = optionalProfileString(
-    value.preferredName,
-    'preferred name',
-    200,
-  );
+  assertOnlyKeys(value, ['displayName', 'preferredName', 'signature'], 'Personal profile');
+  const displayName = optionalProfileString(value.displayName, 'display name', 200);
+  const preferredName = optionalProfileString(value.preferredName, 'preferred name', 200);
   const signature = optionalProfileString(value.signature, 'signature', 1_000);
   return {
     ...(displayName === undefined ? {} : { displayName }),
@@ -709,9 +639,7 @@ const optionalProfileString = (
   return value;
 };
 
-const parseEncryptedProfile = (
-  value: Record<string, unknown>,
-): EncryptedValue | undefined => {
+const parseEncryptedProfile = (value: Record<string, unknown>): EncryptedValue | undefined => {
   if (value.encryptedProfile === undefined) return undefined;
   if (!isEncryptedValue(value.encryptedProfile)) {
     throw new Error('Invalid encrypted profile');
@@ -740,8 +668,7 @@ const parseProviderValues = (value: unknown): ClientProviderValues => {
     !isNonEmptyString(value.baseUrl, 2_048) ||
     (value.allowInsecurePrivateEndpoint !== undefined &&
       typeof value.allowInsecurePrivateEndpoint !== 'boolean') ||
-    (value.realtimeSpeechEnabled !== undefined &&
-      typeof value.realtimeSpeechEnabled !== 'boolean')
+    (value.realtimeSpeechEnabled !== undefined && typeof value.realtimeSpeechEnabled !== 'boolean')
   ) {
     throw new Error('Invalid provider values');
   }
@@ -761,9 +688,7 @@ const parseProviderValues = (value: unknown): ClientProviderValues => {
   };
 };
 
-const parseSecrets = (
-  value: unknown,
-): Readonly<Record<string, EncryptedValue>> => {
+const parseSecrets = (value: unknown): Readonly<Record<string, EncryptedValue>> => {
   if (!isRecord(value)) throw new Error('Invalid provider secrets');
   assertOnlyKeys(value, ['apiKey'], 'Provider secrets');
   if (!isEncryptedValue(value.apiKey)) {
@@ -808,9 +733,7 @@ const parseCommonData = (
   };
 };
 
-const assertUniqueProviderIds = (
-  providers: readonly StoredProviderProfile[],
-): void => {
+const assertUniqueProviderIds = (providers: readonly StoredProviderProfile[]): void => {
   if (new Set(providers.map(({ id }) => id)).size !== providers.length) {
     throw new Error('Provider profile ids must be unique');
   }
@@ -826,8 +749,7 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
     (dictation.hotkeyMode !== undefined &&
       dictation.hotkeyMode !== 'push-to-talk' &&
       dictation.hotkeyMode !== 'toggle') ||
-    (dictation.fastMode !== undefined &&
-      typeof dictation.fastMode !== 'boolean') ||
+    (dictation.fastMode !== undefined && typeof dictation.fastMode !== 'boolean') ||
     (dictation.activeSpeechProviderProfileId !== undefined &&
       (!isNonEmptyString(dictation.activeSpeechProviderProfileId, 64) ||
         !profileIdPattern.test(dictation.activeSpeechProviderProfileId))) ||
@@ -838,8 +760,7 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
       !isNonEmptyString(dictation.microphoneDeviceId, 512)) ||
     (dictation.microphoneDeviceLabel !== undefined &&
       !isNonEmptyString(dictation.microphoneDeviceLabel, 512)) ||
-    (dictation.microphoneDeviceLabel !== undefined &&
-      dictation.microphoneDeviceId === undefined) ||
+    (dictation.microphoneDeviceLabel !== undefined && dictation.microphoneDeviceId === undefined) ||
     !Array.isArray(value.providers)
   ) {
     throw new Error('Invalid configuration data');
@@ -850,8 +771,7 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
   if (
     typeof dictation.activeSpeechProviderProfileId === 'string' &&
     !providers.some(
-      ({ id, kind }) =>
-        id === dictation.activeSpeechProviderProfileId && kind === 'speech',
+      ({ id, kind }) => id === dictation.activeSpeechProviderProfileId && kind === 'speech',
     )
   ) {
     throw new Error('Active speech provider profile is invalid');
@@ -859,8 +779,7 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
   if (
     typeof dictation.activeTextProviderProfileId === 'string' &&
     !providers.some(
-      ({ id, kind }) =>
-        id === dictation.activeTextProviderProfileId && kind === 'text',
+      ({ id, kind }) => id === dictation.activeTextProviderProfileId && kind === 'text',
     )
   ) {
     throw new Error('Active text provider profile is invalid');
@@ -873,8 +792,7 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
     dictation: {
       ...(typeof dictation.activeSpeechProviderProfileId === 'string'
         ? {
-            activeSpeechProviderProfileId:
-              dictation.activeSpeechProviderProfileId,
+            activeSpeechProviderProfileId: dictation.activeSpeechProviderProfileId,
           }
         : {}),
       ...(typeof dictation.activeTextProviderProfileId === 'string'
@@ -886,9 +804,7 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
         dictation.defaultTargetLanguage,
         'default target language',
       ),
-      ...(typeof dictation.fastMode === 'boolean'
-        ? { fastMode: dictation.fastMode }
-        : {}),
+      ...(typeof dictation.fastMode === 'boolean' ? { fastMode: dictation.fastMode } : {}),
       hotkeyAccelerator: migrateDefaultHotkey(dictation.hotkeyAccelerator),
       language: assertLanguage(dictation.language, 'dictation language'),
       ...(typeof dictation.microphoneDeviceId === 'string'
@@ -907,14 +823,10 @@ const parseV2Config = (value: Record<string, unknown>): StoredClientConfig => {
 };
 
 const parseV3Config = (value: Record<string, unknown>): StoredClientConfig => {
-  const rawDictionary: readonly unknown[] = Array.isArray(value.dictionary)
-    ? value.dictionary
-    : [];
+  const rawDictionary: readonly unknown[] = Array.isArray(value.dictionary) ? value.dictionary : [];
   const base = parseV2Config({
     ...value,
-    dictionary: rawDictionary.map((entry) =>
-      isRecord(entry) ? entry.term : entry,
-    ),
+    dictionary: rawDictionary.map((entry) => (isRecord(entry) ? entry.term : entry)),
   });
   return {
     ...base,
@@ -949,9 +861,7 @@ const parseSyncLogEntry = (value: unknown): StoredSyncLogEntry => {
     at: value.at,
     status: value.status,
     ...(typeof value.error === 'string' ? { error: value.error } : {}),
-    ...(typeof value.recordsMerged === 'number'
-      ? { recordsMerged: value.recordsMerged }
-      : {}),
+    ...(typeof value.recordsMerged === 'number' ? { recordsMerged: value.recordsMerged } : {}),
   };
 };
 
@@ -959,15 +869,7 @@ const parseSyncS3 = (value: unknown): StoredSyncS3Config => {
   if (!isRecord(value)) throw new Error('Invalid S3 sync settings');
   assertOnlyKeys(
     value,
-    [
-      'accessKeyId',
-      'bucket',
-      'endpoint',
-      'forcePathStyle',
-      'prefix',
-      'region',
-      'secretAccessKey',
-    ],
+    ['accessKeyId', 'bucket', 'endpoint', 'forcePathStyle', 'prefix', 'region', 'secretAccessKey'],
     'S3 sync settings',
   );
   if (
@@ -979,11 +881,9 @@ const parseSyncS3 = (value: unknown): StoredSyncS3Config => {
       (typeof value.bucket !== 'string' || value.bucket.length > 255)) ||
     (value.prefix !== undefined &&
       (typeof value.prefix !== 'string' || value.prefix.length > 512)) ||
-    (value.forcePathStyle !== undefined &&
-      typeof value.forcePathStyle !== 'boolean') ||
+    (value.forcePathStyle !== undefined && typeof value.forcePathStyle !== 'boolean') ||
     (value.accessKeyId !== undefined && !isEncryptedValue(value.accessKeyId)) ||
-    (value.secretAccessKey !== undefined &&
-      !isEncryptedValue(value.secretAccessKey))
+    (value.secretAccessKey !== undefined && !isEncryptedValue(value.secretAccessKey))
   ) {
     throw new Error('Invalid S3 sync settings');
   }
@@ -992,9 +892,7 @@ const parseSyncS3 = (value: unknown): StoredSyncS3Config => {
     endpoint: typeof value.endpoint === 'string' ? value.endpoint : '',
     prefix: typeof value.prefix === 'string' ? value.prefix : 'untypo/',
     region: typeof value.region === 'string' ? value.region : '',
-    ...(typeof value.forcePathStyle === 'boolean'
-      ? { forcePathStyle: value.forcePathStyle }
-      : {}),
+    ...(typeof value.forcePathStyle === 'boolean' ? { forcePathStyle: value.forcePathStyle } : {}),
     ...(isEncryptedValue(value.accessKeyId)
       ? { accessKeyId: structuredClone(value.accessKeyId) }
       : {}),
@@ -1006,14 +904,9 @@ const parseSyncS3 = (value: unknown): StoredSyncS3Config => {
 
 const parseSyncWebDav = (value: unknown): StoredSyncWebDavConfig => {
   if (!isRecord(value)) throw new Error('Invalid WebDAV sync settings');
-  assertOnlyKeys(
-    value,
-    ['basePath', 'password', 'url', 'username'],
-    'WebDAV sync settings',
-  );
+  assertOnlyKeys(value, ['basePath', 'password', 'url', 'username'], 'WebDAV sync settings');
   if (
-    (value.url !== undefined &&
-      (typeof value.url !== 'string' || value.url.length > 2_048)) ||
+    (value.url !== undefined && (typeof value.url !== 'string' || value.url.length > 2_048)) ||
     (value.username !== undefined &&
       (typeof value.username !== 'string' || value.username.length > 200)) ||
     (value.basePath !== undefined &&
@@ -1026,15 +919,11 @@ const parseSyncWebDav = (value: unknown): StoredSyncWebDavConfig => {
     basePath: typeof value.basePath === 'string' ? value.basePath : '/untypo/',
     url: typeof value.url === 'string' ? value.url : '',
     username: typeof value.username === 'string' ? value.username : '',
-    ...(isEncryptedValue(value.password)
-      ? { password: structuredClone(value.password) }
-      : {}),
+    ...(isEncryptedValue(value.password) ? { password: structuredClone(value.password) } : {}),
   };
 };
 
-export const parseSyncConfig = (
-  value: unknown,
-): StoredSyncConfig | undefined => {
+export const parseSyncConfig = (value: unknown): StoredSyncConfig | undefined => {
   if (value === undefined) return undefined;
   if (!isRecord(value) || typeof value.enabled !== 'boolean') {
     throw new Error('Invalid sync settings');
@@ -1069,10 +958,7 @@ export const parseSyncConfig = (
   ) {
     throw new Error('Invalid sync provider');
   }
-  if (
-    value.encryptedBackupCode !== undefined &&
-    !isEncryptedValue(value.encryptedBackupCode)
-  ) {
+  if (value.encryptedBackupCode !== undefined && !isEncryptedValue(value.encryptedBackupCode)) {
     throw new Error('Invalid encrypted backup code');
   }
   if (
@@ -1090,10 +976,7 @@ export const parseSyncConfig = (
   ) {
     throw new Error('Invalid last sync status');
   }
-  if (
-    value.lastSyncError !== undefined &&
-    !isNonEmptyString(value.lastSyncError, 2_000)
-  ) {
+  if (value.lastSyncError !== undefined && !isNonEmptyString(value.lastSyncError, 2_000)) {
     throw new Error('Invalid last sync error');
   }
   if (
@@ -1103,20 +986,15 @@ export const parseSyncConfig = (
     throw new Error('Invalid sync history');
   }
   return {
-    ...(value.backupCodeMode === 'custom' ||
-    value.backupCodeMode === 'generated'
+    ...(value.backupCodeMode === 'custom' || value.backupCodeMode === 'generated'
       ? { backupCodeMode: value.backupCodeMode }
       : {}),
     enabled: value.enabled,
     ...(isEncryptedValue(value.encryptedBackupCode)
       ? { encryptedBackupCode: structuredClone(value.encryptedBackupCode) }
       : {}),
-    ...(typeof value.lastSyncAt === 'number'
-      ? { lastSyncAt: value.lastSyncAt }
-      : {}),
-    ...(typeof value.lastSyncError === 'string'
-      ? { lastSyncError: value.lastSyncError }
-      : {}),
+    ...(typeof value.lastSyncAt === 'number' ? { lastSyncAt: value.lastSyncAt } : {}),
+    ...(typeof value.lastSyncError === 'string' ? { lastSyncError: value.lastSyncError } : {}),
     ...(value.lastSyncStatus === 'success' || value.lastSyncStatus === 'error'
       ? { lastSyncStatus: value.lastSyncStatus }
       : {}),
@@ -1127,9 +1005,7 @@ export const parseSyncConfig = (
       ? { recentResults: value.recentResults.map(parseSyncLogEntry) }
       : {}),
     ...(value.s3 === undefined ? {} : { s3: parseSyncS3(value.s3) }),
-    ...(value.webdav === undefined
-      ? {}
-      : { webdav: parseSyncWebDav(value.webdav) }),
+    ...(value.webdav === undefined ? {} : { webdav: parseSyncWebDav(value.webdav) }),
   };
 };
 
@@ -1148,15 +1024,10 @@ const normalizeProfileId = (value: string, fallback: string): string => {
     .replace(/[^a-z0-9._-]+/gu, '-')
     .replace(/^[^a-z0-9]+/u, '')
     .slice(0, 64);
-  return normalized && profileIdPattern.test(normalized)
-    ? normalized
-    : fallback;
+  return normalized && profileIdPattern.test(normalized) ? normalized : fallback;
 };
 
-const reserveUniqueProfileId = (
-  preferred: string,
-  reserved: Set<string>,
-): string => {
+const reserveUniqueProfileId = (preferred: string, reserved: Set<string>): string => {
   const base = normalizeProfileId(preferred, 'migrated-provider');
   for (let counter = 1; ; counter += 1) {
     const suffix = counter === 1 ? '' : `-${counter}`;
@@ -1181,8 +1052,7 @@ const parseLegacyProvider = (value: unknown): LegacyProviderProfile => {
   const transcriptionModel = value.values.transcriptionModel;
   const baseUrl = value.values.baseUrl;
   const name = value.values.name;
-  const allowInsecurePrivateEndpoint =
-    value.values.allowInsecurePrivateEndpoint;
+  const allowInsecurePrivateEndpoint = value.values.allowInsecurePrivateEndpoint;
   if (
     !isNonEmptyString(textModel, 200) ||
     !isNonEmptyString(transcriptionModel, 200) ||
@@ -1200,8 +1070,7 @@ const parseLegacyProvider = (value: unknown): LegacyProviderProfile => {
       ...(typeof allowInsecurePrivateEndpoint === 'boolean'
         ? { allowInsecurePrivateEndpoint }
         : {}),
-      baseUrl:
-        typeof baseUrl === 'string' ? baseUrl : 'https://api.openai.com/v1',
+      baseUrl: typeof baseUrl === 'string' ? baseUrl : 'https://api.openai.com/v1',
       name:
         typeof name === 'string'
           ? name
@@ -1214,9 +1083,7 @@ const parseLegacyProvider = (value: unknown): LegacyProviderProfile => {
   };
 };
 
-const tryParseLegacyProvider = (
-  value: unknown,
-): LegacyProviderProfile | undefined => {
+const tryParseLegacyProvider = (value: unknown): LegacyProviderProfile | undefined => {
   try {
     return parseLegacyProvider(value);
   } catch {
@@ -1227,17 +1094,14 @@ const tryParseLegacyProvider = (
   }
 };
 
-const migrateV1Config = (
-  value: Record<string, unknown>,
-): StoredClientConfig => {
+const migrateV1Config = (value: Record<string, unknown>): StoredClientConfig => {
   if (!isRecord(value.dictation) || !Array.isArray(value.providers)) {
     throw new Error('Invalid legacy configuration data');
   }
   const dictation = value.dictation;
   if (
     !isNonEmptyString(dictation.hotkeyAccelerator, 128) ||
-    (dictation.hotkeyMode !== 'push-to-talk' &&
-      dictation.hotkeyMode !== 'toggle') ||
+    (dictation.hotkeyMode !== 'push-to-talk' && dictation.hotkeyMode !== 'toggle') ||
     (dictation.activeProviderProfileId !== undefined &&
       typeof dictation.activeProviderProfileId !== 'string')
   ) {
@@ -1246,9 +1110,7 @@ const migrateV1Config = (
 
   const legacyProviders = value.providers
     .map(tryParseLegacyProvider)
-    .filter(
-      (profile): profile is LegacyProviderProfile => profile !== undefined,
-    );
+    .filter((profile): profile is LegacyProviderProfile => profile !== undefined);
   const reservedIds = new Set<string>();
   const migratedIds = legacyProviders.map((profile) => ({
     legacyId: profile.id,
@@ -1256,10 +1118,7 @@ const migrateV1Config = (
     textId: '',
   }));
   for (const ids of migratedIds) {
-    ids.textId = reserveUniqueProfileId(
-      `${ids.speechId.slice(0, 59)}-text`,
-      reservedIds,
-    );
+    ids.textId = reserveUniqueProfileId(`${ids.speechId.slice(0, 59)}-text`, reservedIds);
   }
 
   const providers: StoredProviderProfile[] = [];
@@ -1269,16 +1128,14 @@ const migrateV1Config = (
     const sharedValues = {
       ...(typeof profile.values.allowInsecurePrivateEndpoint === 'boolean'
         ? {
-            allowInsecurePrivateEndpoint:
-              profile.values.allowInsecurePrivateEndpoint,
+            allowInsecurePrivateEndpoint: profile.values.allowInsecurePrivateEndpoint,
           }
         : {}),
       baseUrl: profile.values.baseUrl,
       name: profile.values.name,
     };
     const isDefaultOpenAIEndpoint =
-      profile.values.baseUrl.replace(/\/+$/u, '') ===
-      'https://api.openai.com/v1';
+      profile.values.baseUrl.replace(/\/+$/u, '') === 'https://api.openai.com/v1';
     providers.push(
       {
         id: ids.speechId,
@@ -1288,9 +1145,7 @@ const migrateV1Config = (
         values: {
           ...sharedValues,
           model: profile.values.transcriptionModel,
-          presetId: isDefaultOpenAIEndpoint
-            ? 'openai-speech'
-            : 'custom-openai-speech',
+          presetId: isDefaultOpenAIEndpoint ? 'openai-speech' : 'custom-openai-speech',
         },
       },
       {
@@ -1309,9 +1164,7 @@ const migrateV1Config = (
 
   const activeIds =
     typeof dictation.activeProviderProfileId === 'string'
-      ? migratedIds.find(
-          ({ legacyId }) => legacyId === dictation.activeProviderProfileId,
-        )
+      ? migratedIds.find(({ legacyId }) => legacyId === dictation.activeProviderProfileId)
       : migratedIds[0];
   return {
     version: 5,
@@ -1395,9 +1248,7 @@ export class ConfigurationService {
   }
 
   async load(): Promise<StoredClientConfig> {
-    return this.runExclusive(async () =>
-      structuredClone(await this.readCurrent()),
-    );
+    return this.runExclusive(async () => structuredClone(await this.readCurrent()));
   }
 
   async update(
@@ -1423,8 +1274,7 @@ export class ConfigurationService {
     return this.update((config) => {
       if (
         config.dictionary.some(
-          (entry) =>
-            dictionaryTermKey(entry.term) === dictionaryTermKey(normalized),
+          (entry) => dictionaryTermKey(entry.term) === dictionaryTermKey(normalized),
         )
       ) {
         throw new DictionaryEntryError('DICTIONARY_DUPLICATE');
@@ -1443,15 +1293,11 @@ export class ConfigurationService {
     const key = dictionaryTermKey(term);
     return this.update((config) => ({
       ...config,
-      dictionary: config.dictionary.filter(
-        (entry) => dictionaryTermKey(entry.term) !== key,
-      ),
+      dictionary: config.dictionary.filter((entry) => dictionaryTermKey(entry.term) !== key),
     }));
   }
 
-  async setDictionaryLearningEnabled(
-    enabled: boolean,
-  ): Promise<StoredClientConfig> {
+  async setDictionaryLearningEnabled(enabled: boolean): Promise<StoredClientConfig> {
     return this.update((config) => ({
       ...config,
       dictionaryLearning: { enabled },
@@ -1479,9 +1325,7 @@ export class ConfigurationService {
       return emptyPersonalizationState();
     }
     return parsePersonalizationState(
-      JSON.parse(
-        this.#protector.reveal(config.personalization.encryptedState),
-      ) as unknown,
+      JSON.parse(this.#protector.reveal(config.personalization.encryptedState)) as unknown,
     );
   }
 
@@ -1495,14 +1339,10 @@ export class ConfigurationService {
       const current = await this.readCurrent();
       const stored = current.personalization.encryptedState;
       const state = stored
-        ? parsePersonalizationState(
-            JSON.parse(this.#protector.reveal(stored)) as unknown,
-          )
+        ? parsePersonalizationState(JSON.parse(this.#protector.reveal(stored)) as unknown)
         : emptyPersonalizationState();
       const nextState = parsePersonalizationState(
-        structuredClone(
-          mutate(structuredClone(state), structuredClone(current)),
-        ),
+        structuredClone(mutate(structuredClone(state), structuredClone(current))),
       );
       const next: StoredClientConfig = {
         ...current,
@@ -1516,16 +1356,12 @@ export class ConfigurationService {
     });
   }
 
-  async setPersonalizationLearningEnabled(
-    enabled: boolean,
-  ): Promise<StoredClientConfig> {
+  async setPersonalizationLearningEnabled(enabled: boolean): Promise<StoredClientConfig> {
     return this.runExclusive(async () => {
       const current = await this.readCurrent();
       const stored = current.personalization.encryptedState;
       const state = stored
-        ? parsePersonalizationState(
-            JSON.parse(this.#protector.reveal(stored)) as unknown,
-          )
+        ? parsePersonalizationState(JSON.parse(this.#protector.reveal(stored)) as unknown)
         : emptyPersonalizationState();
       const retainedState: PersonalizationPrivateState = {
         candidates: enabled ? state.candidates : [],
@@ -1539,9 +1375,7 @@ export class ConfigurationService {
         retainedState.preferences.length > 0 ||
         retainedState.rejections.length > 0
           ? {
-              encryptedState: this.#protector.protect(
-                JSON.stringify(retainedState),
-              ),
+              encryptedState: this.#protector.protect(JSON.stringify(retainedState)),
             }
           : {}),
       };
@@ -1567,9 +1401,7 @@ export class ConfigurationService {
       return emptyDictionaryLearningState();
     }
     return parseDictionaryLearningState(
-      JSON.parse(
-        this.#protector.reveal(config.dictionaryLearning.encryptedState),
-      ) as unknown,
+      JSON.parse(this.#protector.reveal(config.dictionaryLearning.encryptedState)) as unknown,
     );
   }
 
@@ -1583,17 +1415,13 @@ export class ConfigurationService {
       const current = await this.readCurrent();
       const stored = current.dictionaryLearning.encryptedState;
       const state = stored
-        ? parseDictionaryLearningState(
-            JSON.parse(this.#protector.reveal(stored)) as unknown,
-          )
+        ? parseDictionaryLearningState(JSON.parse(this.#protector.reveal(stored)) as unknown)
         : emptyDictionaryLearningState();
       if (!current.dictionaryLearning.enabled) {
         return emptyDictionaryLearningState();
       }
       const nextState = parseDictionaryLearningState(
-        structuredClone(
-          mutate(structuredClone(state), structuredClone(current)),
-        ),
+        structuredClone(mutate(structuredClone(state), structuredClone(current))),
       );
       const next: StoredClientConfig = {
         ...current,
@@ -1607,9 +1435,7 @@ export class ConfigurationService {
     });
   }
 
-  async replaceDictionaryLearningState(
-    state: DictionaryLearningPrivateState,
-  ): Promise<void> {
+  async replaceDictionaryLearningState(state: DictionaryLearningPrivateState): Promise<void> {
     const nextState = parseDictionaryLearningState(structuredClone(state));
     await this.update((config) => ({
       ...config,
@@ -1617,18 +1443,14 @@ export class ConfigurationService {
         enabled: config.dictionaryLearning.enabled,
         ...(nextState.candidates.length > 0 || nextState.rejections.length > 0
           ? {
-              encryptedState: this.#protector.protect(
-                JSON.stringify(nextState),
-              ),
+              encryptedState: this.#protector.protect(JSON.stringify(nextState)),
             }
           : {}),
       },
     }));
   }
 
-  async replacePersonalizationLearningState(
-    state: PersonalizationPrivateState,
-  ): Promise<void> {
+  async replacePersonalizationLearningState(state: PersonalizationPrivateState): Promise<void> {
     const nextState = parsePersonalizationState(structuredClone(state));
     await this.update((config) => ({
       ...config,
@@ -1638,9 +1460,7 @@ export class ConfigurationService {
         nextState.preferences.length > 0 ||
         nextState.rejections.length > 0
           ? {
-              encryptedState: this.#protector.protect(
-                JSON.stringify(nextState),
-              ),
+              encryptedState: this.#protector.protect(JSON.stringify(nextState)),
             }
           : {}),
       },
@@ -1648,9 +1468,7 @@ export class ConfigurationService {
   }
 
   async setProfile(profile?: UserProfileContext): Promise<StoredClientConfig> {
-    const encryptedProfile = profile
-      ? this.#protector.protect(JSON.stringify(profile))
-      : undefined;
+    const encryptedProfile = profile ? this.#protector.protect(JSON.stringify(profile)) : undefined;
     return this.update((config) => {
       const next = { ...config };
       if (encryptedProfile) next.encryptedProfile = encryptedProfile;
@@ -1662,40 +1480,28 @@ export class ConfigurationService {
   async getProfile(): Promise<UserProfileContext | undefined> {
     const config = await this.load();
     if (!config.encryptedProfile) return undefined;
-    const value: unknown = JSON.parse(
-      this.#protector.reveal(config.encryptedProfile),
-    );
+    const value: unknown = JSON.parse(this.#protector.reveal(config.encryptedProfile));
     return parseUserProfile(value);
   }
 
   async upsertProvider(profile: ProviderProfile): Promise<StoredClientConfig> {
-    if (
-      !profileIdPattern.test(profile.id) ||
-      providerKinds[profile.providerId] !== profile.kind
-    ) {
+    if (!profileIdPattern.test(profile.id) || providerKinds[profile.providerId] !== profile.kind) {
       throw new Error('Invalid provider profile');
     }
     assertOnlyKeys(profile.secrets, ['apiKey'], 'Provider secrets');
     const values = parseProviderValues(profile.values);
     const apiKey = profile.secrets.apiKey;
-    if (
-      apiKey !== undefined &&
-      (!isNonEmptyString(apiKey, 16_384) || apiKey.trim().length === 0)
-    ) {
+    if (apiKey !== undefined && (!isNonEmptyString(apiKey, 16_384) || apiKey.trim().length === 0)) {
       throw new Error('Invalid provider API key');
     }
 
     return this.update((config) => {
-      const existing = config.providers.find(
-        (entry) => entry.id === profile.id,
-      );
+      const existing = config.providers.find((entry) => entry.id === profile.id);
       if (existing && existing.kind !== profile.kind) {
         throw new Error('A provider profile cannot change kind');
       }
       const encryptedApiKey =
-        apiKey === undefined
-          ? existing?.secrets.apiKey
-          : this.#protector.protect(apiKey);
+        apiKey === undefined ? existing?.secrets.apiKey : this.#protector.protect(apiKey);
       if (!encryptedApiKey) {
         throw new Error('A new provider profile requires an API key');
       }
@@ -1707,25 +1513,16 @@ export class ConfigurationService {
         values,
       };
       const dictation = { ...config.dictation };
-      if (
-        profile.kind === 'speech' &&
-        dictation.activeTextProviderProfileId === profile.id
-      ) {
+      if (profile.kind === 'speech' && dictation.activeTextProviderProfileId === profile.id) {
         delete dictation.activeTextProviderProfileId;
       }
-      if (
-        profile.kind === 'text' &&
-        dictation.activeSpeechProviderProfileId === profile.id
-      ) {
+      if (profile.kind === 'text' && dictation.activeSpeechProviderProfileId === profile.id) {
         delete dictation.activeSpeechProviderProfileId;
       }
       return {
         ...config,
         dictation,
-        providers: [
-          ...config.providers.filter((entry) => entry.id !== profile.id),
-          stored,
-        ],
+        providers: [...config.providers.filter((entry) => entry.id !== profile.id), stored],
       };
     });
   }
@@ -1739,10 +1536,7 @@ export class ConfigurationService {
       kind: stored.kind,
       providerId: stored.providerId,
       secrets: Object.fromEntries(
-        Object.entries(stored.secrets).map(([key, value]) => [
-          key,
-          this.#protector.reveal(value),
-        ]),
+        Object.entries(stored.secrets).map(([key, value]) => [key, this.#protector.reveal(value)]),
       ),
       values: structuredClone(stored.values),
     };
@@ -1778,11 +1572,7 @@ export class ConfigurationService {
     try {
       return parseConfig(await readFile(this.#configPath, 'utf8'));
     } catch (error) {
-      if (
-        isRecord(error) &&
-        'code' in error &&
-        (error as { code?: unknown }).code === 'ENOENT'
-      ) {
+      if (isRecord(error) && 'code' in error && (error as { code?: unknown }).code === 'ENOENT') {
         return { config: defaultConfig(), migrated: false };
       }
       throw error;

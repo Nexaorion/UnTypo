@@ -6,13 +6,7 @@ export type ProviderKind = ModelProviderKind;
 export type ProviderAdapterId = ModelProviderId;
 
 export type ProviderIconId =
-  | 'alibaba-cloud'
-  | 'anthropic'
-  | 'custom'
-  | 'deepseek'
-  | 'groq'
-  | 'openai'
-  | 'openrouter';
+  'alibaba-cloud' | 'anthropic' | 'custom' | 'deepseek' | 'groq' | 'openai' | 'openrouter';
 
 export type ProviderPresetId =
   | 'aliyun-bailian-speech'
@@ -38,8 +32,7 @@ export interface ProviderPreset {
 
 export interface TextEndpointTypeOption {
   labelKey: MessageKey;
-  providerId:
-    'anthropic-text' | 'openai-compatible-text' | 'openai-responses-text';
+  providerId: 'anthropic-text' | 'openai-compatible-text' | 'openai-responses-text';
 }
 
 export const TEXT_ENDPOINT_TYPES = [
@@ -103,9 +96,7 @@ export const PROVIDER_PRESETS = [
     labelKey: 'provider.preset.custom',
     name: 'Custom provider',
     providerId: 'openai-responses-text',
-    supportedProviderIds: TEXT_ENDPOINT_TYPES.map(
-      ({ providerId }) => providerId,
-    ),
+    supportedProviderIds: TEXT_ENDPOINT_TYPES.map(({ providerId }) => providerId),
   },
   {
     baseUrl: 'https://api.openai.com/v1',
@@ -145,9 +136,7 @@ export const PROVIDER_PRESETS = [
   },
 ] as const satisfies readonly ProviderPreset[];
 
-export const getProviderPreset = (
-  presetId: string,
-): ProviderPreset | undefined =>
+export const getProviderPreset = (presetId: string): ProviderPreset | undefined =>
   PROVIDER_PRESETS.find((preset) => preset.id === presetId);
 
 export const presetSupportsProviderId = (
@@ -158,14 +147,10 @@ export const presetSupportsProviderId = (
     (candidate) => candidate === providerId,
   );
 
-export const getProviderPresets = (
-  kind: ProviderKind,
-): readonly ProviderPreset[] =>
+export const getProviderPresets = (kind: ProviderKind): readonly ProviderPreset[] =>
   PROVIDER_PRESETS.filter((preset) => preset.kind === kind);
 
-export const getDefaultProviderPreset = (
-  kind: ProviderKind,
-): ProviderPreset => {
+export const getDefaultProviderPreset = (kind: ProviderKind): ProviderPreset => {
   const preset = getProviderPresets(kind)[0];
   if (!preset) throw new Error(`No provider presets for ${kind}`);
   return preset;
@@ -183,17 +168,12 @@ export const resolveProviderPreset = ({
   providerId: string;
 }): ProviderPreset => {
   const explicit = getProviderPreset(presetId);
-  if (
-    explicit?.kind === kind &&
-    presetSupportsProviderId(explicit, providerId)
-  ) {
+  if (explicit?.kind === kind && presetSupportsProviderId(explicit, providerId)) {
     return explicit;
   }
 
   const exactEndpoint = getProviderPresets(kind).find(
-    (preset) =>
-      presetSupportsProviderId(preset, providerId) &&
-      preset.baseUrl === baseUrl.trim(),
+    (preset) => presetSupportsProviderId(preset, providerId) && preset.baseUrl === baseUrl.trim(),
   );
   if (exactEndpoint) return exactEndpoint;
 

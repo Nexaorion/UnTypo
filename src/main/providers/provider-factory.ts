@@ -57,8 +57,7 @@ const toProviderConfiguration = (
     model: profile.values.model,
     ...(typeof profile.values.allowInsecurePrivateEndpoint === 'boolean'
       ? {
-          allowInsecurePrivateEndpoint:
-            profile.values.allowInsecurePrivateEndpoint,
+          allowInsecurePrivateEndpoint: profile.values.allowInsecurePrivateEndpoint,
         }
       : {}),
   };
@@ -95,10 +94,7 @@ export const createSpeechProvider = (
   const configuration = toProviderConfiguration(profile);
   if (!configuration) throw new Error('Provider profile is incomplete');
   if (profile.providerId === 'openai-compatible-speech') {
-    return new OpenAICompatibleSpeechProvider(
-      configuration,
-      fetchImplementation,
-    );
+    return new OpenAICompatibleSpeechProvider(configuration, fetchImplementation);
   }
   if (profile.providerId === 'aliyun-bailian-speech') {
     return new AliyunBailianSpeechProvider(
@@ -135,9 +131,7 @@ const createConnectionTestWav = (): AudioPayload => {
   wav.write('data', 36, 'ascii');
   wav.writeUInt32LE(audioByteLength, 40);
   for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
-    const sample = Math.round(
-      Math.sin((2 * Math.PI * 440 * sampleIndex) / sampleRateHz) * 0x1800,
-    );
+    const sample = Math.round(Math.sin((2 * Math.PI * 440 * sampleIndex) / sampleRateHz) * 0x1800);
     wav.writeInt16LE(sample, 44 + sampleIndex * bytesPerSample);
   }
   return {

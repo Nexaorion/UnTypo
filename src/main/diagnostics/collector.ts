@@ -87,16 +87,12 @@ const normalizeError = (error: unknown): ClientDiagnosticIssue['error'] => {
     };
   }
   return {
-    message: redactDiagnosticText(
-      typeof error === 'string' ? error : 'Unknown application error',
-    ),
+    message: redactDiagnosticText(typeof error === 'string' ? error : 'Unknown application error'),
     name: 'Error',
   };
 };
 
-const requestBodySize = (
-  body: BodyInit | null | undefined,
-): number | undefined => {
+const requestBodySize = (body: BodyInit | null | undefined): number | undefined => {
   if (typeof body === 'string') return Buffer.byteLength(body, 'utf8');
   if (body instanceof URLSearchParams) {
     return Buffer.byteLength(body.toString(), 'utf8');
@@ -106,10 +102,7 @@ const requestBodySize = (
   return undefined;
 };
 
-const headerValue = (
-  headers: HeadersInit | undefined,
-  name: string,
-): string | undefined => {
+const headerValue = (headers: HeadersInit | undefined, name: string): string | undefined => {
   if (!headers) return undefined;
   return new Headers(headers).get(name) ?? undefined;
 };
@@ -129,12 +122,8 @@ const parseStoredIssues = (value: unknown): StoredDiagnosticIssue[] => {
   );
 };
 
-const toClientIssue = (
-  issue: StoredDiagnosticIssue,
-): ClientDiagnosticIssue => ({
-  ...(issue.acknowledgedAt !== undefined
-    ? { acknowledgedAt: issue.acknowledgedAt }
-    : {}),
+const toClientIssue = (issue: StoredDiagnosticIssue): ClientDiagnosticIssue => ({
+  ...(issue.acknowledgedAt !== undefined ? { acknowledgedAt: issue.acknowledgedAt } : {}),
   audioAvailable: issue.audioAvailable,
   ...(issue.context ? { context: issue.context } : {}),
   error: issue.error,
@@ -194,8 +183,7 @@ export class DiagnosticCollector {
     const acknowledgedAt = this.#now();
     let changed = false;
     this.#issues = this.#issues.map((issue) => {
-      if (!ids.has(issue.id) || issue.acknowledgedAt !== undefined)
-        return issue;
+      if (!ids.has(issue.id) || issue.acknowledgedAt !== undefined) return issue;
       changed = true;
       if (issue.audioFileName) this.removeAttachment(issue.audioFileName);
       return {
@@ -242,10 +230,7 @@ export class DiagnosticCollector {
     const audioFiles: DiagnosticArchiveEntry[] = [];
     const clientIssues = selected.map((issue) => {
       if (request.includeAudio && issue.audioFileName) {
-        const sourcePath = path.join(
-          this.#attachmentsDirectory,
-          issue.audioFileName,
-        );
+        const sourcePath = path.join(this.#attachmentsDirectory, issue.audioFileName);
         if (existsSync(sourcePath)) {
           audioFiles.push({
             data: readFileSync(sourcePath),
@@ -314,11 +299,7 @@ export class DiagnosticCollector {
       const startedAt = this.#now();
       const request = input instanceof Request ? input : undefined;
       const requestUrl =
-        typeof input === 'string'
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       const endpoint = sanitizeDiagnosticEndpoint(request?.url ?? requestUrl);
       const method = (init?.method ?? request?.method ?? 'GET').toUpperCase();
       const body = init?.body ?? request?.body;
@@ -384,12 +365,9 @@ export class DiagnosticCollector {
   }
 
   log(input: DiagnosticLogInput): ClientDiagnosticLogEntry {
-    const operationId =
-      input.operationId ?? this.#operation.getStore()?.operationId;
+    const operationId = input.operationId ?? this.#operation.getStore()?.operationId;
     const entry: ClientDiagnosticLogEntry = {
-      ...(input.context
-        ? { context: sanitizeDiagnosticContext(input.context) ?? {} }
-        : {}),
+      ...(input.context ? { context: sanitizeDiagnosticContext(input.context) ?? {} } : {}),
       id: randomUUID(),
       level: input.level ?? 'info',
       message: redactDiagnosticText(input.message),
@@ -400,10 +378,7 @@ export class DiagnosticCollector {
     if (!this.#enabled) return entry;
     this.#recentEntries.push(entry);
     if (this.#recentEntries.length > maxRecentEntries) {
-      this.#recentEntries.splice(
-        0,
-        this.#recentEntries.length - maxRecentEntries,
-      );
+      this.#recentEntries.splice(0, this.#recentEntries.length - maxRecentEntries);
     }
     const serialized = `${JSON.stringify(entry)}\n`;
     this.enqueueWrite(async () => {
@@ -428,8 +403,7 @@ export class DiagnosticCollector {
 
   recordIssue(input: DiagnosticIssueInput): ClientDiagnosticIssue {
     const occurredAt = this.#now();
-    const operationId =
-      input.operationId ?? this.#operation.getStore()?.operationId;
+    const operationId = input.operationId ?? this.#operation.getStore()?.operationId;
     const error = normalizeError(input.error);
     const errorEntry = this.log({
       context: input.context,
@@ -443,10 +417,7 @@ export class DiagnosticCollector {
     if (this.#enabled && input.audio && input.audio.bytes.byteLength > 0) {
       const fileName = `${id}.${audioExtension(input.audio.mimeType)}`;
       try {
-        writeFileSync(
-          path.join(this.#attachmentsDirectory, fileName),
-          input.audio.bytes,
-        );
+        writeFileSync(path.join(this.#attachmentsDirectory, fileName), input.audio.bytes);
         audioFileName = fileName;
       } catch (audioError) {
         this.log({
@@ -461,9 +432,7 @@ export class DiagnosticCollector {
     const issue: StoredDiagnosticIssue = {
       ...(audioFileName ? { audioFileName } : {}),
       audioAvailable: audioFileName !== undefined,
-      ...(input.context
-        ? { context: sanitizeDiagnosticContext(input.context) ?? {} }
-        : {}),
+      ...(input.context ? { context: sanitizeDiagnosticContext(input.context) ?? {} } : {}),
       error,
       id,
       kind: input.kind,
@@ -501,19 +470,14 @@ export class DiagnosticCollector {
     });
   }
 
-  runWithOperation<T>(
-    operationId: string,
-    action: () => Promise<T>,
-  ): Promise<T> {
+  runWithOperation<T>(operationId: string, action: () => Promise<T>): Promise<T> {
     return this.#operation.run({ operationId }, action);
   }
 
   snapshot(): ClientDiagnosticSnapshot {
     return {
       generatedAt: this.#now(),
-      issues: this.#issues.map((issue) =>
-        structuredClone(toClientIssue(issue)),
-      ),
+      issues: this.#issues.map((issue) => structuredClone(toClientIssue(issue))),
       privacy: {
         audioExportIsOptIn: true,
         requestBodiesCollected: false,
@@ -553,10 +517,7 @@ export class DiagnosticCollector {
     let candidate = path.join(this.#logsDirectory, `${day}.jsonl`);
     try {
       if (existsSync(candidate) && statSync(candidate).size >= maxLogBytes) {
-        candidate = path.join(
-          this.#logsDirectory,
-          `${day}-${this.#sessionId}.jsonl`,
-        );
+        candidate = path.join(this.#logsDirectory, `${day}-${this.#sessionId}.jsonl`);
       }
     } catch {
       // enqueueWrite will surface any real write failure.

@@ -25,12 +25,10 @@ const createContents = () => {
       listeners.set(channel, bucket);
       return contents;
     }),
-    removeListener: vi.fn(
-      (channel: string, listener: (...args: unknown[]) => void) => {
-        listeners.get(channel)?.delete(listener);
-        return contents;
-      },
-    ),
+    removeListener: vi.fn((channel: string, listener: (...args: unknown[]) => void) => {
+      listeners.get(channel)?.delete(listener);
+      return contents;
+    }),
     send: vi.fn(),
     emit(channel: string, ...args: unknown[]) {
       for (const listener of [...(listeners.get(channel) ?? [])]) {
@@ -85,19 +83,16 @@ describe('RendererHotkeyCapture', () => {
     );
 
     expect(preventDefault).toHaveBeenCalledOnce();
-    expect(contents.send).toHaveBeenCalledWith(
-      IPC_CHANNELS.hotkeyCaptureEvent,
-      {
-        altKey: true,
-        code: 'KeyD',
-        ctrlKey: true,
-        key: '∂',
-        metaKey: false,
-        repeat: false,
-        shiftKey: false,
-        type: 'keyDown',
-      },
-    );
+    expect(contents.send).toHaveBeenCalledWith(IPC_CHANNELS.hotkeyCaptureEvent, {
+      altKey: true,
+      code: 'KeyD',
+      ctrlKey: true,
+      key: '∂',
+      metaKey: false,
+      repeat: false,
+      shiftKey: false,
+      type: 'keyDown',
+    });
     capture.stop();
   });
 

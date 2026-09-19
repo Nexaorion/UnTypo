@@ -15,9 +15,7 @@ export class ElectronSecretProtector implements SecretProtector {
     if (encrypted.scheme !== 'electron-safe-storage-v1') {
       throw new Error('Unsupported encrypted value');
     }
-    return safeStorage.decryptString(
-      Buffer.from(encrypted.ciphertext, 'base64'),
-    );
+    return safeStorage.decryptString(Buffer.from(encrypted.ciphertext, 'base64'));
   }
 
   private assertAvailable(): void {

@@ -22,8 +22,7 @@ import { ProvidersSection } from './providers.js';
 import { SettingsSection } from './settings.js';
 import { SyncSection } from './sync.js';
 
-export type SettingsTab =
-  'settings' | 'models' | 'personalization' | 'sync' | 'problems';
+export type SettingsTab = 'settings' | 'models' | 'personalization' | 'sync' | 'problems';
 
 const expandedNavigationQuery = '@media (min-width: 1000px)';
 
@@ -176,10 +175,9 @@ const SettingsNavigation = ({
               minWidth: 0,
               px: 0,
               position: 'relative',
-              transition: currentTheme.transitions.create(
-                ['background-color', 'color'],
-                { duration: currentTheme.transitions.duration.shorter },
-              ),
+              transition: currentTheme.transitions.create(['background-color', 'color'], {
+                duration: currentTheme.transitions.duration.shorter,
+              }),
               [expandedNavigationQuery]: {
                 justifyContent: 'flex-start',
                 px: 1.75,
@@ -189,10 +187,7 @@ const SettingsNavigation = ({
                 color: 'text.primary',
               },
               '&.Mui-selected': {
-                backgroundColor: themeAlpha(
-                  themePalette(currentTheme).primary.main,
-                  0.1,
-                ),
+                backgroundColor: themeAlpha(themePalette(currentTheme).primary.main, 0.1),
                 color: 'primary.main',
               },
             })}
@@ -283,9 +278,7 @@ export const SettingsDialog = ({
               py: 1.5,
             }}
           >
-            <Typography sx={{ fontSize: 16, fontWeight: 720 }}>
-              {title}
-            </Typography>
+            <Typography sx={{ fontSize: 16, fontWeight: 720 }}>{title}</Typography>
             <IconButton
               aria-label={t('action.close')}
               data-testid="settings-close"

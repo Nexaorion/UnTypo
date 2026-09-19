@@ -88,11 +88,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
 
   if (value.general !== undefined) {
     if (!isRecord(value.general)) throw new Error('Invalid general settings');
-    assertOnlyKeys(
-      value.general,
-      ['launchAtLogin', 'locale'],
-      'General settings',
-    );
+    assertOnlyKeys(value.general, ['launchAtLogin', 'locale'], 'General settings');
     const general: NonNullable<ClientSettingsUpdate['general']> = {};
     if (value.general.launchAtLogin !== undefined) {
       if (typeof value.general.launchAtLogin !== 'boolean')
@@ -107,8 +103,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
   }
 
   if (value.dictation !== undefined) {
-    if (!isRecord(value.dictation))
-      throw new Error('Invalid dictation settings');
+    if (!isRecord(value.dictation)) throw new Error('Invalid dictation settings');
     assertOnlyKeys(
       value.dictation,
       [
@@ -132,8 +127,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
       ) {
         throw new Error('Invalid active speech provider profile');
       }
-      dictation.activeSpeechProviderProfileId =
-        value.dictation.activeSpeechProviderProfileId;
+      dictation.activeSpeechProviderProfileId = value.dictation.activeSpeechProviderProfileId;
     }
     if (value.dictation.activeTextProviderProfileId !== undefined) {
       if (
@@ -143,8 +137,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
       ) {
         throw new Error('Invalid active text provider profile');
       }
-      dictation.activeTextProviderProfileId =
-        value.dictation.activeTextProviderProfileId;
+      dictation.activeTextProviderProfileId = value.dictation.activeTextProviderProfileId;
     }
     if (value.dictation.defaultTargetLanguage !== undefined) {
       if (!isLanguage(value.dictation.defaultTargetLanguage))
@@ -167,8 +160,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
       dictation.hotkeyAccelerator = value.dictation.hotkeyAccelerator;
     }
     if (value.dictation.language !== undefined) {
-      if (!isLanguage(value.dictation.language))
-        throw new Error('Invalid dictation language');
+      if (!isLanguage(value.dictation.language)) throw new Error('Invalid dictation language');
       dictation.language = value.dictation.language;
     }
     if (value.dictation.microphoneDeviceId !== undefined) {
@@ -204,11 +196,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
 
   if (value.history !== undefined) {
     if (!isRecord(value.history)) throw new Error('Invalid history settings');
-    assertOnlyKeys(
-      value.history,
-      ['enabled', 'retentionDays'],
-      'History settings',
-    );
+    assertOnlyKeys(value.history, ['enabled', 'retentionDays'], 'History settings');
     const history: NonNullable<ClientSettingsUpdate['history']> = {};
     if (value.history.enabled !== undefined) {
       if (typeof value.history.enabled !== 'boolean')
@@ -232,11 +220,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
 
   if (value.updates !== undefined) {
     if (!isRecord(value.updates)) throw new Error('Invalid update settings');
-    assertOnlyKeys(
-      value.updates,
-      ['autoCheck', 'autoDownload'],
-      'Update settings',
-    );
+    assertOnlyKeys(value.updates, ['autoCheck', 'autoDownload'], 'Update settings');
     const updates: NonNullable<ClientSettingsUpdate['updates']> = {};
     if (value.updates.autoCheck !== undefined) {
       if (typeof value.updates.autoCheck !== 'boolean') {
@@ -261,21 +245,15 @@ export const parseApplicationWritingStyleUpdate = (
 ): ClientApplicationWritingStyleUpdate => {
   if (!isRecord(value)) throw new Error('Invalid application writing style');
   assertOnlyKeys(value, ['application', 'style'], 'Application writing style');
-  const application = TARGET_APPLICATION_KINDS.find(
-    (candidate) => candidate === value.application,
-  );
-  const style = WRITING_STYLE_PRESETS.find(
-    (candidate) => candidate === value.style,
-  );
+  const application = TARGET_APPLICATION_KINDS.find((candidate) => candidate === value.application);
+  const style = WRITING_STYLE_PRESETS.find((candidate) => candidate === value.style);
   if (!application || !style) {
     throw new Error('Invalid application writing style');
   }
   return { application, style };
 };
 
-export const parsePersonalizationLearningEnabled = (
-  value: unknown,
-): boolean => {
+export const parsePersonalizationLearningEnabled = (value: unknown): boolean => {
   if (typeof value !== 'boolean') {
     throw new Error('Invalid personalization learning setting');
   }
@@ -303,22 +281,12 @@ export const parseDictionaryLearningEnabled = (value: unknown): boolean => {
   return value;
 };
 
-export const parseProfile = (
-  value: unknown,
-): UserProfileContext | undefined => {
+export const parseProfile = (value: unknown): UserProfileContext | undefined => {
   if (value === undefined || value === null) return undefined;
   if (!isRecord(value)) throw new Error('Invalid personal profile');
-  assertOnlyKeys(
-    value,
-    ['displayName', 'preferredName', 'signature'],
-    'Personal profile',
-  );
+  assertOnlyKeys(value, ['displayName', 'preferredName', 'signature'], 'Personal profile');
   const displayName = optionalString(value.displayName, 'display name', 200);
-  const preferredName = optionalString(
-    value.preferredName,
-    'preferred name',
-    200,
-  );
+  const preferredName = optionalString(value.preferredName, 'preferred name', 200);
   const signature = optionalString(value.signature, 'signature', 1_000);
   return {
     ...(displayName === undefined ? {} : { displayName }),
@@ -329,11 +297,7 @@ export const parseProfile = (
 
 export const parseProviderInput = (value: unknown): ClientProviderInput => {
   if (!isRecord(value)) throw new Error('Invalid provider profile');
-  assertOnlyKeys(
-    value,
-    ['id', 'kind', 'providerId', 'secrets', 'values'],
-    'Provider profile',
-  );
+  assertOnlyKeys(value, ['id', 'kind', 'providerId', 'secrets', 'values'], 'Provider profile');
   if (
     typeof value.id !== 'string' ||
     !profileIdPattern.test(value.id) ||
@@ -372,8 +336,7 @@ export const parseProviderInput = (value: unknown): ClientProviderInput => {
   );
   if (
     (value.secrets.apiKey !== undefined &&
-      (typeof value.secrets.apiKey !== 'string' ||
-        value.secrets.apiKey.length > 16_384)) ||
+      (typeof value.secrets.apiKey !== 'string' || value.secrets.apiKey.length > 16_384)) ||
     typeof value.values.name !== 'string' ||
     value.values.name.trim().length === 0 ||
     value.values.name.length > 200 ||
@@ -394,8 +357,7 @@ export const parseProviderInput = (value: unknown): ClientProviderInput => {
     throw new Error('Invalid provider configuration');
   }
   const apiKey =
-    typeof value.secrets.apiKey === 'string' &&
-    value.secrets.apiKey.trim().length > 0
+    typeof value.secrets.apiKey === 'string' && value.secrets.apiKey.trim().length > 0
       ? value.secrets.apiKey
       : undefined;
   return {
@@ -410,8 +372,7 @@ export const parseProviderInput = (value: unknown): ClientProviderInput => {
       baseUrl: value.values.baseUrl,
       ...(typeof value.values.allowInsecurePrivateEndpoint === 'boolean'
         ? {
-            allowInsecurePrivateEndpoint:
-              value.values.allowInsecurePrivateEndpoint,
+            allowInsecurePrivateEndpoint: value.values.allowInsecurePrivateEndpoint,
           }
         : {}),
       ...(typeof value.values.realtimeSpeechEnabled === 'boolean'
@@ -440,12 +401,7 @@ export const parseHistoryQuery = (value: unknown): ClientHistoryQuery => {
   const limit = value.limit;
   const offset = value.offset;
   if (limit !== undefined) {
-    if (
-      typeof limit !== 'number' ||
-      !Number.isInteger(limit) ||
-      limit < 1 ||
-      limit > 500
-    ) {
+    if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < 1 || limit > 500) {
       throw new Error('Invalid history query');
     }
   }
@@ -483,21 +439,10 @@ const parseSyncS3Update = (value: unknown): ClientSyncS3Update => {
   if (!isRecord(value)) throw new Error('Invalid S3 sync settings');
   assertOnlyKeys(
     value,
-    [
-      'accessKeyId',
-      'bucket',
-      'endpoint',
-      'forcePathStyle',
-      'prefix',
-      'region',
-      'secretAccessKey',
-    ],
+    ['accessKeyId', 'bucket', 'endpoint', 'forcePathStyle', 'prefix', 'region', 'secretAccessKey'],
     'S3 sync settings',
   );
-  if (
-    value.forcePathStyle !== undefined &&
-    typeof value.forcePathStyle !== 'boolean'
-  ) {
+  if (value.forcePathStyle !== undefined && typeof value.forcePathStyle !== 'boolean') {
     throw new Error('Invalid S3 path style setting');
   }
   return {
@@ -510,20 +455,14 @@ const parseSyncS3Update = (value: unknown): ClientSyncS3Update => {
     ...(optionalBoundedString(value.endpoint, 'S3 endpoint', 2_048)
       ? { endpoint: value.endpoint as string }
       : {}),
-    ...(typeof value.forcePathStyle === 'boolean'
-      ? { forcePathStyle: value.forcePathStyle }
-      : {}),
+    ...(typeof value.forcePathStyle === 'boolean' ? { forcePathStyle: value.forcePathStyle } : {}),
     ...(optionalBoundedString(value.prefix, 'S3 prefix', 512)
       ? { prefix: value.prefix as string }
       : {}),
     ...(optionalBoundedString(value.region, 'S3 region', 64)
       ? { region: value.region as string }
       : {}),
-    ...(optionalBoundedString(
-      value.secretAccessKey,
-      'S3 secret access key',
-      16_384,
-    )
+    ...(optionalBoundedString(value.secretAccessKey, 'S3 secret access key', 16_384)
       ? { secretAccessKey: value.secretAccessKey as string }
       : {}),
   };
@@ -531,11 +470,7 @@ const parseSyncS3Update = (value: unknown): ClientSyncS3Update => {
 
 const parseSyncWebDavUpdate = (value: unknown): ClientSyncWebDavUpdate => {
   if (!isRecord(value)) throw new Error('Invalid WebDAV sync settings');
-  assertOnlyKeys(
-    value,
-    ['basePath', 'password', 'url', 'username'],
-    'WebDAV sync settings',
-  );
+  assertOnlyKeys(value, ['basePath', 'password', 'url', 'username'], 'WebDAV sync settings');
   return {
     ...(optionalBoundedString(value.basePath, 'WebDAV base path', 512)
       ? { basePath: value.basePath as string }
@@ -543,38 +478,24 @@ const parseSyncWebDavUpdate = (value: unknown): ClientSyncWebDavUpdate => {
     ...(optionalBoundedString(value.password, 'WebDAV password', 16_384)
       ? { password: value.password as string }
       : {}),
-    ...(optionalBoundedString(value.url, 'WebDAV URL', 2_048)
-      ? { url: value.url as string }
-      : {}),
+    ...(optionalBoundedString(value.url, 'WebDAV URL', 2_048) ? { url: value.url as string } : {}),
     ...(optionalBoundedString(value.username, 'WebDAV username', 200)
       ? { username: value.username as string }
       : {}),
   };
 };
 
-export const parseSyncConfigUpdate = (
-  value: unknown,
-): ClientSyncConfigUpdate => {
+export const parseSyncConfigUpdate = (value: unknown): ClientSyncConfigUpdate => {
   if (!isRecord(value)) throw new Error('Invalid sync configuration');
   assertOnlyKeys(
     value,
-    [
-      'backupCode',
-      'enabled',
-      'generateBackupCode',
-      'providerId',
-      's3',
-      'webdav',
-    ],
+    ['backupCode', 'enabled', 'generateBackupCode', 'providerId', 's3', 'webdav'],
     'Sync configuration',
   );
   if (value.enabled !== undefined && typeof value.enabled !== 'boolean') {
     throw new Error('Invalid sync enabled setting');
   }
-  if (
-    value.generateBackupCode !== undefined &&
-    typeof value.generateBackupCode !== 'boolean'
-  ) {
+  if (value.generateBackupCode !== undefined && typeof value.generateBackupCode !== 'boolean') {
     throw new Error('Invalid backup code generation setting');
   }
   if (
@@ -586,15 +507,12 @@ export const parseSyncConfigUpdate = (
   }
   if (
     value.backupCode !== undefined &&
-    (typeof value.backupCode !== 'string' ||
-      value.backupCode.length > SYNC_BACKUP_CODE_MAX_LENGTH)
+    (typeof value.backupCode !== 'string' || value.backupCode.length > SYNC_BACKUP_CODE_MAX_LENGTH)
   ) {
     throw new Error('Invalid backup code');
   }
   return {
-    ...(typeof value.backupCode === 'string'
-      ? { backupCode: value.backupCode }
-      : {}),
+    ...(typeof value.backupCode === 'string' ? { backupCode: value.backupCode } : {}),
     ...(typeof value.enabled === 'boolean' ? { enabled: value.enabled } : {}),
     ...(typeof value.generateBackupCode === 'boolean'
       ? { generateBackupCode: value.generateBackupCode }
@@ -603,18 +521,12 @@ export const parseSyncConfigUpdate = (
       ? { providerId: value.providerId as SyncProviderId }
       : {}),
     ...(value.s3 === undefined ? {} : { s3: parseSyncS3Update(value.s3) }),
-    ...(value.webdav === undefined
-      ? {}
-      : { webdav: parseSyncWebDavUpdate(value.webdav) }),
+    ...(value.webdav === undefined ? {} : { webdav: parseSyncWebDavUpdate(value.webdav) }),
   };
 };
 
 export const parseRemoteBackupPath = (value: unknown): string => {
-  if (
-    typeof value !== 'string' ||
-    value.trim().length === 0 ||
-    value.length > 1_024
-  ) {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > 1_024) {
     throw new Error('Invalid remote backup path');
   }
   if (value.includes('..') || value.includes('\\')) {

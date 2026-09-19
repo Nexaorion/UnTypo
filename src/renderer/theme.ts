@@ -76,10 +76,7 @@ export const theme = createTheme({
       defaultProps: { variant: 'outlined' },
       styleOverrides: {
         root: ({ theme: currentTheme }) => ({
-          backgroundColor: themeAlpha(
-            currentTheme.vars.palette.background.paper,
-            0.92,
-          ),
+          backgroundColor: themeAlpha(currentTheme.vars.palette.background.paper, 0.92),
           borderColor: currentTheme.vars.palette.divider,
         }),
       },
@@ -221,8 +218,7 @@ export const theme = createTheme({
             borderWidth: 1.5,
           },
           '&.Mui-disabled': {
-            backgroundColor:
-              currentTheme.vars.palette.action.disabledBackground,
+            backgroundColor: currentTheme.vars.palette.action.disabledBackground,
           },
         }),
       },

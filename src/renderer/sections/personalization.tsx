@@ -86,15 +86,11 @@ export const PersonalizationSection = ({ store }: { store: ClientStore }) => {
   const [clearMemoryOpen, setClearMemoryOpen] = useState(false);
   const learningEnabled = store.snapshot?.dictionaryLearning.enabled ?? false;
   const applicationStyles =
-    store.snapshot?.personalization.applicationStyles ??
-    DEFAULT_APPLICATION_WRITING_STYLES;
-  const personalizationLearningEnabled =
-    store.snapshot?.personalization.learningEnabled ?? false;
+    store.snapshot?.personalization.applicationStyles ?? DEFAULT_APPLICATION_WRITING_STYLES;
+  const personalizationLearningEnabled = store.snapshot?.personalization.learningEnabled ?? false;
   const preferences = store.snapshot?.personalization.preferences ?? [];
   const suggestions = store.snapshot?.personalization.suggestions ?? [];
-  const hasTextModel =
-    store.snapshot?.settings.dictation.activeTextProviderProfileId !==
-    undefined;
+  const hasTextModel = store.snapshot?.settings.dictation.activeTextProviderProfileId !== undefined;
   const learningDescription = [
     t('dictionary.learningDescription'),
     ...(!hasTextModel ? [t('dictionary.learningUnavailable')] : []),
@@ -163,11 +159,7 @@ export const PersonalizationSection = ({ store }: { store: ClientStore }) => {
       <Card
         actions={
           hasMemory ? (
-            <Button
-              color="error"
-              onClick={() => setClearMemoryOpen(true)}
-              variant="text"
-            >
+            <Button color="error" onClick={() => setClearMemoryOpen(true)} variant="text">
               {t('personalization.clearMemory')}
             </Button>
           ) : undefined
@@ -209,21 +201,12 @@ export const PersonalizationSection = ({ store }: { store: ClientStore }) => {
                   }}
                 >
                   <Stack sx={{ gap: 0.25, minWidth: 0 }}>
-                    <Typography
-                      sx={{ overflowWrap: 'anywhere' }}
-                      variant="body2"
-                    >
-                      {preferenceDescription(
-                        t,
-                        suggestion.kind,
-                        suggestion.value,
-                      )}
+                    <Typography sx={{ overflowWrap: 'anywhere' }} variant="body2">
+                      {preferenceDescription(t, suggestion.kind, suggestion.value)}
                     </Typography>
                     <Typography color="text.secondary" variant="caption">
                       {t('personalization.suggestionMeta', {
-                        application: t(
-                          applicationLabels[suggestion.application],
-                        ),
+                        application: t(applicationLabels[suggestion.application]),
                         count: String(suggestion.occurrences),
                       })}
                     </Typography>
@@ -281,15 +264,8 @@ export const PersonalizationSection = ({ store }: { store: ClientStore }) => {
                   }}
                 >
                   <Stack sx={{ gap: 0.25, minWidth: 0 }}>
-                    <Typography
-                      sx={{ overflowWrap: 'anywhere' }}
-                      variant="body2"
-                    >
-                      {preferenceDescription(
-                        t,
-                        preference.kind,
-                        preference.value,
-                      )}
+                    <Typography sx={{ overflowWrap: 'anywhere' }} variant="body2">
+                      {preferenceDescription(t, preference.kind, preference.value)}
                     </Typography>
                     <Typography color="text.secondary" variant="caption">
                       {t(applicationLabels[preference.application])}
@@ -327,9 +303,7 @@ export const PersonalizationSection = ({ store }: { store: ClientStore }) => {
             disabled={isPending('learning')}
             label={t('dictionary.learning')}
             onCheckedChange={(checked) =>
-              void run('learning', () =>
-                store.setDictionaryLearningEnabled(checked),
-              )
+              void run('learning', () => store.setDictionaryLearningEnabled(checked))
             }
             testId="dictionary-learning-switch"
           />
@@ -341,11 +315,11 @@ export const PersonalizationSection = ({ store }: { store: ClientStore }) => {
         confirmLabel={t('action.clear')}
         description={t('personalization.clearMemoryDescription')}
         onConfirm={() =>
-          void run('clear-personalization-memory', () =>
-            store.clearPersonalizationMemory(),
-          ).then((succeeded) => {
-            if (succeeded) setClearMemoryOpen(false);
-          })
+          void run('clear-personalization-memory', () => store.clearPersonalizationMemory()).then(
+            (succeeded) => {
+              if (succeeded) setClearMemoryOpen(false);
+            },
+          )
         }
         onOpenChange={setClearMemoryOpen}
         open={clearMemoryOpen}

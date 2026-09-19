@@ -24,9 +24,7 @@ import type {
 import { HISTORY_PAGE_SIZE, mergeHistoryPage } from '../logic/history.js';
 
 export const describeError = (error: unknown): string | undefined =>
-  error instanceof Error && error.message.length > 0
-    ? error.message
-    : undefined;
+  error instanceof Error && error.message.length > 0 ? error.message : undefined;
 
 const requireApi = (): UntypoApi => {
   const api = window.untypo;
@@ -70,9 +68,7 @@ export interface ClientStore {
   usage: ClientUsageStats | null;
   setHotkeyCaptureActive: (active: boolean) => Promise<void>;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<void>;
-  setApplicationWritingStyle: (
-    update: ClientApplicationWritingStyleUpdate,
-  ) => Promise<void>;
+  setApplicationWritingStyle: (update: ClientApplicationWritingStyleUpdate) => Promise<void>;
   setProfile: (profile?: UserProfileContext) => Promise<void>;
   setPersonalizationLearningEnabled: (enabled: boolean) => Promise<void>;
   snapshot: ClientSnapshot | null;
@@ -85,8 +81,7 @@ export interface ClientStore {
 
 export const useClientStore = (): ClientStore => {
   const [snapshot, setSnapshot] = useState<ClientSnapshot | null>(null);
-  const [diagnostics, setDiagnostics] =
-    useState<ClientDiagnosticSnapshot | null>(null);
+  const [diagnostics, setDiagnostics] = useState<ClientDiagnosticSnapshot | null>(null);
   const [runtime, setRuntime] = useState<PingResponse | null>(null);
   const [history, setHistory] = useState<readonly ClientHistoryRecord[]>([]);
   const [historyExhausted, setHistoryExhausted] = useState(false);
@@ -104,14 +99,13 @@ export const useClientStore = (): ClientStore => {
     const api = window.untypo;
     if (!api) return;
     void (async () => {
-      const [nextRuntime, nextSnapshot, page, nextUsage, nextDiagnostics] =
-        await Promise.all([
-          api.ping(),
-          api.getSnapshot(),
-          api.listHistory({ limit: HISTORY_PAGE_SIZE }),
-          api.getUsageStats(),
-          api.getDiagnostics(),
-        ]);
+      const [nextRuntime, nextSnapshot, page, nextUsage, nextDiagnostics] = await Promise.all([
+        api.ping(),
+        api.getSnapshot(),
+        api.listHistory({ limit: HISTORY_PAGE_SIZE }),
+        api.getUsageStats(),
+        api.getDiagnostics(),
+      ]);
       if (!mounted.current) return;
       setRuntime(nextRuntime);
       setSnapshot(nextSnapshot);
@@ -211,10 +205,7 @@ export const useClientStore = (): ClientStore => {
     });
   }, []);
 
-  const copyText = useCallback(
-    (text: string) => requireApi().copyText(text),
-    [],
-  );
+  const copyText = useCallback((text: string) => requireApi().copyText(text), []);
 
   const applyBackup = useCallback(
     async (remoteFile: string) => {
@@ -241,10 +232,7 @@ export const useClientStore = (): ClientStore => {
     return code;
   }, [applySnapshot]);
 
-  const listRemoteBackups = useCallback(
-    () => requireApi().listRemoteBackups(),
-    [],
-  );
+  const listRemoteBackups = useCallback(() => requireApi().listRemoteBackups(), []);
 
   const testSyncConnection = useCallback(async () => {
     await requireApi().testSyncConnection();
@@ -257,13 +245,10 @@ export const useClientStore = (): ClientStore => {
     [applySnapshot],
   );
 
-  const acknowledgeDiagnostics = useCallback(
-    async (issueIds: readonly string[]) => {
-      const next = await requireApi().acknowledgeDiagnostics(issueIds);
-      if (mounted.current) setDiagnostics(next);
-    },
-    [],
-  );
+  const acknowledgeDiagnostics = useCallback(async (issueIds: readonly string[]) => {
+    const next = await requireApi().acknowledgeDiagnostics(issueIds);
+    if (mounted.current) setDiagnostics(next);
+  }, []);
 
   const clearDiagnostics = useCallback(async () => {
     const next = await requireApi().clearDiagnostics();
@@ -271,8 +256,7 @@ export const useClientStore = (): ClientStore => {
   }, []);
 
   const exportDiagnostics = useCallback(
-    (request: ClientDiagnosticExportRequest) =>
-      requireApi().exportDiagnostics(request),
+    (request: ClientDiagnosticExportRequest) => requireApi().exportDiagnostics(request),
     [],
   );
 
@@ -286,17 +270,13 @@ export const useClientStore = (): ClientStore => {
   const checkForUpdates = useCallback(async () => {
     const update = await requireApi().checkForUpdates();
     if (!mounted.current) return;
-    setSnapshot((current) =>
-      current ? { ...current, update: structuredClone(update) } : current,
-    );
+    setSnapshot((current) => (current ? { ...current, update: structuredClone(update) } : current));
   }, []);
 
   const downloadUpdate = useCallback(async () => {
     const update = await requireApi().downloadUpdate();
     if (!mounted.current) return;
-    setSnapshot((current) =>
-      current ? { ...current, update: structuredClone(update) } : current,
-    );
+    setSnapshot((current) => (current ? { ...current, update: structuredClone(update) } : current));
   }, []);
 
   const installUpdate = useCallback(() => requireApi().installUpdate(), []);
@@ -363,9 +343,7 @@ export const useClientStore = (): ClientStore => {
 
   const setPersonalizationLearningEnabled = useCallback(
     async (enabled: boolean) => {
-      applySnapshot(
-        await requireApi().setPersonalizationLearningEnabled(enabled),
-      );
+      applySnapshot(await requireApi().setPersonalizationLearningEnabled(enabled));
     },
     [applySnapshot],
   );

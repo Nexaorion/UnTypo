@@ -18,13 +18,9 @@ describe('backup names', () => {
 
   it('normalizes unsafe device names and rejects unrelated files', () => {
     const nullCharacter = String.fromCharCode(0);
-    expect(normalizeBackupDeviceName(`  Desk${nullCharacter}top  `)).toBe(
-      'Desktop',
-    );
+    expect(normalizeBackupDeviceName(`  Desk${nullCharacter}top  `)).toBe('Desktop');
     expect(normalizeBackupDeviceName(nullCharacter)).toBe('Unknown device');
     expect(parseBackupFileName('notes.txt')).toBeUndefined();
-    expect(
-      parseBackupFileName('untypo-1700000000000-not-base64!!.untypo'),
-    ).toBeUndefined();
+    expect(parseBackupFileName('untypo-1700000000000-not-base64!!.untypo')).toBeUndefined();
   });
 });

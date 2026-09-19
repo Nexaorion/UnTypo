@@ -17,10 +17,8 @@ export const messages = {
     'selection.loading': '正在读取内容...',
     'selection.processing': '正在处理…',
     'selection.error.capture': '未能读取选中的文本内容。',
-    'selection.error.provider':
-      '请先在 UnTypo 的模型设置中配置并启用文本处理模型，然后重试。',
-    'selection.error.processing':
-      '处理失败或请求超时，请检查模型配置和网络后重试。',
+    'selection.error.provider': '请先在 UnTypo 的模型设置中配置并启用文本处理模型，然后重试。',
+    'selection.error.processing': '处理失败或请求超时，请检查模型配置和网络后重试。',
     'selection.error.replace':
       '原窗口或选区已变化，或应用不允许替换。结果已保留，可复制后手动粘贴。',
     'selection.error.copy': '复制失败，请重试。',
@@ -48,8 +46,7 @@ export const messages = {
     'dictionary.full': '已达 1000 条上限',
     'dictionary.input': '词条',
     'dictionary.learning': '自动学习专有词',
-    'dictionary.learningDescription':
-      '根据置信度、词类和使用频率，自动判断何时询问是否加入词典',
+    'dictionary.learningDescription': '根据置信度、词类和使用频率，自动判断何时询问是否加入词典',
     'dictionary.learningUnavailable': '配置文字模型后生效',
     'dictionary.learnedEntry': 'AI 学习词条：{term}',
     'dictionary.manualEntry': '手动词条：{term}',
@@ -89,8 +86,7 @@ export const messages = {
     'error.hotkeyUnavailable': '该快捷键无法启用',
     'error.invalidBackupCode': 'Backup Code 格式不正确，请按要求重新输入',
     'error.invalidServerAddress': '服务器地址无效，请检查后重试',
-    'error.microphoneUnavailable':
-      'UnTypo 没有麦克风访问权限，请在系统设置中允许后重试',
+    'error.microphoneUnavailable': 'UnTypo 没有麦克风访问权限，请在系统设置中允许后重试',
     'error.networkUnavailable': '无法连接到服务，请检查网络和服务器地址后重试',
     'error.permissionDenied': '当前账号没有执行此操作的权限',
     'error.providerConfiguration': '模型配置已失效，请检查设置后重试',
@@ -100,8 +96,7 @@ export const messages = {
     'error.serviceAuthentication': '身份验证失败，请检查账号或密钥是否正确',
     'error.serviceLimit': '服务额度不足或请求过于频繁，请稍后重试',
     'error.syncNotConfigured': '云同步配置不完整，请先完成设置',
-    'error.tryAgain':
-      '操作未完成，请重试；仍然失败时可在“问题与反馈”中查看详情',
+    'error.tryAgain': '操作未完成，请重试；仍然失败时可在“问题与反馈”中查看详情',
     'field.insecureUrl': '需使用 HTTPS，或允许 HTTP 私有端点',
     'field.hotkeyConflict': '该快捷键已被其他应用占用，请换一个组合',
     'field.hotkeyUnavailable': '快捷键注册失败，已保留原快捷键',
@@ -160,8 +155,7 @@ export const messages = {
       '这是一条旧记录，当时还没有保存模型调用详情。更新后的新转写会显示完整数据。',
     'home.history.empty': '完成一次转写后，最近记录会显示在这里。',
     'home.history.title': '最近转写',
-    'home.quickStart.description':
-      '在任何应用中短按一次开始转录，再短按一次停止并插入文字。',
+    'home.quickStart.description': '在任何应用中短按一次开始转录，再短按一次停止并插入文字。',
     'home.quickStart.title': '说话，文字就会出现',
     'home.stat.characters': '转写字符数',
     'home.stat.dictationTime': '转写总时长',
@@ -190,8 +184,7 @@ export const messages = {
     'personalization.application.ide': '代码与开发工具',
     'personalization.application.office': '办公软件',
     'personalization.applicationStyles': '应用风格',
-    'personalization.applicationStylesDescription':
-      'UnTypo 会根据背景信息选择转写方式。',
+    'personalization.applicationStylesDescription': 'UnTypo 会根据背景信息选择转写方式。',
     'personalization.clearMemory': '清空表达记忆',
     'personalization.clearMemoryConfirm': '清空全部表达记忆？',
     'personalization.clearMemoryDescription':
@@ -200,8 +193,7 @@ export const messages = {
     'personalization.keepSuggestion': '保留',
     'personalization.learnedPreferences': '已学习',
     'personalization.learning': '学习我的表达习惯',
-    'personalization.learningDescription':
-      '基于本地转写结果，后台不定期学习训练你的表达方式。',
+    'personalization.learningDescription': '基于本地转写结果，后台不定期学习训练你的表达方式。',
     'personalization.learningTitle': '自学习',
     'personalization.learningUnavailable': '配置文字模型后开始观察',
     'personalization.memory.emoji.allow': '在自然的场景中允许少量 Emoji',
@@ -223,18 +215,14 @@ export const messages = {
     'personalization.style.auto': '自动判断',
     'personalization.style.autoDescription': '根据本次口述内容自然整理',
     'personalization.style.casual': '轻松自然',
-    'personalization.style.casualDescription':
-      '短句、轻标点，保留有意表达的口语感',
+    'personalization.style.casualDescription': '短句、轻标点，保留有意表达的口语感',
     'personalization.style.concise': '简洁直接',
-    'personalization.style.conciseDescription':
-      '删除多余铺垫，保留事实、要求和约束',
+    'personalization.style.conciseDescription': '删除多余铺垫，保留事实、要求和约束',
     'personalization.style.formal': '正式专业',
     'personalization.style.formalDescription': '完整句、清晰段落和中性专业表达',
     'personalization.style.prompt': 'AI 请求',
-    'personalization.style.promptDescription':
-      '整理成目标明确、可直接执行的提示词',
-    'update.availableDescription':
-      'v{version} 已可用，可以立即下载并在准备好后重启。',
+    'personalization.style.promptDescription': '整理成目标明确、可直接执行的提示词',
+    'update.availableDescription': 'v{version} 已可用，可以立即下载并在准备好后重启。',
     'update.availableTitle': '发现新版本',
     'update.background': '后台更新',
     'update.downloadNow': '开始更新',
@@ -243,8 +231,7 @@ export const messages = {
     'update.failedTitle': '更新未完成',
     'update.later': '稍后',
     'update.progressLabel': '更新下载进度',
-    'update.readyDescription':
-      'v{version} 已下载完成，重启 UnTypo 即可完成更新。',
+    'update.readyDescription': 'v{version} 已下载完成，重启 UnTypo 即可完成更新。',
     'update.readyTitle': '更新已准备好',
     'update.restartNow': '立即重启',
     'update.retry': '重试',
@@ -258,23 +245,19 @@ export const messages = {
     'provider.addText': '添加文本模型',
     'provider.allowInsecure': '允许 HTTP 私有端点',
     'provider.allowInsecureHint': '仅用于本机或内网地址。',
-    'provider.aliyunHint':
-      '支持同步短音频识别，也可使用百炼 WebSocket 在录音过程中实时转写。',
+    'provider.aliyunHint': '支持同步短音频识别，也可使用百炼 WebSocket 在录音过程中实时转写。',
     'provider.aliyunRealtime': '模型支持实时语音',
     'provider.aliyunRealtimeHint':
       '开启后使用 qwen-audio-3.0-asr-flash-streaming，并在 ASR 请求中把词典作为即时热词发送；实时失败时会回退到同步识别。',
-    'provider.aliyunRealtimeModelRequired':
-      '实时语音需使用 qwen-audio-3.0-asr-flash-streaming',
-    'provider.aliyunWorkspaceHint':
-      '若百炼工作空间提供了专属 Endpoint，可在下方覆盖默认地址。',
+    'provider.aliyunRealtimeModelRequired': '实时语音需使用 qwen-audio-3.0-asr-flash-streaming',
+    'provider.aliyunWorkspaceHint': '若百炼工作空间提供了专属 Endpoint，可在下方覆盖默认地址。',
     'provider.apiKey': 'API 密钥',
     'provider.apiKeyKeep': '留空即可保留已保存的密钥',
     'provider.apiKeyReenter': '需重新输入',
     'provider.baseUrl': '接口地址',
     'provider.backToPresets': '返回提供商列表',
     'provider.choosePreset': '选择提供商',
-    'provider.choosePresetDescription':
-      '选择一个提供商后，再填写模型与密钥等详细配置。',
+    'provider.choosePresetDescription': '选择一个提供商后，再填写模型与密钥等详细配置。',
     'provider.chooseSpeechProvider': '选择语音识别提供商',
     'provider.chooseTextProvider': '选择文本生成提供商',
     'provider.configure': '配置模型',
@@ -304,13 +287,11 @@ export const messages = {
     'provider.preset.openrouter': 'OpenRouter',
     'provider.removeConfirm': '移除 {id}？',
     'provider.saved': '已保存',
-    'provider.speechDescription':
-      '负责把录音转换成文字，可独立于文本生成模型配置。',
+    'provider.speechDescription': '负责把录音转换成文字，可独立于文本生成模型配置。',
     'provider.speechTitle': '语音识别模型',
     'provider.testFailed': '连接失败',
     'provider.testOk': '连接正常',
-    'provider.textDescription':
-      '一次完成意图判断、智能整理、提示词优化、翻译或内容生成。',
+    'provider.textDescription': '一次完成意图判断、智能整理、提示词优化、翻译或内容生成。',
     'provider.textModel': '文本模型',
     'provider.textTitle': '文本生成模型',
     'provider.title': '模型',
@@ -321,8 +302,7 @@ export const messages = {
       '在本机记录经过脱敏的应用与服务错误；关闭后不再新增错误记录。',
     'problems.clear': '清空记录',
     'problems.clearConfirm': '清空全部问题记录？',
-    'problems.clearDescription':
-      '这会永久删除本机收集的问题、关联日志和录音附件，且无法恢复。',
+    'problems.clearDescription': '这会永久删除本机收集的问题、关联日志和录音附件，且无法恢复。',
     'problems.clearSuccess': '问题记录已清空',
     'problems.issueCount': '共 {count} 个问题，其中 {pending} 个尚未处理',
     'problems.issueList': '问题记录',
@@ -336,22 +316,18 @@ export const messages = {
     'problems.paginationNext': '前往下一页',
     'problems.paginationPrevious': '前往上一页',
     'problems.preferences': '错误处理',
-    'problems.privacy':
-      '日志仅保存在本机 14 天，默认不包含密钥、请求正文、转写文本或录音。',
+    'problems.privacy': '日志仅保存在本机 14 天，默认不包含密钥、请求正文、转写文本或录音。',
     'problems.showErrorDialogs': '出现错误时弹窗提示',
-    'problems.showErrorDialogsHint':
-      '出现新错误时打开详情弹窗；关闭后仍可在此查看已收集的问题。',
+    'problems.showErrorDialogsHint': '出现新错误时打开详情弹窗；关闭后仍可在此查看已收集的问题。',
     'problems.title': '问题与反馈',
     'settings.defaultTargetLanguage': '默认目标语言',
     'settings.dictationLanguage': '口述语言',
     'settings.fastMode': '仅转写模式',
-    'settings.fastModeHint':
-      '始终按原语言智能整理，包括提示词结构化；不执行翻译或内容生成。',
+    'settings.fastModeHint': '始终按原语言智能整理，包括提示词结构化；不执行翻译或内容生成。',
     'settings.autoCheckUpdates': '自动检查更新',
     'settings.autoCheckUpdatesHint': '启动后检查，并每 6 小时在后台检查一次',
     'settings.autoDownloadUpdates': '自动下载更新',
-    'settings.autoDownloadUpdatesHint':
-      '发现新版本后在后台下载，完成后提醒你重启',
+    'settings.autoDownloadUpdatesHint': '发现新版本后在后台下载，完成后提醒你重启',
     'settings.checkForUpdates': '检查更新',
     'settings.checkingForUpdates': '正在检查',
     'settings.currentVersion': '当前版本 v{version}',
@@ -377,10 +353,8 @@ export const messages = {
     'settings.microphoneAuto': '自动选择（系统默认）',
     'settings.microphoneAutoHint': '录音时跟随系统默认输入设备',
     'settings.microphoneAccessGranted': '已获得麦克风权限。',
-    'settings.microphoneAccessNeeded':
-      '听写需要麦克风权限。请在系统设置中允许 UnTypo 使用麦克风。',
-    'settings.accessibilityGranted':
-      '已获得辅助功能权限，可以把文字粘贴到其他应用。',
+    'settings.microphoneAccessNeeded': '听写需要麦克风权限。请在系统设置中允许 UnTypo 使用麦克风。',
+    'settings.accessibilityGranted': '已获得辅助功能权限，可以把文字粘贴到其他应用。',
     'settings.accessibilityNeeded':
       '把文字插入其他应用需要辅助功能权限。请在系统设置中允许 UnTypo。',
     'settings.openAccessibilitySettings': '打开辅助功能设置',
@@ -398,11 +372,9 @@ export const messages = {
     'settings.updateUnsupported': '仅在已签名发布的安装版本中可用',
     'sync.backupCode': 'Backup Code',
     'sync.backupCodeCustom': '自定义密码',
-    'sync.backupCodeCustomHint':
-      '可使用 8–32 位数字和大写字母，不含 0、O、1、I',
+    'sync.backupCodeCustomHint': '可使用 8–32 位数字和大写字母，不含 0、O、1、I',
     'sync.backupCodeHidden': 'XXXXXXXX',
-    'sync.backupCodeHint':
-      'Backup Code 用于加密同步的文件，遗失后数据将无法找回。请妥善保存。',
+    'sync.backupCodeHint': 'Backup Code 用于加密同步的文件，遗失后数据将无法找回。请妥善保存。',
     'sync.backupCodeRegenerate': '重新生成',
     'sync.backupCodeRegenerateConfirm':
       '重新生成后，使用旧 Backup Code 加密的备份将无法自动恢复。确定继续吗？',
@@ -417,15 +389,13 @@ export const messages = {
     'sync.backupNow': '立即备份',
     'sync.backups': '已备份记录',
     'sync.apply': '下载并应用',
-    'sync.applyConfirm':
-      '要下载并应用 {date} 由 {device} 创建的备份吗？本机现有记录会保留并合并。',
+    'sync.applyConfirm': '要下载并应用 {date} 由 {device} 创建的备份吗？本机现有记录会保留并合并。',
     'sync.applyTitle': '应用备份',
     'sync.applied': '备份已应用',
     'sync.copied': '已复制',
     'sync.copyBackupCode': '复制 Backup Code',
     'sync.delete': '删除备份',
-    'sync.deleteConfirm':
-      '要永久删除 {date} 由 {device} 创建的远端备份吗？此操作无法撤销。',
+    'sync.deleteConfirm': '要永久删除 {date} 由 {device} 创建的远端备份吗？此操作无法撤销。',
     'sync.deleteTitle': '删除备份',
     'sync.deleted': '备份已删除',
     'sync.emptyBackups': '远端还没有备份文件',
@@ -443,8 +413,7 @@ export const messages = {
     'sync.provider.s3': 'Amazon S3',
     'sync.provider.webdav': 'WebDAV',
     'sync.restore': '从备份恢复',
-    'sync.restoreConfirm':
-      '用远端备份合并到本机数据？现有记录会保留，冲突项会合并。',
+    'sync.restoreConfirm': '用远端备份合并到本机数据？现有记录会保留，冲突项会合并。',
     'sync.restoreSelected': '恢复所选备份',
     'sync.s3.accessKey': 'Access Key ID',
     'sync.s3.bucket': 'Bucket',
@@ -482,8 +451,7 @@ export const messages = {
     'selection.copied': 'Copied',
     'selection.preview': 'Review before replacing the original',
     'selection.readOnly': 'Copy the answer; the original stays unchanged',
-    'selection.empty':
-      'Add an instruction to translate, rewrite, or ask about this text.',
+    'selection.empty': 'Add an instruction to translate, rewrite, or ask about this text.',
     'selection.loading': 'Reading selection',
     'selection.processing': 'Working…',
     'selection.error.capture':
@@ -523,8 +491,7 @@ export const messages = {
     'dictionary.learning': 'Learn proper terms automatically',
     'dictionary.learningDescription':
       'Decide when to ask based on confidence, term type, and usage frequency.',
-    'dictionary.learningUnavailable':
-      'Takes effect after a text model is configured.',
+    'dictionary.learningUnavailable': 'Takes effect after a text model is configured.',
     'dictionary.learnedEntry': 'AI-learned term: {term}',
     'dictionary.manualEntry': 'Manually added term: {term}',
     'dictionary.newEntry': 'New term',
@@ -534,16 +501,14 @@ export const messages = {
     'dictionary.title': 'Dictionary',
     'diagnostics.acknowledge': 'Mark handled and delete saved audio',
     'diagnostics.acknowledgeFailed': 'Unable to update the issue',
-    'diagnostics.audioHint':
-      'The recording is added only when you select it for this export.',
+    'diagnostics.audioHint': 'The recording is added only when you select it for this export.',
     'diagnostics.detailSummary': 'Showing the error log for this issue.',
     'diagnostics.detailTitle': 'Issue details',
     'diagnostics.empty': 'No diagnostic issues have been collected.',
     'diagnostics.export': 'Create diagnostic package',
     'diagnostics.exported': 'Diagnostic package created',
     'diagnostics.exportFailed': 'Diagnostic export failed',
-    'diagnostics.includeAudio':
-      'Include the recording captured when this failed',
+    'diagnostics.includeAudio': 'Include the recording captured when this failed',
     'diagnostics.kind.configuration': 'Configuration issue',
     'diagnostics.kind.internal': 'Client issue',
     'diagnostics.kind.microphone': 'Microphone issue',
@@ -552,57 +517,46 @@ export const messages = {
     'diagnostics.later': 'Handle later',
     'diagnostics.latestSummary': 'Showing the latest captured error log.',
     'diagnostics.logTitle': 'Error log',
-    'diagnostics.noAudio':
-      'No recording attachment is available for this issue.',
+    'diagnostics.noAudio': 'No recording attachment is available for this issue.',
     'diagnostics.privacy':
       'Logs are retained locally for 14 days and, by default, do not contain any sensitive information.',
     'diagnostics.source': 'Source: {source}',
     'diagnostics.title': 'UnTypo ran into a problem!',
     'error.unknown': 'Request failed',
     'error.backupCodeMissing': 'Set a Backup Code before syncing',
-    'error.backupMissing':
-      'This remote backup no longer exists. Refresh the list and try again.',
+    'error.backupMissing': 'This remote backup no longer exists. Refresh the list and try again.',
     'error.backupUnreadable':
       'The backup is damaged or uses an unsupported format and cannot be read.',
     'error.devicePermission':
       'Device access is blocked. Allow access in system settings and try again.',
-    'error.hotkeyConflict':
-      'That shortcut is already used by another app. Choose a different one.',
-    'error.hotkeyUnavailable':
-      'The shortcut could not be enabled. The previous shortcut was kept.',
-    'error.invalidBackupCode':
-      'The Backup Code format is incorrect. Check it and enter it again.',
+    'error.hotkeyConflict': 'That shortcut is already used by another app. Choose a different one.',
+    'error.hotkeyUnavailable': 'The shortcut could not be enabled. The previous shortcut was kept.',
+    'error.invalidBackupCode': 'The Backup Code format is incorrect. Check it and enter it again.',
     'error.invalidServerAddress':
       'The server address is invalid. Check the address and security settings.',
     'error.microphoneUnavailable':
       'The microphone is unavailable. Check the device and system permissions.',
     'error.networkUnavailable':
       'Could not connect to the service. Check the network and server address.',
-    'error.permissionDenied':
-      'The current account does not have permission for this action.',
+    'error.permissionDenied': 'The current account does not have permission for this action.',
     'error.providerConfiguration':
       'The model configuration is no longer valid. Check its settings and retry.',
-    'error.remotePathInvalid':
-      'The remote backup path is invalid. Check the storage path setting.',
+    'error.remotePathInvalid': 'The remote backup path is invalid. Check the storage path setting.',
     'error.requestTimeout': 'The request took too long. Try again later.',
     'error.secureStorageUnavailable':
       'Secure system storage is unavailable, so sensitive data cannot be saved.',
-    'error.serviceAuthentication':
-      'Authentication failed. Check the account or API key.',
+    'error.serviceAuthentication': 'Authentication failed. Check the account or API key.',
     'error.serviceLimit':
       'The service limit was reached or requests are too frequent. Try again later.',
-    'error.syncNotConfigured':
-      'Cloud sync is not fully configured. Complete its settings first.',
+    'error.syncNotConfigured': 'Cloud sync is not fully configured. Complete its settings first.',
     'error.tryAgain':
       'The action could not be completed. Try again, or open Issues & feedback for details.',
-    'field.hotkeyConflict':
-      'This shortcut is already used by another app. Choose another one.',
+    'field.hotkeyConflict': 'This shortcut is already used by another app. Choose another one.',
     'field.hotkeyUnavailable':
       'The shortcut could not be registered. The previous shortcut is still active.',
     'field.insecureUrl': 'Use HTTPS, or allow HTTP private endpoints',
     'field.invalidHotkey': 'Invalid shortcut',
-    'field.invalidProfileId':
-      'Lowercase letters, digits, dot, hyphen, underscore only',
+    'field.invalidProfileId': 'Lowercase letters, digits, dot, hyphen, underscore only',
     'field.invalidUrl': 'Invalid address',
     'field.required': 'Required',
     'field.tooLong': 'Too long',
@@ -700,35 +654,26 @@ export const messages = {
     'personalization.learningDescription':
       'Based on local transcription results, the system periodically learns and trains to adapt to your way of speaking.',
     'personalization.learningTitle': 'Self-learning',
-    'personalization.learningUnavailable':
-      'Observation starts after a text model is configured.',
-    'personalization.memory.emoji.allow':
-      'Allow occasional emojis when they fit naturally',
-    'personalization.memory.emoji.avoid':
-      'Do not add emojis unless explicitly dictated',
-    'personalization.memory.expression':
-      'Preserve “{value}” when it is deliberately spoken',
+    'personalization.learningUnavailable': 'Observation starts after a text model is configured.',
+    'personalization.memory.emoji.allow': 'Allow occasional emojis when they fit naturally',
+    'personalization.memory.emoji.avoid': 'Do not add emojis unless explicitly dictated',
+    'personalization.memory.expression': 'Preserve “{value}” when it is deliberately spoken',
     'personalization.memory.punctuation.minimal':
       'Use lighter punctuation in conversational writing',
     'personalization.memory.punctuation.standard': 'Use standard punctuation',
-    'personalization.memory.structure.lists':
-      'Prefer lists for enumerations and requirements',
+    'personalization.memory.structure.lists': 'Prefer lists for enumerations and requirements',
     'personalization.memory.structure.paragraphs': 'Prefer short paragraphs',
     'personalization.memory.tone.casual': 'Prefer a casual tone',
     'personalization.memory.tone.formal': 'Prefer a formal tone',
-    'personalization.memory.tone.polite':
-      'Prefer a polite and considerate tone',
+    'personalization.memory.tone.polite': 'Prefer a polite and considerate tone',
     'personalization.memory.verbosity.concise': 'Prefer concise writing',
-    'personalization.memory.verbosity.detailed':
-      'Keep useful detail and explanatory context',
-    'personalization.noLearnedPreferences':
-      'No writing preferences have been confirmed yet.',
+    'personalization.memory.verbosity.detailed': 'Keep useful detail and explanatory context',
+    'personalization.noLearnedPreferences': 'No writing preferences have been confirmed yet.',
     'personalization.noSuggestions': 'No new habits need confirmation yet.',
     'personalization.suggestionMeta': '{application} · observed {count} times',
     'personalization.suggestions': 'Waiting for your confirmation',
     'personalization.style.auto': 'Automatic',
-    'personalization.style.autoDescription':
-      'Organize each dictation naturally from its content.',
+    'personalization.style.autoDescription': 'Organize each dictation naturally from its content.',
     'personalization.style.casual': 'Casual',
     'personalization.style.casualDescription':
       'Use short sentences, light punctuation, and deliberate conversational phrasing.',
@@ -752,8 +697,7 @@ export const messages = {
     'update.failedTitle': 'Update incomplete',
     'update.later': 'Later',
     'update.progressLabel': 'Update download progress',
-    'update.readyDescription':
-      'v{version} is ready. Restart UnTypo to finish updating.',
+    'update.readyDescription': 'v{version} is ready. Restart UnTypo to finish updating.',
     'update.readyTitle': 'Update ready',
     'update.restartNow': 'Restart now',
     'update.retry': 'Try again',
@@ -802,8 +746,7 @@ export const messages = {
     'provider.endpointType.anthropicMessages': 'Anthropic Messages',
     'provider.endpointType.openaiChatCompletions': 'OpenAI Chat Completions',
     'provider.endpointType.openaiResponses': 'OpenAI Responses',
-    'provider.endpointTypeHint':
-      'The request path and payload format follow this protocol.',
+    'provider.endpointTypeHint': 'The request path and payload format follow this protocol.',
     'provider.preset.aliyunBailian': 'Alibaba Cloud Model Studio',
     'provider.preset.anthropic': 'Anthropic',
     'provider.preset.custom': 'Custom provider',
@@ -834,11 +777,9 @@ export const messages = {
     'problems.clearDescription':
       'This permanently deletes collected issues, related logs, and recording attachments from this device. It cannot be undone.',
     'problems.clearSuccess': 'Issue records cleared',
-    'problems.issueCount':
-      '{count} issue(s), including {pending} that have not been handled',
+    'problems.issueCount': '{count} issue(s), including {pending} that have not been handled',
     'problems.issueList': 'Issue history',
-    'problems.issueListHint':
-      'Collected issues will appear here in the order they occurred.',
+    'problems.issueListHint': 'Collected issues will appear here in the order they occurred.',
     'problems.openIssue': 'View issue: {message}',
     'problems.pagination': 'Issue history pages',
     'problems.paginationCurrent': 'Current page, page {page}',
@@ -860,8 +801,7 @@ export const messages = {
     'settings.fastModeHint':
       'Always organize the original-language transcript, including prompt structure, without translating or generating content.',
     'settings.autoCheckUpdates': 'Automatically check for updates',
-    'settings.autoCheckUpdatesHint':
-      'Check after launch and every 6 hours in the background',
+    'settings.autoCheckUpdatesHint': 'Check after launch and every 6 hours in the background',
     'settings.autoDownloadUpdates': 'Automatically download updates',
     'settings.autoDownloadUpdatesHint':
       'Download new versions in the background and ask before restarting',
@@ -880,11 +820,9 @@ export const messages = {
       'Review end-to-end app, recording, and API request logs, then create a redacted package for the developer.',
     'settings.diagnosticsOpen': 'View error logs',
     'settings.diagnosticsPending': '{count} issue(s) need attention',
-    'settings.diagnosticsReady':
-      'The error collector is running with no pending issues',
+    'settings.diagnosticsReady': 'The error collector is running with no pending issues',
     'settings.hotkey': 'Shortcut',
-    'settings.hotkeyHint':
-      'Hold modifiers, then press Space, a letter, or an F key',
+    'settings.hotkeyHint': 'Hold modifiers, then press Space, a letter, or an F key',
     'settings.launchAtLogin': 'Launch at login',
     'settings.lastUpdateCheck': 'Last checked: {time}',
     'settings.locale': 'Interface language',
@@ -900,8 +838,7 @@ export const messages = {
       'Pasting into other apps needs Accessibility access. Allow UnTypo in System Settings.',
     'settings.openAccessibilitySettings': 'Open Accessibility settings',
     'settings.microphoneEmpty': 'No microphones were found',
-    'settings.microphoneMissing':
-      'The selected microphone is unavailable. Choose another device.',
+    'settings.microphoneMissing': 'The selected microphone is unavailable. Choose another device.',
     'settings.microphoneSelectedHint': 'Always use: {device}',
     'settings.microphoneUnavailable': 'Unable to read the microphone list',
     'settings.profile.displayName': 'Name',
@@ -914,8 +851,7 @@ export const messages = {
     'settings.updateUnsupported': 'Available in signed, installed releases',
     'sync.backupCode': 'Backup Code',
     'sync.backupCodeCustom': 'Custom password',
-    'sync.backupCodeCustomHint':
-      'Use 8–32 digits and uppercase letters, excluding 0, O, 1, and I',
+    'sync.backupCodeCustomHint': 'Use 8–32 digits and uppercase letters, excluding 0, O, 1, and I',
     'sync.backupCodeHidden': 'XXXXXXXX',
     'sync.backupCodeHint':
       'The Backup Code encrypts sync files and is never uploaded. Old backups cannot be decrypted if it is lost.',
@@ -953,8 +889,7 @@ export const messages = {
     'sync.lastSync': 'Last sync: {time}',
     'sync.lastSyncNever': 'Not synced yet',
     'sync.loadingBackups': 'Loading backups…',
-    'sync.notConfigured':
-      'Complete cloud sync settings before creating or viewing backups.',
+    'sync.notConfigured': 'Complete cloud sync settings before creating or viewing backups.',
     'sync.openSettings': 'Cloud sync settings',
     'sync.provider': 'Storage type',
     'sync.provider.s3': 'Amazon S3',

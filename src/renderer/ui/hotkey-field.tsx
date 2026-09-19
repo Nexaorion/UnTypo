@@ -4,14 +4,7 @@ import FormHelperText from '@mui/material/FormHelperText';
 import FormLabel from '@mui/material/FormLabel';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import {
-  Fragment,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-} from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { HotkeyCaptureInput } from '../../shared/ipc.js';
 import {
   applyHotkeyCaptureInput,
@@ -51,10 +44,7 @@ export const HotkeyField = ({
   onCaptureActiveRef.current = onCaptureActive;
   const displayedValue = preview ?? value;
   const keycaps = hotkeyKeycapLabels(displayedValue, platform);
-  const describedBy = [
-    ...(focused ? [helperId] : []),
-    ...(error ? [errorId] : []),
-  ].join(' ');
+  const describedBy = [...(focused ? [helperId] : []), ...(error ? [errorId] : [])].join(' ');
 
   const consumeStroke = (input: HotkeyCaptureInput) => {
     const { commit } = applyHotkeyCaptureInput(session.current, input);
@@ -85,10 +75,7 @@ export const HotkeyField = ({
     [],
   );
 
-  const handleBrowserKey = (
-    event: KeyboardEvent<HTMLButtonElement>,
-    type: 'keyDown' | 'keyUp',
-  ) => {
+  const handleBrowserKey = (event: KeyboardEvent<HTMLButtonElement>, type: 'keyDown' | 'keyUp') => {
     event.preventDefault();
     event.stopPropagation();
     if (preferMainCapture.current) return;
@@ -131,11 +118,7 @@ export const HotkeyField = ({
           alignItems: { sm: 'center', xs: 'flex-start' },
           backgroundColor: themePalette(currentTheme).background.paper,
           border: '1px solid',
-          borderColor: error
-            ? 'error.main'
-            : focused
-              ? 'primary.main'
-              : 'divider',
+          borderColor: error ? 'error.main' : focused ? 'primary.main' : 'divider',
           borderRadius: 4,
           display: 'flex',
           flexDirection: { sm: 'row', xs: 'column' },
@@ -145,17 +128,13 @@ export const HotkeyField = ({
           px: 2,
           py: 1.25,
           textAlign: 'left',
-          transition: currentTheme.transitions.create(
-            ['border-color', 'box-shadow'],
-            { duration: currentTheme.transitions.duration.shorter },
-          ),
+          transition: currentTheme.transitions.create(['border-color', 'box-shadow'], {
+            duration: currentTheme.transitions.duration.shorter,
+          }),
           width: '100%',
           ...(focused
             ? {
-                boxShadow: `0 0 0 3px ${themeAlpha(
-                  themePalette(currentTheme).primary.main,
-                  0.1,
-                )}`,
+                boxShadow: `0 0 0 3px ${themeAlpha(themePalette(currentTheme).primary.main, 0.1)}`,
               }
             : {}),
           '&:hover': {
@@ -187,17 +166,11 @@ export const HotkeyField = ({
                   background: `linear-gradient(180deg, ${themeAlpha(
                     themePalette(currentTheme).text.primary,
                     0.08,
-                  )}, ${themeAlpha(
-                    themePalette(currentTheme).text.primary,
-                    0.025,
-                  )})`,
+                  )}, ${themeAlpha(themePalette(currentTheme).text.primary, 0.025)})`,
                   border: '1px solid',
                   borderColor: 'divider',
                   borderRadius: 1.5,
-                  boxShadow: `0 2px 0 ${themeAlpha(
-                    themePalette(currentTheme).text.primary,
-                    0.16,
-                  )}`,
+                  boxShadow: `0 2px 0 ${themeAlpha(themePalette(currentTheme).text.primary, 0.16)}`,
                   color: 'text.primary',
                   fontFamily: 'inherit',
                   fontSize: 13,

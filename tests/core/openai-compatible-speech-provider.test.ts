@@ -61,19 +61,16 @@ describe('OpenAICompatibleSpeechProvider', () => {
       configuration,
       vi.fn(() =>
         Promise.resolve(
-          new Response(
-            JSON.stringify({ error: { message: 'Audio rejected' } }),
-            {
-              status: 400,
-            },
-          ),
+          new Response(JSON.stringify({ error: { message: 'Audio rejected' } }), {
+            status: 400,
+          }),
         ),
       ),
     );
 
-    await expect(
-      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
-    ).rejects.toThrow('Audio rejected');
+    await expect(provider.transcribe(audio, { dictionary: [], language: 'en-US' })).rejects.toThrow(
+      'Audio rejected',
+    );
   });
 
   it('does not treat a successful HTTP error envelope as an empty transcript', async () => {
@@ -91,24 +88,19 @@ describe('OpenAICompatibleSpeechProvider', () => {
       ),
     );
 
-    await expect(
-      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
-    ).rejects.toThrow('Gateway authentication failed');
+    await expect(provider.transcribe(audio, { dictionary: [], language: 'en-US' })).rejects.toThrow(
+      'Gateway authentication failed',
+    );
   });
 
   it('bounds the dictionary prompt for Groq-compatible endpoints', async () => {
     const request = vi.fn<typeof fetch>(() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ text: 'bounded' }), { status: 200 }),
-      ),
+      Promise.resolve(new Response(JSON.stringify({ text: 'bounded' }), { status: 200 })),
     );
     const provider = new OpenAICompatibleSpeechProvider(configuration, request);
 
     await provider.transcribe(audio, {
-      dictionary: Array.from(
-        { length: 1_000 },
-        (_, index) => `超长术语-${String(index)}`,
-      ),
+      dictionary: Array.from({ length: 1_000 }, (_, index) => `超长术语-${String(index)}`),
       language: 'zh-CN',
     });
 
@@ -118,9 +110,7 @@ describe('OpenAICompatibleSpeechProvider', () => {
     if (typeof prompt !== 'string') {
       throw new TypeError('Expected a string prompt');
     }
-    expect(new TextEncoder().encode(prompt).byteLength).toBeLessThanOrEqual(
-      200,
-    );
+    expect(new TextEncoder().encode(prompt).byteLength).toBeLessThanOrEqual(200);
   });
 
   it('rejects uploads larger than the shared 25 MiB limit before fetching', async () => {
@@ -139,9 +129,7 @@ describe('OpenAICompatibleSpeechProvider', () => {
   it('copies only the addressed bytes from Buffer subarrays', async () => {
     const backing = Buffer.from([99, 1, 2, 3, 88]);
     const request = vi.fn<typeof fetch>(() =>
-      Promise.resolve(
-        new Response(JSON.stringify({ text: 'copied' }), { status: 200 }),
-      ),
+      Promise.resolve(new Response(JSON.stringify({ text: 'copied' }), { status: 200 })),
     );
     const provider = new OpenAICompatibleSpeechProvider(configuration, request);
 
@@ -153,8 +141,6 @@ describe('OpenAICompatibleSpeechProvider', () => {
     const [, init] = request.mock.calls[0] ?? [];
     const form = init?.body as FormData;
     const file = form.get('file') as File;
-    expect(new Uint8Array(await file.arrayBuffer())).toEqual(
-      new Uint8Array([1, 2, 3]),
-    );
+    expect(new Uint8Array(await file.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
   });
 });

@@ -26,28 +26,14 @@ const preferenceId = (
   application: TargetApplicationKind,
   candidate: Pick<WritingPreferenceCandidate, 'kind' | 'value'>,
 ): string =>
-  createHash('sha256')
-    .update(preferenceKey(application, candidate))
-    .digest('hex')
-    .slice(0, 24);
+  createHash('sha256').update(preferenceKey(application, candidate)).digest('hex').slice(0, 24);
 
-const candidateScore = (
-  stored: StoredWritingPreferenceCandidate,
-  now: number,
-): number => {
-  const frequency = Math.min(
-    Math.log2(stored.occurrences + 1) / Math.log2(6),
-    1,
-  );
+const candidateScore = (stored: StoredWritingPreferenceCandidate, now: number): number => {
+  const frequency = Math.min(Math.log2(stored.occurrences + 1) / Math.log2(6), 1);
   const age = Math.max(0, now - stored.lastSeenAt);
   const recency = Math.max(0, 1 - age / CANDIDATE_RETENTION_MS);
   const categoryWeight = stored.candidate.kind === 'expression' ? 0 : 0.04;
-  return (
-    stored.candidate.confidence * 0.55 +
-    frequency * 0.3 +
-    recency * 0.1 +
-    categoryWeight
-  );
+  return stored.candidate.confidence * 0.55 + frequency * 0.3 + recency * 0.1 + categoryWeight;
 };
 
 const readyCandidates = (
@@ -67,10 +53,7 @@ export class WritingPreferenceLearningService {
   readonly #configuration: ConfigurationService;
   readonly #now: () => number;
 
-  constructor(
-    configuration: ConfigurationService,
-    now: () => number = Date.now,
-  ) {
+  constructor(configuration: ConfigurationService, now: () => number = Date.now) {
     this.#configuration = configuration;
     this.#now = now;
   }
@@ -82,10 +65,7 @@ export class WritingPreferenceLearningService {
     const now = this.#now();
     let changed = false;
     const unique = new Map<string, WritingPreferenceCandidate>();
-    for (const source of candidates.slice(
-      0,
-      PERSONALIZATION_LIMITS.modelCandidates,
-    )) {
+    for (const source of candidates.slice(0, PERSONALIZATION_LIMITS.modelCandidates)) {
       const candidate = normalizeWritingPreferenceCandidate(source);
       if (!candidate) continue;
       unique.set(preferenceKey(application, candidate), candidate);
@@ -95,9 +75,7 @@ export class WritingPreferenceLearningService {
         return state;
       }
       const rejections = state.rejections.filter(({ until }) => until > now);
-      const rejected = new Set(
-        rejections.map(({ fingerprint }) => fingerprint),
-      );
+      const rejected = new Set(rejections.map(({ fingerprint }) => fingerprint));
       const preferences = state.preferences;
       const accepted = new Set(preferences.map(({ id }) => id));
       const storedCandidates = state.candidates.filter(
@@ -129,10 +107,7 @@ export class WritingPreferenceLearningService {
                 ...previous,
                 candidate: {
                   ...candidate,
-                  confidence: Math.max(
-                    previous.candidate.confidence,
-                    candidate.confidence,
-                  ),
+                  confidence: Math.max(previous.candidate.confidence, candidate.confidence),
                 },
                 lastSeenAt: now,
                 occurrences: previous.occurrences + 1,
@@ -162,15 +137,13 @@ export class WritingPreferenceLearningService {
       preferences: state.preferences.toSorted(
         (left, right) => right.confirmedAt - left.confirmedAt,
       ),
-      suggestions: readyCandidates(state, now).map(
-        ({ application, candidate, occurrences }) => ({
-          application,
-          id: preferenceId(application, candidate),
-          kind: candidate.kind,
-          occurrences,
-          value: candidate.value,
-        }),
-      ),
+      suggestions: readyCandidates(state, now).map(({ application, candidate, occurrences }) => ({
+        application,
+        id: preferenceId(application, candidate),
+        kind: candidate.kind,
+        occurrences,
+        value: candidate.value,
+      })),
     };
   }
 
@@ -201,9 +174,7 @@ export class WritingPreferenceLearningService {
           (stored) => preferenceId(stored.application, stored.candidate) !== id,
         ),
         preferences,
-        rejections: state.rejections.filter(
-          ({ fingerprint }) => fingerprint !== id,
-        ),
+        rejections: state.rejections.filter(({ fingerprint }) => fingerprint !== id),
       };
     });
   }

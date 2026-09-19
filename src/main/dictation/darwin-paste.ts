@@ -1,9 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import {
-  NativePasteStatus,
-  type NativeTargetSnapshot,
-} from '../native/protocol.js';
+import { NativePasteStatus, type NativeTargetSnapshot } from '../native/protocol.js';
 
 const execFileAsync = promisify(execFile);
 const TARGET_CHANGED_ERROR = 1001;
@@ -13,8 +10,7 @@ const isSafeProcessId = (value: number): boolean =>
 
 const execErrorText = (error: unknown): string => {
   if (typeof error !== 'object' || error === null) return '';
-  const stderr =
-    'stderr' in error && typeof error.stderr === 'string' ? error.stderr : '';
+  const stderr = 'stderr' in error && typeof error.stderr === 'string' ? error.stderr : '';
   const message = error instanceof Error ? error.message : '';
   return `${stderr}\n${message}`;
 };
@@ -49,11 +45,7 @@ end tell
     await execute('/usr/bin/osascript', ['-e', script], { timeout: 4_000 });
     return NativePasteStatus.Success;
   } catch (error) {
-    if (
-      new RegExp(`\\b${String(TARGET_CHANGED_ERROR)}\\b`, 'u').test(
-        execErrorText(error),
-      )
-    ) {
+    if (new RegExp(`\\b${String(TARGET_CHANGED_ERROR)}\\b`, 'u').test(execErrorText(error))) {
       return NativePasteStatus.TargetChanged;
     }
     return NativePasteStatus.SendInputFailed;
@@ -63,9 +55,7 @@ end tell
 export const pasteDarwinWithHelperFallback = async (
   target: NativeTargetSnapshot,
   helperPaste: (target: NativeTargetSnapshot) => Promise<NativePasteStatus>,
-  keyPaste: (
-    target: NativeTargetSnapshot,
-  ) => Promise<NativePasteStatus> = pasteOnDarwin,
+  keyPaste: (target: NativeTargetSnapshot) => Promise<NativePasteStatus> = pasteOnDarwin,
 ): Promise<NativePasteStatus> => {
   if (target.higherIntegrity) return keyPaste(target);
 

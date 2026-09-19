@@ -49,11 +49,7 @@ export const HistorySection = ({ store }: { store: ClientStore }) => {
       <PageHeader
         action={
           store.history.length > 0 ? (
-            <Button
-              color="error"
-              onClick={() => setConfirming(true)}
-              variant="text"
-            >
+            <Button color="error" onClick={() => setConfirming(true)} variant="text">
               {t('history.clear')}
             </Button>
           ) : undefined
@@ -76,16 +72,8 @@ export const HistorySection = ({ store }: { store: ClientStore }) => {
                 }}
               >
                 <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
-                  <Chip
-                    label={t(intentKey(record.intent))}
-                    size="small"
-                    variant="outlined"
-                  />
-                  <Typography
-                    color="text.secondary"
-                    component="time"
-                    variant="caption"
-                  >
+                  <Chip label={t(intentKey(record.intent))} size="small" variant="outlined" />
+                  <Typography color="text.secondary" component="time" variant="caption">
                     {formatTimestamp(record.createdAt, locale)}
                   </Typography>
                 </Stack>
@@ -102,11 +90,7 @@ export const HistorySection = ({ store }: { store: ClientStore }) => {
                 {record.outputText}
               </Typography>
 
-              <Accordion
-                disableGutters
-                square={false}
-                sx={{ bgcolor: 'transparent' }}
-              >
+              <Accordion disableGutters square={false} sx={{ bgcolor: 'transparent' }}>
                 <AccordionSummary
                   data-testid={`history-details-summary-${record.id}`}
                   expandIcon={<ExpandMoreRoundedIcon fontSize="small" />}
@@ -118,8 +102,7 @@ export const HistorySection = ({ store }: { store: ClientStore }) => {
                 </AccordionSummary>
                 <AccordionDetails sx={{ px: 0, pt: 0 }}>
                   <Stack sx={{ gap: 1.25 }}>
-                    {record.rawTranscript &&
-                    record.rawTranscript !== record.outputText ? (
+                    {record.rawTranscript && record.rawTranscript !== record.outputText ? (
                       <Stack sx={{ gap: 0.5 }}>
                         <Typography color="text.secondary" variant="caption">
                           {t('history.raw')}

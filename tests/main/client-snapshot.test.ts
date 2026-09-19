@@ -73,18 +73,12 @@ describe('buildClientSnapshot', () => {
   it('assembles the client snapshot from all backing services', async () => {
     const snapshot = await createSnapshot();
 
-    expect(snapshot.settings.dictation.hotkeyAccelerator).toBe(
-      'Ctrl+Alt+Space',
-    );
+    expect(snapshot.settings.dictation.hotkeyAccelerator).toBe('Ctrl+Alt+Space');
     expect(snapshot.settings.dictation.fastMode).toBe(true);
     expect(snapshot.settings.dictation.microphoneDeviceId).toBe('device-1');
     expect(snapshot.settings.general.locale).toBe('en-US');
-    expect(snapshot.personalization.preferences).toEqual(
-      learningSnapshot.preferences,
-    );
-    expect(snapshot.personalization.suggestions).toEqual(
-      learningSnapshot.suggestions,
-    );
+    expect(snapshot.personalization.preferences).toEqual(learningSnapshot.preferences);
+    expect(snapshot.personalization.suggestions).toEqual(learningSnapshot.suggestions);
     expect(snapshot.providers).toHaveLength(1);
     expect(snapshot.providers[0]).toMatchObject({
       configuredSecretKeys: ['apiKey'],
@@ -94,8 +88,6 @@ describe('buildClientSnapshot', () => {
     expect(snapshot.sync).toEqual({ enabled: false });
     expect(snapshot.update).toEqual({ state: 'idle' });
   });
-
-  
 
   it('includes current permission statuses on macOS', async () => {
     vi.stubGlobal('process', { ...process, platform: 'darwin' });
@@ -108,12 +100,8 @@ describe('buildClientSnapshot', () => {
       accessibility: 'denied',
       microphone: 'not-determined',
     });
-    expect(systemPreferences.getMediaAccessStatus).toHaveBeenCalledWith(
-      'microphone',
-    );
-    expect(systemPreferences.isTrustedAccessibilityClient).toHaveBeenCalledWith(
-      false,
-    );
+    expect(systemPreferences.getMediaAccessStatus).toHaveBeenCalledWith('microphone');
+    expect(systemPreferences.isTrustedAccessibilityClient).toHaveBeenCalledWith(false);
   });
 
   it('fails when the configuration cannot be loaded', async () => {
@@ -124,8 +112,6 @@ describe('buildClientSnapshot', () => {
       }),
     } as unknown as ConfigurationService;
 
-    await expect(createSnapshot({ configuration })).rejects.toThrow(
-      'config unavailable',
-    );
+    await expect(createSnapshot({ configuration })).rejects.toThrow('config unavailable');
   });
 });

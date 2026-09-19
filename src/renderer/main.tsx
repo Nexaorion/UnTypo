@@ -24,9 +24,7 @@ window.addEventListener('error', (event) => {
     line: event.lineno,
     message: event.message || 'Unhandled renderer error',
     source: event.filename,
-    ...(event.error instanceof Error && event.error.stack
-      ? { stack: event.error.stack }
-      : {}),
+    ...(event.error instanceof Error && event.error.stack ? { stack: event.error.stack } : {}),
   });
 });
 
@@ -45,12 +43,7 @@ window.addEventListener('unhandledrejection', (event) => {
 
 createRoot(container).render(
   <StrictMode>
-    <ThemeProvider
-      defaultMode="system"
-      disableTransitionOnChange
-      noSsr
-      theme={theme}
-    >
+    <ThemeProvider defaultMode="system" disableTransitionOnChange noSsr theme={theme}>
       <CssBaseline enableColorScheme />
       <App />
     </ThemeProvider>

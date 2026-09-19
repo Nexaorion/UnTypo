@@ -32,9 +32,7 @@ export const buildUserProfileContext = async (
     applicationStyles: current.personalization.applicationStyles,
     history: current.history,
     learnedPreferences,
-    ...(current.dictation.fastMode !== undefined
-      ? { fastMode: current.dictation.fastMode }
-      : {}),
+    ...(current.dictation.fastMode !== undefined ? { fastMode: current.dictation.fastMode } : {}),
     modelName: activeSpeechProfile?.values.model ?? speechProviderId,
     ...(current.dictation.microphoneDeviceId
       ? {
@@ -50,18 +48,14 @@ export const buildUserProfileContext = async (
       defaultTargetLanguage: current.dictation.defaultTargetLanguage,
       dictionary: current.dictionary.map(({ term }) => term),
       dictionaryLearningEnabled:
-        current.dictionaryLearning.enabled &&
-        providers.textProviderId !== undefined,
-      ...(current.dictation.fastMode !== undefined
-        ? { fastMode: current.dictation.fastMode }
-        : {}),
+        current.dictionaryLearning.enabled && providers.textProviderId !== undefined,
+      ...(current.dictation.fastMode !== undefined ? { fastMode: current.dictation.fastMode } : {}),
       language: current.dictation.language,
       preferIntegratedProcess: false,
       profile,
     },
     preferenceLearningEnabled:
-      current.personalization.learningEnabled &&
-      providers.textProviderId !== undefined,
+      current.personalization.learningEnabled && providers.textProviderId !== undefined,
     speechProviderId,
     ...(activeSpeechProfile
       ? {
@@ -72,9 +66,7 @@ export const buildUserProfileContext = async (
           },
         }
       : {}),
-    ...(providers.textProviderId
-      ? { textProviderId: providers.textProviderId }
-      : {}),
+    ...(providers.textProviderId ? { textProviderId: providers.textProviderId } : {}),
     ...(activeTextProfile
       ? {
           textProviderDetails: {

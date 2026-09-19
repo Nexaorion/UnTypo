@@ -31,8 +31,7 @@ export const useAction = () => {
       } catch (error) {
         options.onError?.(error);
         notify(t('error.unknown'), {
-          description:
-            options.describeError?.(error) ?? describeUserFacingError(error, t),
+          description: options.describeError?.(error) ?? describeUserFacingError(error, t),
           type: 'error',
         });
         return false;

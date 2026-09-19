@@ -1,8 +1,7 @@
 const normalizedMimeType = (mimeType: string): string =>
   mimeType.split(';', 1)[0]?.trim().toLowerCase() || 'audio/webm';
 
-export const audioMediaType = (mimeType: string): string =>
-  normalizedMimeType(mimeType);
+export const audioMediaType = (mimeType: string): string => normalizedMimeType(mimeType);
 
 export const audioFormatFromMimeType = (mimeType: string): string => {
   const normalized = normalizedMimeType(mimeType);
@@ -19,5 +18,4 @@ export const audioFormatFromMimeType = (mimeType: string): string => {
   return 'webm';
 };
 
-export const audioFileExtension = (mimeType: string): string =>
-  audioFormatFromMimeType(mimeType);
+export const audioFileExtension = (mimeType: string): string => audioFormatFromMimeType(mimeType);

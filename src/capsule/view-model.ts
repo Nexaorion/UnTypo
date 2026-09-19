@@ -8,10 +8,7 @@ interface CapsuleMessages {
   dictionaryAccept: string;
   dictionaryCancel: string;
   dictionaryDetail: (term: string) => string;
-  dictionaryErrors: Record<
-    'duplicate' | 'empty' | 'full' | 'too-long' | 'unavailable',
-    string
-  >;
+  dictionaryErrors: Record<'duplicate' | 'empty' | 'full' | 'too-long' | 'unavailable', string>;
   dictionaryModify: string;
   dictionaryReject: string;
   dictionarySave: string;

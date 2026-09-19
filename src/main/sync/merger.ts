@@ -49,16 +49,12 @@ export interface MergedSyncState {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-const parseOptionalProfile = (
-  value: unknown,
-): UserProfileContext | undefined => {
+const parseOptionalProfile = (value: unknown): UserProfileContext | undefined => {
   if (value === undefined) return undefined;
   return parseUserProfile(value);
 };
 
-const parseOptionalProcessingTrace = (
-  value: unknown,
-): HistoryRecord['processingTrace'] => {
+const parseOptionalProcessingTrace = (value: unknown): HistoryRecord['processingTrace'] => {
   if (
     !isRecord(value) ||
     typeof value.operationId !== 'string' ||
@@ -94,10 +90,8 @@ const parseHistoryRecord = (value: unknown): HistoryRecord => {
     (value.modelName !== undefined &&
       (typeof value.modelName !== 'string' || value.modelName.length > 200)) ||
     (value.rawTranscript !== undefined &&
-      (typeof value.rawTranscript !== 'string' ||
-        value.rawTranscript.length > 1_000_000)) ||
-    (value.scene !== undefined &&
-      (typeof value.scene !== 'string' || value.scene.length > 200))
+      (typeof value.rawTranscript !== 'string' || value.rawTranscript.length > 1_000_000)) ||
+    (value.scene !== undefined && (typeof value.scene !== 'string' || value.scene.length > 200))
   ) {
     throw new Error('Invalid history record');
   }
@@ -112,13 +106,9 @@ const parseHistoryRecord = (value: unknown): HistoryRecord => {
     ...(typeof value.audioDurationMs === 'number'
       ? { audioDurationMs: value.audioDurationMs }
       : {}),
-    ...(typeof value.modelName === 'string'
-      ? { modelName: value.modelName }
-      : {}),
+    ...(typeof value.modelName === 'string' ? { modelName: value.modelName } : {}),
     ...(processingTrace ? { processingTrace } : {}),
-    ...(typeof value.rawTranscript === 'string'
-      ? { rawTranscript: value.rawTranscript }
-      : {}),
+    ...(typeof value.rawTranscript === 'string' ? { rawTranscript: value.rawTranscript } : {}),
     ...(typeof value.scene === 'string' ? { scene: value.scene } : {}),
   };
 };
@@ -155,24 +145,17 @@ export const parseSyncPayload = (value: {
     ...(value.dictionaryLearningState === undefined
       ? {}
       : {
-          dictionaryLearningState: parseDictionaryLearningState(
-            value.dictionaryLearningState,
-          ),
+          dictionaryLearningState: parseDictionaryLearningState(value.dictionaryLearningState),
         }),
     exportedAt: value.exportedAt,
     history: parseHistoryRecords(value.history),
     personalization,
-    ...(isRecord(value.personalization) &&
-    value.personalization.learningState !== undefined
+    ...(isRecord(value.personalization) && value.personalization.learningState !== undefined
       ? {
-          personalizationLearning: parsePersonalizationState(
-            value.personalization.learningState,
-          ),
+          personalizationLearning: parsePersonalizationState(value.personalization.learningState),
         }
       : {}),
-    ...(value.profile === undefined
-      ? {}
-      : { profile: parseOptionalProfile(value.profile) }),
+    ...(value.profile === undefined ? {} : { profile: parseOptionalProfile(value.profile) }),
   };
 };
 
@@ -216,10 +199,7 @@ const mergeDictionaryLearning = (
     candidates.set(key, {
       candidate: {
         ...existing.candidate,
-        confidence: Math.max(
-          existing.candidate.confidence,
-          entry.candidate.confidence,
-        ),
+        confidence: Math.max(existing.candidate.confidence, entry.candidate.confidence),
       },
       firstSeenAt: Math.min(existing.firstSeenAt, entry.firstSeenAt),
       lastSeenAt: Math.max(existing.lastSeenAt, entry.lastSeenAt),
@@ -227,10 +207,7 @@ const mergeDictionaryLearning = (
     });
   }
   const rejections = new Map(
-    local.rejections.map((entry) => [
-      entry.fingerprint,
-      structuredClone(entry),
-    ]),
+    local.rejections.map((entry) => [entry.fingerprint, structuredClone(entry)]),
   );
   for (const entry of remote.rejections) {
     const existing = rejections.get(entry.fingerprint);
@@ -275,10 +252,7 @@ const mergePersonalizationLearning = (
     preferences.push(structuredClone(entry));
   }
   const rejections = new Map(
-    local.rejections.map((entry) => [
-      entry.fingerprint,
-      structuredClone(entry),
-    ]),
+    local.rejections.map((entry) => [entry.fingerprint, structuredClone(entry)]),
   );
   for (const entry of remote.rejections) {
     const existing = rejections.get(entry.fingerprint);
@@ -289,10 +263,7 @@ const mergePersonalizationLearning = (
   return {
     candidates: candidates.slice(0, PERSONALIZATION_LIMITS.candidates),
     preferences: preferences.slice(0, PERSONALIZATION_LIMITS.preferences),
-    rejections: [...rejections.values()].slice(
-      0,
-      PERSONALIZATION_LIMITS.candidates,
-    ),
+    rejections: [...rejections.values()].slice(0, PERSONALIZATION_LIMITS.candidates),
   };
 };
 
@@ -317,15 +288,11 @@ export const mergeSyncState = (
   const useRemoteStyles = remote.exportedAt >= local.profileUpdatedAt;
   const personalization = useRemoteStyles
     ? {
-        applicationStyles: structuredClone(
-          remote.personalization.applicationStyles,
-        ),
+        applicationStyles: structuredClone(remote.personalization.applicationStyles),
         learningEnabled: remote.personalization.learningEnabled,
       }
     : {
-        applicationStyles: structuredClone(
-          local.personalization.applicationStyles,
-        ),
+        applicationStyles: structuredClone(local.personalization.applicationStyles),
         learningEnabled: local.personalization.learningEnabled,
       };
   const profile = useRemoteStyles

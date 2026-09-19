@@ -20,8 +20,13 @@ export interface DictionaryCandidate {
   term: string;
 }
 
-export const DICTIONARY_CANDIDATE_CATEGORIES: readonly DictionaryCandidateCategory[] =
-  ['organization', 'person', 'place', 'product', 'technical'];
+export const DICTIONARY_CANDIDATE_CATEGORIES: readonly DictionaryCandidateCategory[] = [
+  'organization',
+  'person',
+  'place',
+  'product',
+  'technical',
+];
 
 export const normalizeDictionaryTerm = (term: string): string =>
   term.normalize('NFKC').trim().replace(/\s+/gu, ' ');

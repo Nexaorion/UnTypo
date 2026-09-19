@@ -39,10 +39,7 @@ export class ClipboardInjectionService<Snapshot = unknown> {
     this.#restoreDelayMs = restoreDelayMs;
   }
 
-  async inject(
-    text: string,
-    target: NativeTargetSnapshot,
-  ): Promise<InjectionResult> {
+  async inject(text: string, target: NativeTargetSnapshot): Promise<InjectionResult> {
     this.#restoreGeneration += 1;
     const snapshot = await this.#clipboard.readSnapshot();
     await this.#clipboard.writeText(text);

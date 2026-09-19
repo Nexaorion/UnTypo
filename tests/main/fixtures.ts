@@ -10,8 +10,7 @@ export const createStoredProvider = (
 ): StoredProviderProfile => ({
   id,
   kind,
-  providerId:
-    kind === 'speech' ? 'openai-compatible-speech' : 'openai-compatible-text',
+  providerId: kind === 'speech' ? 'openai-compatible-speech' : 'openai-compatible-text',
   secrets: { apiKey: { ciphertext: 'dGVzdA==', scheme: 'memory-test-v1' } },
   values: {
     allowInsecurePrivateEndpoint: false,

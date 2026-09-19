@@ -38,10 +38,9 @@ interface ParsedVersion {
 }
 
 const parseVersion = (value: string): ParsedVersion | undefined => {
-  const match =
-    /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/u.exec(
-      value.trim(),
-    );
+  const match = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/u.exec(
+    value.trim(),
+  );
   if (!match) return undefined;
   const major = Number(match[1]);
   const minor = Number(match[2]);
@@ -86,8 +85,7 @@ export const isNewerVersion = (candidate: string, current: string): boolean => {
   return false;
 };
 
-const normalizeVersion = (value: string): string =>
-  value.trim().replace(/^v(?=\d)/u, '');
+const normalizeVersion = (value: string): string => value.trim().replace(/^v(?=\d)/u, '');
 
 const parseHazelRelease = (value: unknown): HazelRelease => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -98,9 +96,7 @@ const parseHazelRelease = (value: unknown): HazelRelease => {
     typeof release.name !== 'string' ||
     typeof release.pub_date !== 'string' ||
     typeof release.url !== 'string' ||
-    (release.notes !== undefined &&
-      release.notes !== null &&
-      typeof release.notes !== 'string')
+    (release.notes !== undefined && release.notes !== null && typeof release.notes !== 'string')
   ) {
     throw new Error('Hazel returned an invalid response');
   }
@@ -139,8 +135,7 @@ export class ApplicationUpdateService {
     this.#updater = options.updater ?? autoUpdater;
     this.#version = options.version ?? app.getVersion();
     this.#supported =
-      (options.isPackaged ?? app.isPackaged) &&
-      (options.platform ?? process.platform) === 'win32';
+      (options.isPackaged ?? app.isPackaged) && (options.platform ?? process.platform) === 'win32';
     this.#state = {
       currentVersion: this.#version,
       status: this.#supported ? 'idle' : 'disabled',
@@ -168,9 +163,7 @@ export class ApplicationUpdateService {
 
   configure(policy: UpdatePolicy): void {
     const shouldStartDownload =
-      !this.#policy.autoDownload &&
-      policy.autoDownload &&
-      this.#state.status === 'available';
+      !this.#policy.autoDownload && policy.autoDownload && this.#state.status === 'available';
     this.#policy = structuredClone(policy);
     this.reschedule();
     if (shouldStartDownload) void this.downloadUpdate();
@@ -229,15 +222,11 @@ export class ApplicationUpdateService {
     });
   };
 
-  private readonly handleUpdateDownloaded = (
-    event: UpdateDownloadedEvent,
-  ): void => {
+  private readonly handleUpdateDownloaded = (event: UpdateDownloadedEvent): void => {
     this.setState({
       availableVersion: normalizeVersion(event.version),
       currentVersion: this.#version,
-      ...(this.#state.lastCheckedAt
-        ? { lastCheckedAt: this.#state.lastCheckedAt }
-        : {}),
+      ...(this.#state.lastCheckedAt ? { lastCheckedAt: this.#state.lastCheckedAt } : {}),
       progressPercent: 100,
       status: 'downloaded',
       supported: true,
@@ -281,9 +270,7 @@ export class ApplicationUpdateService {
           return this.snapshot();
         }
         if (!response.ok) {
-          throw new Error(
-            `Hazel request failed with status ${response.status}`,
-          );
+          throw new Error(`Hazel request failed with status ${response.status}`);
         }
         const release = parseHazelRelease(await response.json());
         const availableVersion = normalizeVersion(release.name);
@@ -331,9 +318,7 @@ export class ApplicationUpdateService {
     });
     try {
       const result = await this.#updater.checkForUpdates();
-      const metadataVersion = normalizeVersion(
-        result?.updateInfo.version ?? '',
-      );
+      const metadataVersion = normalizeVersion(result?.updateInfo.version ?? '');
       if (
         !result?.isUpdateAvailable ||
         metadataVersion !== expectedVersion ||

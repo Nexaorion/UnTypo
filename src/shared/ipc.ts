@@ -57,8 +57,7 @@ export const IPC_CHANNELS = {
   setHotkeyCaptureActive: 'client:set-hotkey-capture-active',
   setDictionaryLearningEnabled: 'client:set-dictionary-learning-enabled',
   setApplicationWritingStyle: 'client:set-application-writing-style',
-  setPersonalizationLearningEnabled:
-    'client:set-personalization-learning-enabled',
+  setPersonalizationLearningEnabled: 'client:set-personalization-learning-enabled',
   setProfile: 'client:set-profile',
   snapshotChanged: 'client:snapshot-changed',
   testProvider: 'client:test-provider',
@@ -73,9 +72,7 @@ export const IPC_CHANNELS = {
 
 export type ClientJsonPrimitive = boolean | number | string | null;
 export type ClientJsonValue =
-  | ClientJsonPrimitive
-  | readonly ClientJsonValue[]
-  | { readonly [key: string]: ClientJsonValue };
+  ClientJsonPrimitive | readonly ClientJsonValue[] | { readonly [key: string]: ClientJsonValue };
 
 export type ModelProviderKind = 'speech' | 'text';
 
@@ -191,8 +188,7 @@ export interface ClientUpdateSnapshot {
 
 export interface ClientPermissionSnapshot {
   accessibility: 'denied' | 'granted';
-  microphone:
-    'denied' | 'granted' | 'not-determined' | 'restricted' | 'unknown';
+  microphone: 'denied' | 'granted' | 'not-determined' | 'restricted' | 'unknown';
 }
 
 export interface ClientSnapshot {
@@ -283,9 +279,7 @@ export interface UntypoApi {
   createBackup: () => Promise<ClientSyncResult>;
   deleteBackup: (remoteFile: string) => Promise<{ ok: true }>;
   generateBackupCode: () => Promise<string>;
-  acknowledgeDiagnostics: (
-    issueIds: readonly string[],
-  ) => Promise<ClientDiagnosticSnapshot>;
+  acknowledgeDiagnostics: (issueIds: readonly string[]) => Promise<ClientDiagnosticSnapshot>;
   clearDiagnostics: () => Promise<ClientDiagnosticSnapshot>;
   clearHistory: () => Promise<number>;
   clearPersonalizationMemory: () => Promise<ClientSnapshot>;
@@ -299,21 +293,13 @@ export interface UntypoApi {
   getSnapshot: () => Promise<ClientSnapshot>;
   getSyncConfig: () => Promise<ClientSyncSnapshot>;
   getUsageStats: () => Promise<ClientUsageStats>;
-  listHistory: (
-    query?: ClientHistoryQuery,
-  ) => Promise<readonly ClientHistoryRecord[]>;
+  listHistory: (query?: ClientHistoryQuery) => Promise<readonly ClientHistoryRecord[]>;
   listMicrophones: () => Promise<readonly ClientMicrophoneDevice[]>;
   listRemoteBackups: () => Promise<readonly SyncBackupInfo[]>;
-  onHotkeyCaptureEvent: (
-    listener: (input: HotkeyCaptureInput) => void,
-  ) => () => void;
+  onHotkeyCaptureEvent: (listener: (input: HotkeyCaptureInput) => void) => () => void;
   onDiagnosticsChanged: (listener: () => void) => () => void;
-  onSnapshotChanged: (
-    listener: (snapshot: ClientSnapshot) => void,
-  ) => () => void;
-  onUpdateChanged: (
-    listener: (update: ClientUpdateSnapshot) => void,
-  ) => () => void;
+  onSnapshotChanged: (listener: (snapshot: ClientSnapshot) => void) => () => void;
+  onUpdateChanged: (listener: (update: ClientUpdateSnapshot) => void) => () => void;
   ping: () => Promise<PingResponse>;
   requestAccessibilityAccess: () => Promise<ClientSnapshot>;
   removeProvider: (profileId: string) => Promise<ClientSnapshot>;
@@ -326,9 +312,7 @@ export interface UntypoApi {
   setApplicationWritingStyle: (
     update: ClientApplicationWritingStyleUpdate,
   ) => Promise<ClientSnapshot>;
-  setPersonalizationLearningEnabled: (
-    enabled: boolean,
-  ) => Promise<ClientSnapshot>;
+  setPersonalizationLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
   testSyncConnection: () => Promise<{ ok: true }>;

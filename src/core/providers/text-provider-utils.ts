@@ -43,9 +43,7 @@ const writingStyleInstructions = {
     'Write a direct, actionable request for an AI assistant. Put the requested action first and organize supplied constraints only when it improves clarity.',
 } as const;
 
-const learnedPreferenceInstruction = (
-  preference: LearnedWritingPreference,
-): string => {
+const learnedPreferenceInstruction = (preference: LearnedWritingPreference): string => {
   if (preference.kind === 'expression') {
     return `preserve ${JSON.stringify(preference.value)} when the speaker deliberately uses it`;
   }
@@ -60,8 +58,7 @@ const learnedPreferenceInstruction = (
     },
     structure: {
       lists: 'prefer lists for enumerations and requirements',
-      paragraphs:
-        'prefer short paragraphs over lists unless a list is explicit',
+      paragraphs: 'prefer short paragraphs over lists unless a list is explicit',
     },
     tone: {
       casual: 'prefer a casual tone',
@@ -74,14 +71,10 @@ const learnedPreferenceInstruction = (
     },
   } as const;
   const values = instructions[preference.kind];
-  return preference.value in values
-    ? values[preference.value as keyof typeof values]
-    : '';
+  return preference.value in values ? values[preference.value as keyof typeof values] : '';
 };
 
-export const transcriptProcessingInstructions = (
-  context: TextProcessContext,
-): string => {
+export const transcriptProcessingInstructions = (context: TextProcessContext): string => {
   if (context.selectionInstruction !== undefined) {
     return `You are UnTypo's selected-text assistant. Apply the user's instruction to the selected text supplied in the user message.
 User instruction: ${JSON.stringify(context.selectionInstruction)}
@@ -90,8 +83,7 @@ For translation, translate the selected text into the requested language (defaul
 Return only a JSON object in this order: {"outputText":"completed content","intent":"translation|instruction"}. Use translation for translations and instruction otherwise. No commentary or code fences outside the object.`;
   }
   const terms = context.dictionary.join(', ');
-  const targetLanguage =
-    context.explicitTargetLanguage ?? context.defaultTargetLanguage;
+  const targetLanguage = context.explicitTargetLanguage ?? context.defaultTargetLanguage;
   const intentInstruction = context.forcedIntent
     ? `The intent is forced to "${context.forcedIntent}". Do not choose another intent.`
     : `Choose exactly one intent:
@@ -105,9 +97,7 @@ Return only a JSON object in this order: {"outputText":"completed content","inte
       : context.windowContext?.isTextEntry
         ? `The target is an editable field in another application. Content addressed to that application, including a prompt for an AI assistant or coding agent, is transcription even when it uses imperative language. Choose instruction only when the speaker explicitly addresses UnTypo, the dictation system, or the transcription tool and asks it to perform the request.`
         : `When the target is not an editable field, still choose instruction only for an explicit request that the dictation system itself should perform.`;
-  const writingStyle = context.writingStyle
-    ? writingStyleInstructions[context.writingStyle]
-    : '';
+  const writingStyle = context.writingStyle ? writingStyleInstructions[context.writingStyle] : '';
   const learnedPreferences = (context.learnedPreferences ?? [])
     .map(learnedPreferenceInstruction)
     .filter(Boolean);
@@ -230,9 +220,7 @@ export const createTranscriptOutputTextStream = (
   };
 };
 
-const parseDictionaryCandidates = (
-  value: unknown,
-): readonly DictionaryCandidate[] => {
+const parseDictionaryCandidates = (value: unknown): readonly DictionaryCandidate[] => {
   if (!Array.isArray(value)) return [];
   const candidates: DictionaryCandidate[] = [];
   const entries: readonly unknown[] = value;
@@ -268,9 +256,7 @@ const parseDictionaryCandidates = (
   return candidates;
 };
 
-const parsePreferenceCandidates = (
-  value: unknown,
-): readonly WritingPreferenceCandidate[] => {
+const parsePreferenceCandidates = (value: unknown): readonly WritingPreferenceCandidate[] => {
   if (!Array.isArray(value)) return [];
   const candidates: WritingPreferenceCandidate[] = [];
   for (const entry of value.slice(0, PERSONALIZATION_LIMITS.modelCandidates)) {
@@ -280,9 +266,7 @@ const parsePreferenceCandidates = (
   return candidates;
 };
 
-export const parseTranscriptProcessing = (
-  source: string,
-): TextProcessResult => {
+export const parseTranscriptProcessing = (source: string): TextProcessResult => {
   const firstBrace = source.indexOf('{');
   const lastBrace = source.lastIndexOf('}');
   if (firstBrace < 0 || lastBrace < firstBrace) {
@@ -322,18 +306,14 @@ export const parseTranscriptProcessing = (
   return {
     ...('dictionaryCandidates' in value
       ? {
-          dictionaryCandidates: parseDictionaryCandidates(
-            value.dictionaryCandidates,
-          ),
+          dictionaryCandidates: parseDictionaryCandidates(value.dictionaryCandidates),
         }
       : {}),
     intent: value.intent,
     outputText: value.outputText.trim(),
     ...('preferenceCandidates' in value
       ? {
-          preferenceCandidates: parsePreferenceCandidates(
-            value.preferenceCandidates,
-          ),
+          preferenceCandidates: parsePreferenceCandidates(value.preferenceCandidates),
         }
       : {}),
   };

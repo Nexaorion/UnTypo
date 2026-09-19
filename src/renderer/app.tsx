@@ -6,10 +6,7 @@ import { DictionarySection } from './sections/dictionary.js';
 import { DiagnosticsDialog } from './sections/diagnostics-dialog.js';
 import { HistorySection } from './sections/history.js';
 import { HomeSection } from './sections/home.js';
-import {
-  SettingsDialog,
-  type SettingsTab,
-} from './sections/settings-dialog.js';
+import { SettingsDialog, type SettingsTab } from './sections/settings-dialog.js';
 import { UpdateDialog } from './sections/update-dialog.js';
 import { useClientStore, type ClientStore } from './state/client.js';
 import { ToastProvider } from './ui/toast.js';
@@ -22,8 +19,7 @@ const Shell = ({ store }: { store: ClientStore }) => {
   const [updateOpen, setUpdateOpen] = useState(false);
   const knownDiagnosticIds = useRef<Set<string> | undefined>(undefined);
   const userName = store.runtime?.userName ?? 'User';
-  const showErrorDialogs =
-    store.snapshot?.settings.diagnostics.showErrorDialogs ?? false;
+  const showErrorDialogs = store.snapshot?.settings.diagnostics.showErrorDialogs ?? false;
 
   useEffect(() => {
     if (!store.diagnostics) return;
@@ -34,8 +30,7 @@ const Shell = ({ store }: { store: ClientStore }) => {
       return;
     }
     const newPendingIssue = issues.find(
-      ({ acknowledgedAt, id }) =>
-        acknowledgedAt === undefined && !known.has(id),
+      ({ acknowledgedAt, id }) => acknowledgedAt === undefined && !known.has(id),
     );
     for (const { id } of issues) known.add(id);
     if (showErrorDialogs && newPendingIssue) setDiagnosticsOpen(true);
@@ -89,16 +84,8 @@ const Shell = ({ store }: { store: ClientStore }) => {
         store={store}
         tab={settingsTab}
       />
-      <DiagnosticsDialog
-        onOpenChange={setDiagnosticsOpen}
-        open={diagnosticsOpen}
-        store={store}
-      />
-      <UpdateDialog
-        onOpenChange={setUpdateOpen}
-        open={updateOpen}
-        store={store}
-      />
+      <DiagnosticsDialog onOpenChange={setDiagnosticsOpen} open={diagnosticsOpen} store={store} />
+      <UpdateDialog onOpenChange={setUpdateOpen} open={updateOpen} store={store} />
     </>
   );
 };

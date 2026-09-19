@@ -30,9 +30,7 @@ const isConfigured = (sync: ClientSyncSnapshot): boolean => {
       sync.s3.secretAccessKeyConfigured,
     );
   }
-  return Boolean(
-    sync.webdav?.url && sync.webdav.username && sync.webdav.passwordConfigured,
-  );
+  return Boolean(sync.webdav?.url && sync.webdav.username && sync.webdav.passwordConfigured);
 };
 
 export const SyncSection = ({ store }: { store: ClientStore }) => {
@@ -41,9 +39,7 @@ export const SyncSection = ({ store }: { store: ClientStore }) => {
   const sync = store.snapshot?.sync;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [backups, setBackups] = useState<readonly SyncBackupInfo[]>([]);
-  const [listState, setListState] = useState<
-    'idle' | 'loading' | 'loaded' | 'error'
-  >('idle');
+  const [listState, setListState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [refreshToken, setRefreshToken] = useState(0);
   const [backupToApply, setBackupToApply] = useState<SyncBackupInfo>();
   const [backupToDelete, setBackupToDelete] = useState<SyncBackupInfo>();
@@ -85,8 +81,7 @@ export const SyncSection = ({ store }: { store: ClientStore }) => {
       'create-backup',
       async () => {
         const result = await store.createBackup();
-        if (!result.success)
-          throw new Error(result.error ?? t('error.unknown'));
+        if (!result.success) throw new Error(result.error ?? t('error.unknown'));
         await loadBackups();
       },
       { successMessage: t('sync.backupCreated') },
@@ -99,8 +94,7 @@ export const SyncSection = ({ store }: { store: ClientStore }) => {
       'apply-backup',
       async () => {
         const result = await store.applyBackup(selected.path);
-        if (!result.success)
-          throw new Error(result.error ?? t('error.unknown'));
+        if (!result.success) throw new Error(result.error ?? t('error.unknown'));
         await store.reloadHistory();
         await loadBackups();
         setBackupToApply(undefined);
@@ -181,9 +175,7 @@ export const SyncSection = ({ store }: { store: ClientStore }) => {
         />
       </Stack>
       <Card title={t('sync.backups')}>
-        {!configured ? (
-          <EmptyState>{t('sync.notConfigured')}</EmptyState>
-        ) : null}
+        {!configured ? <EmptyState>{t('sync.notConfigured')}</EmptyState> : null}
         {configured && listState === 'loading' ? (
           <Stack
             direction="row"
@@ -226,10 +218,7 @@ export const SyncSection = ({ store }: { store: ClientStore }) => {
                     <Typography color="text.secondary" variant="caption">
                       {t('sync.backupDate')}
                     </Typography>
-                    <Typography
-                      sx={{ overflowWrap: 'anywhere' }}
-                      variant="body2"
-                    >
+                    <Typography sx={{ overflowWrap: 'anywhere' }} variant="body2">
                       {formatTimestamp(backup.createdAt, locale)}
                     </Typography>
                   </Stack>
@@ -237,10 +226,7 @@ export const SyncSection = ({ store }: { store: ClientStore }) => {
                     <Typography color="text.secondary" variant="caption">
                       {t('sync.backupDevice')}
                     </Typography>
-                    <Typography
-                      sx={{ overflowWrap: 'anywhere' }}
-                      variant="body2"
-                    >
+                    <Typography sx={{ overflowWrap: 'anywhere' }} variant="body2">
                       {backup.deviceName || t('sync.unknownDevice')}
                     </Typography>
                   </Stack>
@@ -289,14 +275,11 @@ export const SyncSection = ({ store }: { store: ClientStore }) => {
         confirmColor="primary"
         confirmLabel={t('sync.apply')}
         description={
-          backupToApply
-            ? backupDescription(backupToApply, 'sync.applyConfirm')
-            : undefined
+          backupToApply ? backupDescription(backupToApply, 'sync.applyConfirm') : undefined
         }
         onConfirm={applyBackup}
         onOpenChange={(open) => {
-          if (!open && pendingKey !== 'apply-backup')
-            setBackupToApply(undefined);
+          if (!open && pendingKey !== 'apply-backup') setBackupToApply(undefined);
         }}
         open={Boolean(backupToApply)}
         pending={pendingKey === 'apply-backup'}
@@ -306,14 +289,11 @@ export const SyncSection = ({ store }: { store: ClientStore }) => {
         cancelLabel={t('action.cancel')}
         confirmLabel={t('sync.delete')}
         description={
-          backupToDelete
-            ? backupDescription(backupToDelete, 'sync.deleteConfirm')
-            : undefined
+          backupToDelete ? backupDescription(backupToDelete, 'sync.deleteConfirm') : undefined
         }
         onConfirm={deleteBackup}
         onOpenChange={(open) => {
-          if (!open && pendingKey !== 'delete-backup')
-            setBackupToDelete(undefined);
+          if (!open && pendingKey !== 'delete-backup') setBackupToDelete(undefined);
         }}
         open={Boolean(backupToDelete)}
         pending={pendingKey === 'delete-backup'}

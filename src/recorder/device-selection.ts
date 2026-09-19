@@ -1,6 +1,4 @@
-export const recorderAudioConstraints = (
-  microphoneDeviceId?: string,
-): MediaTrackConstraints => ({
+export const recorderAudioConstraints = (microphoneDeviceId?: string): MediaTrackConstraints => ({
   autoGainControl: true,
   echoCancellation: true,
   noiseSuppression: true,

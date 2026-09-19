@@ -59,9 +59,7 @@ export const SyncSettingsDialog = ({
   const { t } = useI18n();
   const titleId = useId();
   const { pendingKey, run } = useAction();
-  const [providerId, setProviderId] = useState<SyncProviderId>(
-    sync.providerId ?? 's3',
-  );
+  const [providerId, setProviderId] = useState<SyncProviderId>(sync.providerId ?? 's3');
   const [s3, setS3] = useState({
     accessKeyId: '',
     bucket: sync.s3?.bucket ?? '',
@@ -91,9 +89,7 @@ export const SyncSettingsDialog = ({
       prefix: s3.prefix,
       region: s3.region,
       ...(s3.accessKeyId.trim() ? { accessKeyId: s3.accessKeyId } : {}),
-      ...(s3.secretAccessKey.trim()
-        ? { secretAccessKey: s3.secretAccessKey }
-        : {}),
+      ...(s3.secretAccessKey.trim() ? { secretAccessKey: s3.secretAccessKey } : {}),
     },
     webdav: {
       basePath: webdav.basePath,
@@ -196,9 +192,7 @@ export const SyncSettingsDialog = ({
               </Typography>
               <Field
                 label={t('sync.provider')}
-                onChange={(event) =>
-                  setProviderId(event.target.value as SyncProviderId)
-                }
+                onChange={(event) => setProviderId(event.target.value as SyncProviderId)}
                 select
                 value={providerId}
               >
@@ -255,9 +249,7 @@ export const SyncSettingsDialog = ({
                         accessKeyId: event.target.value,
                       }))
                     }
-                    placeholder={
-                      sync.s3?.accessKeyConfigured ? '••••••••' : undefined
-                    }
+                    placeholder={sync.s3?.accessKeyConfigured ? '••••••••' : undefined}
                     value={s3.accessKeyId}
                   />
                   <Field
@@ -268,11 +260,7 @@ export const SyncSettingsDialog = ({
                         secretAccessKey: event.target.value,
                       }))
                     }
-                    placeholder={
-                      sync.s3?.secretAccessKeyConfigured
-                        ? '••••••••'
-                        : undefined
-                    }
+                    placeholder={sync.s3?.secretAccessKeyConfigured ? '••••••••' : undefined}
                     type="password"
                     value={s3.secretAccessKey}
                   />
@@ -317,9 +305,7 @@ export const SyncSettingsDialog = ({
                         password: event.target.value,
                       }))
                     }
-                    placeholder={
-                      sync.webdav?.passwordConfigured ? '••••••••' : undefined
-                    }
+                    placeholder={sync.webdav?.passwordConfigured ? '••••••••' : undefined}
                     type="password"
                     value={webdav.password}
                   />
@@ -345,10 +331,7 @@ export const SyncSettingsDialog = ({
                 {t('sync.backupCodeHint')}
               </Typography>
               {!sync.customBackupCode ? (
-                <Stack
-                  direction="row"
-                  sx={{ alignItems: 'flex-end', gap: 0.5 }}
-                >
+                <Stack direction="row" sx={{ alignItems: 'flex-end', gap: 0.5 }}>
                   <Field
                     label={t('sync.backupCode')}
                     slotProps={{ htmlInput: { readOnly: true } }}
@@ -360,29 +343,15 @@ export const SyncSettingsDialog = ({
                           : ''
                     }
                   />
-                  <Tooltip
-                    title={
-                      showCode
-                        ? t('sync.hideBackupCode')
-                        : t('sync.showBackupCode')
-                    }
-                  >
+                  <Tooltip title={showCode ? t('sync.hideBackupCode') : t('sync.showBackupCode')}>
                     <span>
                       <IconButton
-                        aria-label={
-                          showCode
-                            ? t('sync.hideBackupCode')
-                            : t('sync.showBackupCode')
-                        }
+                        aria-label={showCode ? t('sync.hideBackupCode') : t('sync.showBackupCode')}
                         disabled={!revealedCode}
                         onClick={() => setShowCode((current) => !current)}
                         sx={{ height: 44, width: 44 }}
                       >
-                        {showCode ? (
-                          <VisibilityOffRoundedIcon />
-                        ) : (
-                          <VisibilityRoundedIcon />
-                        )}
+                        {showCode ? <VisibilityOffRoundedIcon /> : <VisibilityRoundedIcon />}
                       </IconButton>
                     </span>
                   </Tooltip>
@@ -404,9 +373,7 @@ export const SyncSettingsDialog = ({
                 helperText={t('sync.backupCodeCustomHint')}
                 label={t('sync.backupCodeCustom')}
                 onChange={(event) => setCustomCode(event.target.value)}
-                placeholder={
-                  sync.customBackupCode ? t('sync.backupCodeHidden') : undefined
-                }
+                placeholder={sync.customBackupCode ? t('sync.backupCodeHidden') : undefined}
                 type="password"
                 value={customCode}
               />
@@ -424,26 +391,13 @@ export const SyncSettingsDialog = ({
           </Stack>
         </DialogContent>
         <DialogActions sx={{ gap: 1, px: 3, py: 2 }}>
-          <Button
-            disabled={Boolean(pendingKey)}
-            onClick={testConnection}
-            variant="outlined"
-          >
+          <Button disabled={Boolean(pendingKey)} onClick={testConnection} variant="outlined">
             {t('sync.test')}
           </Button>
-          <Button
-            color="inherit"
-            disabled={Boolean(pendingKey)}
-            onClick={close}
-            variant="text"
-          >
+          <Button color="inherit" disabled={Boolean(pendingKey)} onClick={close} variant="text">
             {t('action.cancel')}
           </Button>
-          <Button
-            disabled={Boolean(pendingKey)}
-            onClick={save}
-            variant="contained"
-          >
+          <Button disabled={Boolean(pendingKey)} onClick={save} variant="contained">
             {t('action.save')}
           </Button>
         </DialogActions>
@@ -451,9 +405,7 @@ export const SyncSettingsDialog = ({
       <ConfirmDialog
         cancelLabel={t('action.cancel')}
         confirmLabel={
-          sync.customBackupCode
-            ? t('sync.backupCodeRestore')
-            : t('sync.backupCodeRegenerate')
+          sync.customBackupCode ? t('sync.backupCodeRestore') : t('sync.backupCodeRegenerate')
         }
         description={
           sync.customBackupCode
@@ -465,9 +417,7 @@ export const SyncSettingsDialog = ({
         open={confirmRegenerate}
         pending={pendingKey === 'generate-backup-code'}
         title={
-          sync.customBackupCode
-            ? t('sync.backupCodeRestoreTitle')
-            : t('sync.backupCodeRegenerate')
+          sync.customBackupCode ? t('sync.backupCodeRestoreTitle') : t('sync.backupCodeRegenerate')
         }
       />
     </>

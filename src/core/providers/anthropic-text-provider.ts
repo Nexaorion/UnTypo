@@ -22,8 +22,7 @@ import {
 } from './text-provider-utils.js';
 import { anthropicNoThinking } from './text-reasoning-policy.js';
 
-export type AnthropicTextProviderConfiguration =
-  ProviderConnectionConfiguration;
+export type AnthropicTextProviderConfiguration = ProviderConnectionConfiguration;
 
 interface AnthropicMessagePayload {
   content?: Array<{
@@ -46,10 +45,7 @@ const extractText = (payload: unknown): string => {
     .map((part) => part.text)
     .join('');
   if (text.trim()) return text;
-  throw new ProviderContractError(
-    'EMPTY_RESULT',
-    'Anthropic returned an empty response',
-  );
+  throw new ProviderContractError('EMPTY_RESULT', 'Anthropic returned an empty response');
 };
 
 export class AnthropicTextProvider implements TextGenerationProvider {
@@ -79,13 +75,8 @@ export class AnthropicTextProvider implements TextGenerationProvider {
     this.#fetch = fetchImplementation;
   }
 
-  async processTranscript(
-    text: string,
-    context: TextProcessContext,
-  ): Promise<TextProcessResult> {
-    const outputTextStream = createTranscriptOutputTextStream(
-      context.onOutputTextUpdate,
-    );
+  async processTranscript(text: string, context: TextProcessContext): Promise<TextProcessResult> {
+    const outputTextStream = createTranscriptOutputTextStream(context.onOutputTextUpdate);
     const output = await this.textResponse(
       text,
       transcriptProcessingInstructions(context),
@@ -103,26 +94,23 @@ export class AnthropicTextProvider implements TextGenerationProvider {
     signal?: AbortSignal,
     onTextDelta?: (delta: string) => void,
   ): Promise<string> {
-    const response = await this.#fetch(
-      providerUrl(this.#baseUrl, '/messages'),
-      {
-        body: JSON.stringify({
-          max_tokens: 2_048,
-          messages: [{ content: input, role: 'user' }],
-          model: this.#model,
-          stream: true,
-          system: instructions,
-          ...anthropicNoThinking(this.#model),
-        }),
-        headers: {
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json',
-          'x-api-key': this.#apiKey,
-        },
-        method: 'POST',
-        signal,
+    const response = await this.#fetch(providerUrl(this.#baseUrl, '/messages'), {
+      body: JSON.stringify({
+        max_tokens: 2_048,
+        messages: [{ content: input, role: 'user' }],
+        model: this.#model,
+        stream: true,
+        system: instructions,
+        ...anthropicNoThinking(this.#model),
+      }),
+      headers: {
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+        'x-api-key': this.#apiKey,
       },
-    );
+      method: 'POST',
+      signal,
+    });
     if (isProviderEventStream(response)) {
       let output = '';
       await readProviderEventStream(response, 'Anthropic', (event) => {
@@ -139,10 +127,7 @@ export class AnthropicTextProvider implements TextGenerationProvider {
         onTextDelta?.(delta.text);
       });
       if (!output.trim()) {
-        throw new ProviderContractError(
-          'EMPTY_RESULT',
-          'Anthropic returned an empty response',
-        );
+        throw new ProviderContractError('EMPTY_RESULT', 'Anthropic returned an empty response');
       }
       return output;
     }

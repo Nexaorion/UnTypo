@@ -26,9 +26,7 @@ const acceleratorKeyCode = (key: string): string => {
   return arrows[key] ?? key;
 };
 
-export const captureInputFromAccelerator = (
-  accelerator: string,
-): HotkeyCaptureInput => {
+export const captureInputFromAccelerator = (accelerator: string): HotkeyCaptureInput => {
   const parts = accelerator
     .split('+')
     .map((part) => part.trim())
@@ -97,10 +95,7 @@ export class RendererHotkeyCapture {
 
   emitAccelerator(accelerator: string): void {
     if (!this.#contents || this.#contents.isDestroyed()) return;
-    this.#contents.send(
-      IPC_CHANNELS.hotkeyCaptureEvent,
-      captureInputFromAccelerator(accelerator),
-    );
+    this.#contents.send(IPC_CHANNELS.hotkeyCaptureEvent, captureInputFromAccelerator(accelerator));
   }
 
   stop(): void {

@@ -652,34 +652,23 @@ const runResponsiveSmokeTest = async (
   const attachedHere = !webContents.debugger.isAttached();
   if (attachedHere) webContents.debugger.attach('1.3');
   try {
-    await webContents.debugger.sendCommand(
-      'Emulation.setDeviceMetricsOverride',
-      {
-        deviceScaleFactor: 1,
-        height: viewport.height,
-        mobile: viewport.mobile,
-        screenHeight: viewport.height,
-        screenWidth: viewport.width,
-        width: viewport.width,
-      },
-    );
-    return (await webContents.executeJavaScript(
-      responsiveSmokeTestSource,
-    )) as string;
+    await webContents.debugger.sendCommand('Emulation.setDeviceMetricsOverride', {
+      deviceScaleFactor: 1,
+      height: viewport.height,
+      mobile: viewport.mobile,
+      screenHeight: viewport.height,
+      screenWidth: viewport.width,
+      width: viewport.width,
+    });
+    return (await webContents.executeJavaScript(responsiveSmokeTestSource)) as string;
   } finally {
-    await webContents.debugger.sendCommand(
-      'Emulation.clearDeviceMetricsOverride',
-    );
+    await webContents.debugger.sendCommand('Emulation.clearDeviceMetricsOverride');
     if (attachedHere) webContents.debugger.detach();
   }
 };
 
-export const runRendererSmokeTest = async (
-  webContents: WebContents,
-): Promise<string> => {
-  const desktopResult = (await webContents.executeJavaScript(
-    smokeTestSource,
-  )) as string;
+export const runRendererSmokeTest = async (webContents: WebContents): Promise<string> => {
+  const desktopResult = (await webContents.executeJavaScript(smokeTestSource)) as string;
   if (desktopResult !== 'ok') return desktopResult;
   const compactResult = await runResponsiveSmokeTest(webContents, {
     height: 600,

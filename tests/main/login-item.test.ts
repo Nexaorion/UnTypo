@@ -6,8 +6,7 @@ describe('createLoginItemSettings', () => {
     expect(
       createLoginItemSettings(true, {
         applicationPath: 'E:\\Code\\UnTypo Project',
-        executablePath:
-          'E:\\Code\\UnTypo Project\\node_modules\\electron\\electron.exe',
+        executablePath: 'E:\\Code\\UnTypo Project\\node_modules\\electron\\electron.exe',
         isPackaged: false,
         platform: 'win32',
       }),
@@ -44,8 +43,7 @@ describe('createLoginItemSettings', () => {
     expect(
       createLoginItemSettings(false, {
         applicationPath: 'E:\\Code\\UnTypo',
-        executablePath:
-          'E:\\Code\\UnTypo\\node_modules\\electron\\electron.exe',
+        executablePath: 'E:\\Code\\UnTypo\\node_modules\\electron\\electron.exe',
         isPackaged: false,
         platform: 'win32',
       }),

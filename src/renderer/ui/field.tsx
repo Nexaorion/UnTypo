@@ -21,9 +21,7 @@ export const Field = ({ id, label, slotProps, ...rest }: FieldProps) => {
         fullWidth
         id={inputId}
         // Select renders a div[role=combobox], which label/for cannot address.
-        slotProps={
-          rest.select ? { ...slotProps, select: { labelId } } : slotProps
-        }
+        slotProps={rest.select ? { ...slotProps, select: { labelId } } : slotProps}
         {...rest}
       />
     </Stack>

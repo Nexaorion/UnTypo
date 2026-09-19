@@ -23,20 +23,14 @@ export const unwrapIpcErrorMessage = (error: unknown): string => {
   return message.trim();
 };
 
-export const describeUserFacingError = (
-  error: unknown,
-  t: Translate,
-): string => {
+export const describeUserFacingError = (error: unknown, t: Translate): string => {
   const message = unwrapIpcErrorMessage(error);
   const normalized = message.toLowerCase();
 
   if (normalized.includes('hotkey_conflict')) return t('error.hotkeyConflict');
-  if (normalized.includes('hotkey_unavailable'))
-    return t('error.hotkeyUnavailable');
-  if (/backup code (?:length )?is invalid/u.test(normalized))
-    return t('error.invalidBackupCode');
-  if (normalized.includes('backup code is not configured'))
-    return t('error.backupCodeMissing');
+  if (normalized.includes('hotkey_unavailable')) return t('error.hotkeyUnavailable');
+  if (/backup code (?:length )?is invalid/u.test(normalized)) return t('error.invalidBackupCode');
+  if (normalized.includes('backup code is not configured')) return t('error.backupCodeMissing');
   if (
     normalized.includes('cloud storage is not configured') ||
     normalized.includes('storage is incomplete') ||
@@ -44,8 +38,7 @@ export const describeUserFacingError = (
   ) {
     return t('error.syncNotConfigured');
   }
-  if (normalized.includes('remote backup does not exist'))
-    return t('error.backupMissing');
+  if (normalized.includes('remote backup does not exist')) return t('error.backupMissing');
   if (
     normalized.includes('remote path is invalid') ||
     normalized.includes('remote backup path is invalid') ||
@@ -112,10 +105,7 @@ export const describeUserFacingError = (
   ) {
     return t('error.networkUnavailable');
   }
-  if (
-    normalized.includes('notallowederror') ||
-    normalized.includes('permission denied')
-  ) {
+  if (normalized.includes('notallowederror') || normalized.includes('permission denied')) {
     return t('error.devicePermission');
   }
   if (

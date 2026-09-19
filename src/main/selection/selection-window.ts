@@ -1,26 +1,13 @@
-import {
-  BrowserWindow,
-  clipboard,
-  ipcMain,
-  screen,
-  type IpcMainInvokeEvent,
-} from 'electron';
+import { BrowserWindow, clipboard, ipcMain, screen, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
 import type { ProcessResult } from '../../core/providers/contracts.js';
 import { SELECTION_CHANNELS } from '../../shared/selection-ipc.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
 import type { NativeHelperClient } from '../native/client.js';
-import {
-  NativePasteStatus,
-  type NativeTargetSnapshot,
-} from '../native/protocol.js';
+import { NativePasteStatus, type NativeTargetSnapshot } from '../native/protocol.js';
 import { assertTrustedSender } from '../security.js';
 import { selectionBounds } from './placement.js';
-import {
-  parseSelectionAction,
-  SelectionSession,
-  type SelectionContext,
-} from './session.js';
+import { parseSelectionAction, SelectionSession, type SelectionContext } from './session.js';
 
 export interface SelectionWindowOptions {
   native: Pick<
@@ -46,62 +33,47 @@ export class SelectionWindowController {
       this.assertSender(event);
       return this.#session?.state;
     });
-    for (const action of [
-      'retry',
-      'cancel',
-      'copy',
-      'replace',
-      'close',
-    ] as const) {
-      ipcMain.handle(
-        SELECTION_CHANNELS[action],
-        async (event, value: unknown) => {
-          this.assertSender(event);
-          const input = parseSelectionAction(value);
-          const session = this.#session;
-          if (!session || session.state.sessionId !== input.sessionId)
-            throw new Error('Selection session expired');
-          if (this.#mutating) return;
-          if (action === 'close') {
-            this.close();
-            return;
-          }
-          if (action === 'cancel') {
-            this.#requestGeneration += 1;
-            session.cancel();
-            return;
-          }
-          if (action === 'retry') {
-            if (!session.state.instruction || session.state.characters === 0)
-              return;
-            const generation = ++this.#requestGeneration;
-            try {
-              const context = await this.#options.context();
-              if (
-                this.#session === session &&
-                this.#requestGeneration === generation
-              )
-                await session.run(session.state.instruction, context);
-            } catch {
-              if (this.#session === session) session.fail('processing');
-            }
-            return;
-          }
-          if (!session.state.output || session.state.phase === 'processing')
-            return;
-          this.#mutating = true;
+    for (const action of ['retry', 'cancel', 'copy', 'replace', 'close'] as const) {
+      ipcMain.handle(SELECTION_CHANNELS[action], async (event, value: unknown) => {
+        this.assertSender(event);
+        const input = parseSelectionAction(value);
+        const session = this.#session;
+        if (!session || session.state.sessionId !== input.sessionId)
+          throw new Error('Selection session expired');
+        if (this.#mutating) return;
+        if (action === 'close') {
+          this.close();
+          return;
+        }
+        if (action === 'cancel') {
+          this.#requestGeneration += 1;
+          session.cancel();
+          return;
+        }
+        if (action === 'retry') {
+          if (!session.state.instruction || session.state.characters === 0) return;
+          const generation = ++this.#requestGeneration;
           try {
-            if (action === 'copy')
-              await clipboard.writeText(session.state.output);
-            else if (session.state.editable) await this.replace(session);
+            const context = await this.#options.context();
+            if (this.#session === session && this.#requestGeneration === generation)
+              await session.run(session.state.instruction, context);
           } catch {
-            if (this.#session === session) session.fail(action);
-            throw new Error('Selection action failed');
-          } finally {
-            this.#mutating = false;
+            if (this.#session === session) session.fail('processing');
           }
-        },
-      );
+          return;
+        }
+        if (!session.state.output || session.state.phase === 'processing') return;
+        this.#mutating = true;
+        try {
+          if (action === 'copy') await clipboard.writeText(session.state.output);
+          else if (session.state.editable) await this.replace(session);
+        } catch {
+          if (this.#session === session) session.fail(action);
+          throw new Error('Selection action failed');
+        } finally {
+          this.#mutating = false;
+        }
+      });
     }
   }
 
@@ -119,8 +91,7 @@ export class SelectionWindowController {
       this.#window &&
       this.#session &&
       this.#session.state.characters > 0 &&
-      this.#window.getNativeWindowHandle().readBigUInt64LE().toString() ===
-        target.windowHandle
+      this.#window.getNativeWindowHandle().readBigUInt64LE().toString() === target.windowHandle
     ) {
       this.#requestGeneration += 1;
       this.#window.hide();
@@ -132,10 +103,7 @@ export class SelectionWindowController {
     const selection = await this.#options.native.captureSelection();
     if (!selection.text.trim()) return false;
     const current = await this.#options.native.captureTarget();
-    if (
-      current.windowHandle !== target.windowHandle ||
-      current.processId !== target.processId
-    ) {
+    if (current.windowHandle !== target.windowHandle || current.processId !== target.processId) {
       await this.#options.native.clearSelection();
       return false;
     }
@@ -166,11 +134,7 @@ export class SelectionWindowController {
 
   private createSession(context: SelectionContext): SelectionSession {
     const session = new SelectionSession(context.locale, (state) => {
-      if (
-        this.#session === session &&
-        this.#window &&
-        !this.#window.isDestroyed()
-      )
+      if (this.#session === session && this.#window && !this.#window.isDestroyed())
         this.#window.webContents.send(SELECTION_CHANNELS.changed, state);
     });
     this.#session = session;
@@ -189,10 +153,7 @@ export class SelectionWindowController {
     try {
       if (this.#destroyed || !this.#session) return;
       const window = new BrowserWindow({
-        ...selectionBounds(
-          cursor,
-          screen.getDisplayNearestPoint(cursor).workArea,
-        ),
+        ...selectionBounds(cursor, screen.getDisplayNearestPoint(cursor).workArea),
         alwaysOnTop: true,
         frame: false,
         transparent: true,
@@ -216,11 +177,7 @@ export class SelectionWindowController {
       window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
       window.webContents.on('will-navigate', (event) => event.preventDefault());
       window.webContents.on('before-input-event', (event, input) => {
-        if (
-          input.type === 'keyDown' &&
-          input.key === 'Escape' &&
-          !this.#mutating
-        ) {
+        if (input.type === 'keyDown' && input.key === 'Escape' && !this.#mutating) {
           event.preventDefault();
           this.close();
         }
@@ -260,8 +217,7 @@ export class SelectionWindowController {
     this.#destroyed = true;
     this.close();
     for (const channel of Object.values(SELECTION_CHANNELS)) {
-      if (channel !== SELECTION_CHANNELS.changed)
-        ipcMain.removeHandler(channel);
+      if (channel !== SELECTION_CHANNELS.changed) ipcMain.removeHandler(channel);
     }
   }
 
@@ -285,12 +241,10 @@ export class SelectionWindowController {
       this.#window?.hide();
       const status = await this.#options.native.replaceSelection();
       succeeded = status === NativePasteStatus.Success;
-      if (succeeded)
-        await new Promise<void>((resolve) => setTimeout(resolve, 150));
+      if (succeeded) await new Promise<void>((resolve) => setTimeout(resolve, 150));
     } finally {
       try {
-        if (await adapter.isCurrentText(output))
-          await adapter.restore(original);
+        if (await adapter.isCurrentText(output)) await adapter.restore(original);
       } finally {
         if (this.#session === session) {
           if (succeeded) this.close();

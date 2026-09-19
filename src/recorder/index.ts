@@ -1,17 +1,8 @@
-import type {
-  RecorderStartMetadata,
-  RecorderStopMetadata,
-} from '../shared/recorder-ipc.js';
+import type { RecorderStartMetadata, RecorderStopMetadata } from '../shared/recorder-ipc.js';
 import type { ProviderAudioFormat } from '../core/providers/contracts.js';
-import type {
-  MicrophoneDeviceInfo,
-  MicrophoneSelection,
-} from '../shared/microphone.js';
+import type { MicrophoneDeviceInfo, MicrophoneSelection } from '../shared/microphone.js';
 import { resolveMicrophoneSelection } from '../shared/microphone.js';
-import {
-  isMissingMicrophoneError,
-  recorderAudioConstraints,
-} from './device-selection.js';
+import { isMissingMicrophoneError, recorderAudioConstraints } from './device-selection.js';
 import { VoiceActivityDetector } from './voice-activity.js';
 import {
   BAILIAN_WAV_SAMPLE_RATE_HZ,
@@ -93,10 +84,7 @@ const openMicrophone = async (
     };
   } catch (error) {
     if (!selection?.label || !isMissingMicrophoneError(error)) throw error;
-    const recovered = resolveMicrophoneSelection(
-      selection,
-      await listMicrophones(),
-    );
+    const recovered = resolveMicrophoneSelection(selection, await listMicrophones());
     if (!recovered || recovered.deviceId === selection.deviceId) throw error;
     return { selection: recovered, stream: await open(recovered.deviceId) };
   }
@@ -104,43 +92,28 @@ const openMicrophone = async (
 
 const supportedMimeType = (): string | undefined => {
   const candidates = ['audio/webm;codecs=opus', 'audio/webm'];
-  return candidates.find((candidate) =>
-    MediaRecorder.isTypeSupported(candidate),
-  );
+  return candidates.find((candidate) => MediaRecorder.isTypeSupported(candidate));
 };
 
 const stopTracks = (stream: MediaStream): void => {
   for (const track of stream.getTracks()) track.stop();
 };
 
-const transcodeToWav = async (
-  chunks: readonly Blob[],
-  mimeType: string,
-): Promise<ArrayBuffer> => {
+const transcodeToWav = async (chunks: readonly Blob[], mimeType: string): Promise<ArrayBuffer> => {
   const encodedAudio = await new Blob([...chunks], {
     type: mimeType,
   }).arrayBuffer();
   const decodingContext = new AudioContext();
   try {
     const decoded = await decodingContext.decodeAudioData(encodedAudio);
-    const frameCount = Math.max(
-      1,
-      Math.ceil(decoded.duration * BAILIAN_WAV_SAMPLE_RATE_HZ),
-    );
-    const renderingContext = new OfflineAudioContext(
-      1,
-      frameCount,
-      BAILIAN_WAV_SAMPLE_RATE_HZ,
-    );
+    const frameCount = Math.max(1, Math.ceil(decoded.duration * BAILIAN_WAV_SAMPLE_RATE_HZ));
+    const renderingContext = new OfflineAudioContext(1, frameCount, BAILIAN_WAV_SAMPLE_RATE_HZ);
     const source = renderingContext.createBufferSource();
     source.buffer = decoded;
     source.connect(renderingContext.destination);
     source.start();
     const rendered = await renderingContext.startRendering();
-    return encodePcm16Wav(
-      rendered.getChannelData(0),
-      BAILIAN_WAV_SAMPLE_RATE_HZ,
-    );
+    return encodePcm16Wav(rendered.getChannelData(0), BAILIAN_WAV_SAMPLE_RATE_HZ);
   } finally {
     await decodingContext.close().catch(() => undefined);
   }
@@ -183,9 +156,7 @@ const stopRealtimePcm = (recorder: ActiveRecorder): void => {
   closeAudioContext(capture.context);
 };
 
-const startRealtimePcm = (
-  recorder: ActiveRecorder,
-): RecorderRealtimePcm | undefined => {
+const startRealtimePcm = (recorder: ActiveRecorder): RecorderRealtimePcm | undefined => {
   let context: AudioContext | undefined;
   let source: MediaStreamAudioSourceNode | undefined;
   let processor: ScriptProcessorNode | undefined;
@@ -216,8 +187,7 @@ const startRealtimePcm = (
       for (let channel = 0; channel < channels; channel += 1) {
         const channelSamples = input.getChannelData(channel);
         for (let index = 0; index < samples.length; index += 1) {
-          samples[index] =
-            (samples[index] ?? 0) + (channelSamples[index] ?? 0) / channels;
+          samples[index] = (samples[index] ?? 0) + (channelSamples[index] ?? 0) / channels;
         }
       }
       const pcm = encodePcm16(samples);
@@ -319,10 +289,7 @@ const start = async (
   const opened = await openMicrophone(microphoneSelection);
   const stream = opened.stream;
   const mimeType = supportedMimeType();
-  const mediaRecorder = new MediaRecorder(
-    stream,
-    mimeType ? { mimeType } : undefined,
-  );
+  const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
   const microphoneTrack = stream.getAudioTracks()[0];
   const settings = microphoneTrack?.getSettings();
   const encodedMimeType = mediaRecorder.mimeType || mimeType || 'audio/webm';
@@ -389,10 +356,7 @@ const start = async (
   });
 
   mediaRecorder.addEventListener('stop', () => {
-    const durationMs = Math.max(
-      1,
-      Math.round(performance.now() - recorder.startedAt),
-    );
+    const durationMs = Math.max(1, Math.round(performance.now() - recorder.startedAt));
     stopLevelMeter(recorder);
     stopRealtimePcm(recorder);
     stopTracks(recorder.stream);
@@ -465,22 +429,15 @@ window.recorder.onListDevices((requestId) => {
   void listMicrophones()
     .then((devices) => window.recorder.sendDevices(requestId, devices))
     .catch((error: unknown) => {
-      const message =
-        error instanceof Error ? error.message : 'Unable to list microphones';
+      const message = error instanceof Error ? error.message : 'Unable to list microphones';
       window.recorder.sendDevices(requestId, [], message);
     });
 });
 
-window.recorder.onStart(
-  (sessionId, microphoneSelection, outputFormat, realtimePcmEnabled) => {
-    void start(
-      sessionId,
-      microphoneSelection,
-      outputFormat,
-      realtimePcmEnabled,
-    ).catch((error: unknown) => {
-      const message =
-        error instanceof Error ? error.message : 'Microphone failed';
+window.recorder.onStart((sessionId, microphoneSelection, outputFormat, realtimePcmEnabled) => {
+  void start(sessionId, microphoneSelection, outputFormat, realtimePcmEnabled).catch(
+    (error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Microphone failed';
       window.recorder.sendError(sessionId, message);
       if (activeRecorder?.sessionId === sessionId) {
         stopLevelMeter(activeRecorder);
@@ -488,8 +445,8 @@ window.recorder.onStart(
         stopTracks(activeRecorder.stream);
         activeRecorder = undefined;
       }
-    });
-  },
-);
+    },
+  );
+});
 
 window.recorder.onStop(stop);

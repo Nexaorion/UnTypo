@@ -25,12 +25,8 @@ describe('isTrustedRendererUrl', () => {
     process.env.VITE_DEV_SERVER_URL = 'http://127.0.0.1:3000';
 
     expect(isTrustedRendererUrl('http://127.0.0.1:3000/index.html')).toBe(true);
-    expect(isTrustedRendererUrl('http://localhost:3000/index.html')).toBe(
-      false,
-    );
-    expect(isTrustedRendererUrl('http://127.0.0.1:3001/index.html')).toBe(
-      false,
-    );
+    expect(isTrustedRendererUrl('http://localhost:3000/index.html')).toBe(false);
+    expect(isTrustedRendererUrl('http://127.0.0.1:3001/index.html')).toBe(false);
   });
 
   it('rejects malformed values', () => {
@@ -40,10 +36,7 @@ describe('isTrustedRendererUrl', () => {
 
 describe('capsule Content-Security-Policy', () => {
   it('allows Vite and Emotion to inject the capsule runtime styles', () => {
-    const capsuleHtml = readFileSync(
-      new URL('../../capsule.html', import.meta.url),
-      'utf8',
-    );
+    const capsuleHtml = readFileSync(new URL('../../capsule.html', import.meta.url), 'utf8');
 
     expect(capsuleHtml).toContain("script-src 'self';");
     expect(capsuleHtml).toContain("style-src 'self' 'unsafe-inline';");

@@ -1,16 +1,7 @@
-import {
-  app,
-  dialog,
-  shell,
-  systemPreferences,
-  type WebContents,
-} from 'electron';
+import { app, dialog, shell, systemPreferences, type WebContents } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import {
-  ProviderContractError,
-  type UserProfileContext,
-} from '../../core/providers/contracts.js';
+import { ProviderContractError, type UserProfileContext } from '../../core/providers/contracts.js';
 import type {
   ClientDiagnosticExportRequest,
   ClientDiagnosticExportResult,
@@ -33,10 +24,7 @@ import type {
   ClientSyncSnapshot,
   SyncBackupInfo,
 } from '../../shared/sync.js';
-import {
-  resolveMicrophoneSelection,
-  type MicrophoneSelection,
-} from '../../shared/microphone.js';
+import { resolveMicrophoneSelection, type MicrophoneSelection } from '../../shared/microphone.js';
 import type { DictionaryCandidate } from '../../shared/dictionary.js';
 import type {
   ClientApplicationWritingStyleUpdate,
@@ -69,10 +57,7 @@ import {
 } from '../providers/provider-factory.js';
 import { ProviderActivationService } from '../providers/provider-activation.js';
 import { RecorderWindowController } from '../recording/recorder-window.js';
-import {
-  ConfigurationService,
-  DictionaryEntryError,
-} from '../storage/configuration.js';
+import { ConfigurationService, DictionaryEntryError } from '../storage/configuration.js';
 import type { ProviderProfile } from '../storage/configuration.js';
 import { ElectronSecretProtector } from '../storage/electron-secret-protector.js';
 import { HistoryRepository, HistoryService } from '../storage/history.js';
@@ -125,8 +110,7 @@ export class DesktopRuntime implements ClientBackendPort {
   readonly #recorder = new RecorderWindowController(
     undefined,
     (level) => this.#capsule.updateLevel(level),
-    (requested, resolved) =>
-      this.reconcileMicrophoneSelection(requested, resolved),
+    (requested, resolved) => this.reconcileMicrophoneSelection(requested, resolved),
   );
   readonly #sync: SyncService;
   readonly #tray: TrayController;
@@ -145,15 +129,9 @@ export class DesktopRuntime implements ClientBackendPort {
       path.join(userDataPath, 'config.json'),
       new ElectronSecretProtector(),
     );
-    this.#dictionaryLearning = new DictionaryLearningService(
-      this.#configuration,
-    );
-    this.#preferenceLearning = new WritingPreferenceLearningService(
-      this.#configuration,
-    );
-    this.#historyRepository = new HistoryRepository(
-      path.join(userDataPath, 'history.sqlite3'),
-    );
+    this.#dictionaryLearning = new DictionaryLearningService(this.#configuration);
+    this.#preferenceLearning = new WritingPreferenceLearningService(this.#configuration);
+    this.#historyRepository = new HistoryRepository(path.join(userDataPath, 'history.sqlite3'));
     this.#history = new HistoryService(this.#historyRepository);
     this.#sync = new SyncService({
       appVersion: app.getVersion(),
@@ -195,10 +173,7 @@ export class DesktopRuntime implements ClientBackendPort {
       diagnostics: this.#diagnostics,
       dictionaryLearning: {
         handleCandidates: (candidates, successPresentationGeneration) =>
-          this.handleDictionaryCandidates(
-            candidates,
-            successPresentationGeneration,
-          ),
+          this.handleDictionaryCandidates(candidates, successPresentationGeneration),
       },
       preferenceLearning: {
         handleCandidates: (candidates, application) =>
@@ -216,9 +191,7 @@ export class DesktopRuntime implements ClientBackendPort {
         {
           paste: async (target) => {
             if (process.platform === 'darwin') {
-              return pasteDarwinWithHelperFallback(target, (next) =>
-                this.#native.paste(next),
-              );
+              return pasteDarwinWithHelperFallback(target, (next) => this.#native.paste(next));
             }
             return this.#native.paste(target);
           },
@@ -228,21 +201,17 @@ export class DesktopRuntime implements ClientBackendPort {
       ),
       native: this.#native,
       presenter: {
-        showConfirm: (result) =>
-          this.#capsule.showConfirm(result, this.#locale),
-        showError: (reason, detail) =>
-          this.#capsule.showError(reason, this.#locale, detail),
+        showConfirm: (result) => this.#capsule.showConfirm(result, this.#locale),
+        showError: (reason, detail) => this.#capsule.showError(reason, this.#locale, detail),
         showProcessing: () => this.#capsule.showProcessing(this.#locale),
         showRecording: () => this.#capsule.showRecording(this.#locale),
         showSuccess: (result, delivery) =>
           this.#capsule.showSuccess(result, delivery, this.#locale),
-        updateProcessing: (outputText) =>
-          this.#capsule.updateProcessing(outputText),
+        updateProcessing: (outputText) => this.#capsule.updateProcessing(outputText),
       },
       recorder: this.#recorder,
       selection: {
-        prepareVoice: (target) =>
-          this.#selection?.prepareVoice(target) ?? Promise.resolve(false),
+        prepareVoice: (target) => this.#selection?.prepareVoice(target) ?? Promise.resolve(false),
         processVoice: async (instruction) => {
           this.#capsule.close();
           await this.#selection?.processVoice(instruction);
@@ -297,8 +266,7 @@ export class DesktopRuntime implements ClientBackendPort {
       this.#diagnostics.log({
         context: {
           fastModeEnabled: config.dictation.fastMode === true,
-          speechProviderConfigured:
-            this.#providers.speechProviderId !== undefined,
+          speechProviderConfigured: this.#providers.speechProviderId !== undefined,
           textProviderConfigured: this.#providers.textProviderId !== undefined,
         },
         message: 'Desktop runtime started',
@@ -320,15 +288,14 @@ export class DesktopRuntime implements ClientBackendPort {
   }
 
   async smokeTest(): Promise<boolean> {
-    const [recorderReady, nativeReady, dictionaryCapsuleReady] =
-      await Promise.all([
-        this.#recorder.smokeTest(),
-        this.#native
-          .ping()
-          .then(() => true)
-          .catch(() => false),
-        this.#capsule.smokeTestDictionarySuggestion(),
-      ]);
+    const [recorderReady, nativeReady, dictionaryCapsuleReady] = await Promise.all([
+      this.#recorder.smokeTest(),
+      this.#native
+        .ping()
+        .then(() => true)
+        .catch(() => false),
+      this.#capsule.smokeTestDictionarySuggestion(),
+    ]);
     if (!recorderReady || !nativeReady || !dictionaryCapsuleReady) {
       console.error(
         `SMOKE_SURFACE recorder=${String(recorderReady)} native=${String(nativeReady)} capsule=${String(dictionaryCapsuleReady)}`,
@@ -352,29 +319,23 @@ export class DesktopRuntime implements ClientBackendPort {
 
   async updateSettings(update: ClientSettingsUpdate): Promise<ClientSnapshot> {
     const current = await this.#configuration.load();
-    const requestedSpeechProfile =
-      update.dictation?.activeSpeechProviderProfileId;
+    const requestedSpeechProfile = update.dictation?.activeSpeechProviderProfileId;
     if (
       typeof requestedSpeechProfile === 'string' &&
-      !current.providers.some(
-        ({ id, kind }) => id === requestedSpeechProfile && kind === 'speech',
-      )
+      !current.providers.some(({ id, kind }) => id === requestedSpeechProfile && kind === 'speech')
     ) {
       throw new Error('Active speech provider profile does not exist');
     }
     const requestedTextProfile = update.dictation?.activeTextProviderProfileId;
     if (
       typeof requestedTextProfile === 'string' &&
-      !current.providers.some(
-        ({ id, kind }) => id === requestedTextProfile && kind === 'text',
-      )
+      !current.providers.some(({ id, kind }) => id === requestedTextProfile && kind === 'text')
     ) {
       throw new Error('Active text provider profile does not exist');
     }
     const requestedHotkey = update.dictation?.hotkeyAccelerator;
     const hotkeyChanged =
-      requestedHotkey !== undefined &&
-      requestedHotkey !== current.dictation.hotkeyAccelerator;
+      requestedHotkey !== undefined && requestedHotkey !== current.dictation.hotkeyAccelerator;
 
     if (hotkeyChanged && requestedHotkey) {
       try {
@@ -395,9 +356,7 @@ export class DesktopRuntime implements ClientBackendPort {
 
     let next: Awaited<ReturnType<ConfigurationService['update']>>;
     try {
-      next = await this.#configuration.update((config) =>
-        mergeSettingsUpdate(config, update),
-      );
+      next = await this.#configuration.update((config) => mergeSettingsUpdate(config, update));
     } catch (error) {
       if (hotkeyChanged) {
         try {
@@ -453,9 +412,7 @@ export class DesktopRuntime implements ClientBackendPort {
     return this.getClientSnapshot();
   }
 
-  async setDictionaryLearningEnabled(
-    enabled: boolean,
-  ): Promise<ClientSnapshot> {
+  async setDictionaryLearningEnabled(enabled: boolean): Promise<ClientSnapshot> {
     await this.#configuration.setDictionaryLearningEnabled(enabled);
     return this.getClientSnapshot();
   }
@@ -467,9 +424,7 @@ export class DesktopRuntime implements ClientBackendPort {
     return this.getClientSnapshot();
   }
 
-  async setPersonalizationLearningEnabled(
-    enabled: boolean,
-  ): Promise<ClientSnapshot> {
+  async setPersonalizationLearningEnabled(enabled: boolean): Promise<ClientSnapshot> {
     await this.#configuration.setPersonalizationLearningEnabled(enabled);
     return this.getClientSnapshot();
   }
@@ -544,10 +499,7 @@ export class DesktopRuntime implements ClientBackendPort {
 
     const current = await this.#configuration.upsertProvider(profile);
     let next = current;
-    if (
-      profile.kind === 'speech' &&
-      !current.dictation.activeSpeechProviderProfileId
-    ) {
+    if (profile.kind === 'speech' && !current.dictation.activeSpeechProviderProfileId) {
       next = await this.#configuration.update((config) => ({
         ...config,
         dictation: {
@@ -555,10 +507,7 @@ export class DesktopRuntime implements ClientBackendPort {
           activeSpeechProviderProfileId: profile.id,
         },
       }));
-    } else if (
-      profile.kind === 'text' &&
-      !current.dictation.activeTextProviderProfileId
-    ) {
+    } else if (profile.kind === 'text' && !current.dictation.activeTextProviderProfileId) {
       next = await this.#configuration.update((config) => ({
         ...config,
         dictation: {
@@ -595,15 +544,9 @@ export class DesktopRuntime implements ClientBackendPort {
     const profile = await this.#configuration.getProvider(profileId);
     if (!profile) throw new Error('Provider profile does not exist');
     try {
-      await testProviderConnection(
-        profile,
-        this.#providers.providerFetch(profile),
-      );
+      await testProviderConnection(profile, this.#providers.providerFetch(profile));
     } catch (error) {
-      if (
-        error instanceof ProviderContractError &&
-        error.code === 'EMPTY_RESULT'
-      ) {
+      if (error instanceof ProviderContractError && error.code === 'EMPTY_RESULT') {
         return { ok: true };
       }
       this.#diagnostics.recordIssue({
@@ -621,9 +564,7 @@ export class DesktopRuntime implements ClientBackendPort {
     return { ok: true };
   }
 
-  acknowledgeDiagnostics(
-    issueIds: readonly string[],
-  ): ClientDiagnosticSnapshot {
+  acknowledgeDiagnostics(issueIds: readonly string[]): ClientDiagnosticSnapshot {
     return this.#diagnostics.acknowledge(issueIds);
   }
 
@@ -696,9 +637,7 @@ export class DesktopRuntime implements ClientBackendPort {
     return this.#sync.snapshot();
   }
 
-  async updateSyncConfig(
-    update: ClientSyncConfigUpdate,
-  ): Promise<ClientSnapshot> {
+  async updateSyncConfig(update: ClientSyncConfigUpdate): Promise<ClientSnapshot> {
     await this.#sync.updateConfig(update);
     return this.getClientSnapshot();
   }
@@ -729,10 +668,7 @@ export class DesktopRuntime implements ClientBackendPort {
     return this.#sync.generateBackupCode();
   }
 
-  async setHotkeyCaptureActive(
-    active: boolean,
-    sender?: WebContents,
-  ): Promise<void> {
+  async setHotkeyCaptureActive(active: boolean, sender?: WebContents): Promise<void> {
     return this.#hotkey.setCaptureActive(active, sender);
   }
 
@@ -777,10 +713,7 @@ export class DesktopRuntime implements ClientBackendPort {
             return undefined;
           } catch (error) {
             if (error instanceof DictionaryEntryError) {
-              const errors: Record<
-                DictionaryEntryError['code'],
-                DictionarySuggestionError
-              > = {
+              const errors: Record<DictionaryEntryError['code'], DictionarySuggestionError> = {
                 DICTIONARY_DUPLICATE: 'duplicate',
                 DICTIONARY_EMPTY: 'empty',
                 DICTIONARY_FULL: 'full',
@@ -886,8 +819,7 @@ export class DesktopRuntime implements ClientBackendPort {
   }
 
   private dispatchHotkey(action: NativeHotkeyAction): void {
-    if (this.#selection?.isBusy || this.#coordinator?.state === 'processing')
-      return;
+    if (this.#selection?.isBusy || this.#coordinator?.state === 'processing') return;
     this.#hotkeyQueue = this.#hotkeyQueue
       .then(async () => {
         await this.#coordinator?.handleHotkey(action);

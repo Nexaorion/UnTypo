@@ -50,15 +50,10 @@ const isRecorderUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
     if (process.env.VITE_DEV_SERVER_URL) {
-      return (
-        url.origin === 'http://127.0.0.1:3000' &&
-        url.pathname.endsWith('/recorder.html')
-      );
+      return url.origin === 'http://127.0.0.1:3000' && url.pathname.endsWith('/recorder.html');
     }
     return (
-      url.protocol === 'app:' &&
-      url.host === 'renderer' &&
-      url.pathname.endsWith('/recorder.html')
+      url.protocol === 'app:' && url.host === 'renderer' && url.pathname.endsWith('/recorder.html')
     );
   } catch {
     return false;
@@ -72,25 +67,15 @@ const configurePermissions = (recorderSession: Session): void => {
       details.mediaType !== 'video' &&
       isRecorderUrl(details.requestingUrl ?? requestingOrigin),
   );
-  recorderSession.setPermissionRequestHandler(
-    (webContents, permission, callback, details) => {
-      const mediaTypes =
-        'mediaTypes' in details ? details.mediaTypes : undefined;
-      const audioOnly =
-        mediaTypes === undefined ||
-        (mediaTypes.includes('audio') && !mediaTypes.includes('video'));
-      callback(
-        permission === 'media' &&
-          audioOnly &&
-          isRecorderUrl(webContents.getURL()),
-      );
-    },
-  );
+  recorderSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const mediaTypes = 'mediaTypes' in details ? details.mediaTypes : undefined;
+    const audioOnly =
+      mediaTypes === undefined || (mediaTypes.includes('audio') && !mediaTypes.includes('video'));
+    callback(permission === 'media' && audioOnly && isRecorderUrl(webContents.getURL()));
+  });
 };
 
-const parseMicrophoneSelection = (
-  value: unknown,
-): MicrophoneSelection | undefined => {
+const parseMicrophoneSelection = (value: unknown): MicrophoneSelection | undefined => {
   if (value === undefined) return undefined;
   if (
     typeof value !== 'object' ||
@@ -109,9 +94,7 @@ const parseMicrophoneSelection = (
   }
   return {
     deviceId: value.deviceId,
-    ...('label' in value && typeof value.label === 'string'
-      ? { label: value.label }
-      : {}),
+    ...('label' in value && typeof value.label === 'string' ? { label: value.label } : {}),
   };
 };
 
@@ -134,10 +117,7 @@ export class RecorderWindowController {
   constructor(
     maximumBytes?: number,
     onLevel?: (level: number) => void,
-    onMicrophoneResolved?: (
-      requested: MicrophoneSelection,
-      resolved: MicrophoneSelection,
-    ) => void,
+    onMicrophoneResolved?: (requested: MicrophoneSelection, resolved: MicrophoneSelection) => void,
   ) {
     this.#onLevel = onLevel;
     this.#onMicrophoneResolved = onMicrophoneResolved;
@@ -174,20 +154,13 @@ export class RecorderWindowController {
     channel.port1.on('message', this.handleAudioMessage);
     channel.port1.on('close', this.handleAudioPortClose);
     channel.port1.start();
-    this.#window?.webContents.postMessage('recorder:audio-channel', null, [
-      channel.port2,
-    ]);
-    const started = new Promise<MicrophoneSelection | undefined>(
-      (resolve, reject) => {
-        const timer = setTimeout(() => {
-          this.rejectSession(
-            sessionId,
-            new Error('Recorder start confirmation timed out'),
-          );
-        }, 10_000);
-        this.#pendingStart = { reject, resolve, sessionId, timer };
-      },
-    );
+    this.#window?.webContents.postMessage('recorder:audio-channel', null, [channel.port2]);
+    const started = new Promise<MicrophoneSelection | undefined>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.rejectSession(sessionId, new Error('Recorder start confirmation timed out'));
+      }, 10_000);
+      this.#pendingStart = { reject, resolve, sessionId, timer };
+    });
     this.#window?.webContents.send(
       RECORDER_CHANNELS.commandStart,
       sessionId,
@@ -218,19 +191,14 @@ export class RecorderWindowController {
   async listDevices(): Promise<readonly RecorderDeviceInfo[]> {
     await this.initialize();
     const requestId = randomUUID();
-    const result = new Promise<readonly RecorderDeviceInfo[]>(
-      (resolve, reject) => {
-        const timer = setTimeout(() => {
-          this.#pendingDeviceRequests.delete(requestId);
-          reject(new Error('Microphone device discovery timed out'));
-        }, 5_000);
-        this.#pendingDeviceRequests.set(requestId, { reject, resolve, timer });
-      },
-    );
-    this.#window?.webContents.send(
-      RECORDER_CHANNELS.commandListDevices,
-      requestId,
-    );
+    const result = new Promise<readonly RecorderDeviceInfo[]>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.#pendingDeviceRequests.delete(requestId);
+        reject(new Error('Microphone device discovery timed out'));
+      }, 5_000);
+      this.#pendingDeviceRequests.set(requestId, { reject, resolve, timer });
+    });
+    this.#window?.webContents.send(RECORDER_CHANNELS.commandListDevices, requestId);
     return result;
   }
 
@@ -248,10 +216,7 @@ export class RecorderWindowController {
     ipcMain.removeListener(RECORDER_CHANNELS.started, this.handleStarted);
     ipcMain.removeListener(RECORDER_CHANNELS.chunk, this.handleChunk);
     ipcMain.removeListener(RECORDER_CHANNELS.level, this.handleLevel);
-    ipcMain.removeListener(
-      RECORDER_CHANNELS.realtimeChunk,
-      this.handleRealtimeChunk,
-    );
+    ipcMain.removeListener(RECORDER_CHANNELS.realtimeChunk, this.handleRealtimeChunk);
     ipcMain.removeListener(RECORDER_CHANNELS.stopped, this.handleStopped);
     ipcMain.removeListener(RECORDER_CHANNELS.error, this.handleError);
     ipcMain.removeListener(RECORDER_CHANNELS.devices, this.handleDevices);
@@ -304,10 +269,7 @@ export class RecorderWindowController {
   ): void => {
     if (!this.isExpectedSender(event)) return;
     if (!(chunk instanceof ArrayBuffer)) {
-      this.rejectSession(
-        sessionId,
-        new Error('Recorder sent an invalid chunk'),
-      );
+      this.rejectSession(sessionId, new Error('Recorder sent an invalid chunk'));
       return;
     }
     try {
@@ -477,21 +439,12 @@ export class RecorderWindowController {
 
   private readonly handleAudioMessage = (event: { data: unknown }): void => {
     const data = event.data as { sessionId?: unknown; chunk?: unknown };
-    const sessionId =
-      typeof data.sessionId === 'string' ? data.sessionId : undefined;
+    const sessionId = typeof data.sessionId === 'string' ? data.sessionId : undefined;
     const chunk = data.chunk instanceof ArrayBuffer ? data.chunk : undefined;
 
-    if (
-      !sessionId ||
-      !chunk ||
-      chunk.byteLength === 0 ||
-      chunk.byteLength > 10 * 1024 * 1024
-    ) {
+    if (!sessionId || !chunk || chunk.byteLength === 0 || chunk.byteLength > 10 * 1024 * 1024) {
       if (sessionId) {
-        this.rejectSession(
-          sessionId,
-          new Error('Recorder sent invalid audio chunk'),
-        );
+        this.rejectSession(sessionId, new Error('Recorder sent invalid audio chunk'));
       }
       return;
     }

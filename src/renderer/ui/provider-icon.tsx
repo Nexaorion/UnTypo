@@ -20,13 +20,7 @@ const maskIconUrls: Partial<Record<ProviderIconId, string>> = {
   openai: openAiIconUrl,
 };
 
-export const ProviderIcon = ({
-  icon,
-  size = 44,
-}: {
-  icon: ProviderIconId;
-  size?: number;
-}) => {
+export const ProviderIcon = ({ icon, size = 44 }: { icon: ProviderIconId; size?: number }) => {
   const colorIconUrl = colorIconUrls[icon];
   const maskIconUrl = maskIconUrls[icon];
   const glyphSize = Math.round(size * 0.56);

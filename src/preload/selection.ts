@@ -13,8 +13,7 @@ const channels = {
 const api: SelectionAPI = {
   getState: () => ipcRenderer.invoke(channels.state) as Promise<SelectionState>,
   onChanged: (listener) => {
-    const handler = (_event: IpcRendererEvent, state: SelectionState) =>
-      listener(state);
+    const handler = (_event: IpcRendererEvent, state: SelectionState) => listener(state);
     ipcRenderer.on(channels.changed, handler);
     return () => {
       ipcRenderer.off(channels.changed, handler);
@@ -24,13 +23,9 @@ const api: SelectionAPI = {
     ipcRenderer.invoke(channels.retry, {
       sessionId,
     }) as Promise<void>,
-  cancel: (sessionId) =>
-    ipcRenderer.invoke(channels.cancel, { sessionId }) as Promise<void>,
-  copy: (sessionId) =>
-    ipcRenderer.invoke(channels.copy, { sessionId }) as Promise<void>,
-  replace: (sessionId) =>
-    ipcRenderer.invoke(channels.replace, { sessionId }) as Promise<void>,
-  close: (sessionId) =>
-    ipcRenderer.invoke(channels.close, { sessionId }) as Promise<void>,
+  cancel: (sessionId) => ipcRenderer.invoke(channels.cancel, { sessionId }) as Promise<void>,
+  copy: (sessionId) => ipcRenderer.invoke(channels.copy, { sessionId }) as Promise<void>,
+  replace: (sessionId) => ipcRenderer.invoke(channels.replace, { sessionId }) as Promise<void>,
+  close: (sessionId) => ipcRenderer.invoke(channels.close, { sessionId }) as Promise<void>,
 };
 contextBridge.exposeInMainWorld('selection', api);

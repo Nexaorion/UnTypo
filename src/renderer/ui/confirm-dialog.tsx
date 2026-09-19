@@ -56,12 +56,7 @@ export const ConfirmDialog = ({
         >
           {cancelLabel}
         </Button>
-        <Button
-          color={confirmColor}
-          disabled={pending}
-          onClick={onConfirm}
-          variant="outlined"
-        >
+        <Button color={confirmColor} disabled={pending} onClick={onConfirm} variant="outlined">
           {confirmLabel}
         </Button>
       </DialogActions>

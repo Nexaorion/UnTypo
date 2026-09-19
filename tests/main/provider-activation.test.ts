@@ -38,9 +38,7 @@ const textProfile: ProviderProfile = {
   },
 };
 
-const createService = (
-  profiles: Record<string, ProviderProfile | undefined>,
-) => {
+const createService = (profiles: Record<string, ProviderProfile | undefined>) => {
   const configuration = {
     getProvider: vi.fn((id: string) => profiles[id]),
   } as unknown as ConfigurationService;

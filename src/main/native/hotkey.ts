@@ -67,9 +67,7 @@ const parseVirtualKey = (value: string): number => {
   throw new Error(`Unsupported hotkey key: ${value}`);
 };
 
-export const parseHotkeyAccelerator = (
-  accelerator: string,
-): NativeHotkeyConfiguration => {
+export const parseHotkeyAccelerator = (accelerator: string): NativeHotkeyConfiguration => {
   const parts = accelerator
     .split('+')
     .map((part) => part.trim())
@@ -90,8 +88,7 @@ export const parseHotkeyAccelerator = (
   for (const part of parts) {
     const normalized = part.toLowerCase();
     if (normalized === 'alt' || normalized === 'option') modifiers |= MOD_ALT;
-    else if (normalized === 'ctrl' || normalized === 'control')
-      modifiers |= MOD_CONTROL;
+    else if (normalized === 'ctrl' || normalized === 'control') modifiers |= MOD_CONTROL;
     else if (normalized === 'shift') modifiers |= MOD_SHIFT;
     else if (
       normalized === 'win' ||
@@ -121,9 +118,7 @@ export const toElectronAccelerator = (accelerator: string): string => {
     ([, virtualKey]) => virtualKey === configuration.virtualKey,
   )?.[0];
   if (keyName) {
-    parts.push(
-      keyName === 'space' ? 'Space' : (electronNumpadNames[keyName] ?? keyName),
-    );
+    parts.push(keyName === 'space' ? 'Space' : (electronNumpadNames[keyName] ?? keyName));
     return parts.join('+');
   }
   if (configuration.virtualKey >= 0x41 && configuration.virtualKey <= 0x5a) {

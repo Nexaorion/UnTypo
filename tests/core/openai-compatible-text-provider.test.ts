@@ -58,10 +58,7 @@ describe('OpenAICompatibleTextProvider', () => {
     if (typeof init?.body !== 'string') throw new Error('Expected JSON body');
     const body = JSON.parse(init.body) as Record<string, unknown>;
     expect(body).toMatchObject({
-      messages: [
-        { role: 'system' },
-        { content: '翻译成英文：你好', role: 'user' },
-      ],
+      messages: [{ role: 'system' }, { content: '翻译成英文：你好', role: 'user' }],
       model: 'chat-model',
     });
     expect(body).not.toHaveProperty('max_tokens');
@@ -77,9 +74,7 @@ describe('OpenAICompatibleTextProvider', () => {
           eventStreamResponse([
             { choices: [{ delta: { content: '{"outputText":"Hel' } }] },
             {
-              choices: [
-                { delta: { content: 'lo","intent":"transcription"}' } },
-              ],
+              choices: [{ delta: { content: 'lo","intent":"transcription"}' } }],
             },
           ]),
         ),

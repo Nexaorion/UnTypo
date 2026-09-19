@@ -71,12 +71,10 @@ app.on('child-process-gone', (_event, details) => {
   });
 });
 
-const windowBackground = (): string =>
-  nativeTheme.shouldUseDarkColors ? '#111111' : '#ffffff';
+const windowBackground = (): string => (nativeTheme.shouldUseDarkColors ? '#111111' : '#ffffff');
 
 const applicationIconPath = (): string => {
-  const fileName =
-    process.platform === 'darwin' ? 'untypo-icon.png' : 'untypo-icon.ico';
+  const fileName = process.platform === 'darwin' ? 'untypo-icon.png' : 'untypo-icon.ico';
   return app.isPackaged
     ? path.join(process.resourcesPath, fileName)
     : path.join(app.getAppPath(), 'assets', fileName);
@@ -85,11 +83,7 @@ const applicationIconPath = (): string => {
 const installApplicationMenu = (): void => {
   if (process.platform !== 'darwin') return;
   Menu.setApplicationMenu(
-    Menu.buildFromTemplate([
-      { role: 'appMenu' },
-      { role: 'editMenu' },
-      { role: 'windowMenu' },
-    ]),
+    Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]),
   );
 };
 
@@ -116,8 +110,7 @@ const createMainWindow = async (): Promise<BrowserWindow> => {
   } else {
     window.removeMenu();
   }
-  const syncWindowBackground = () =>
-    window.setBackgroundColor(windowBackground());
+  const syncWindowBackground = () => window.setBackgroundColor(windowBackground());
   nativeTheme.on('updated', syncWindowBackground);
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
@@ -150,9 +143,7 @@ const whenMainIpcReady = new Promise<void>((resolve, reject) => {
       resolve();
       return;
     }
-    reject(
-      error instanceof Error ? error : new Error('Application startup failed'),
-    );
+    reject(error instanceof Error ? error : new Error('Application startup failed'));
   };
 });
 void whenMainIpcReady.catch(() => undefined);
@@ -243,8 +234,7 @@ const startPrimaryInstance = (): void => {
           runtime.smokeTest(),
           runRendererSmokeTest(mainWindow.webContents),
         ]);
-        if (!recorderReady)
-          throw new Error('Runtime smoke surfaces are unavailable');
+        if (!recorderReady) throw new Error('Runtime smoke surfaces are unavailable');
         if (rendererReady !== 'ok')
           throw new Error(`Renderer interactions failed at ${rendererReady}`);
         await runtime.selectionSmokeTest();
@@ -284,9 +274,7 @@ const startPrimaryInstance = (): void => {
     clientIpc = undefined;
     removeDiagnosticsListener?.();
     removeDiagnosticsListener = undefined;
-    const stopping = runtime
-      ? runtime.stop().catch(console.error)
-      : Promise.resolve();
+    const stopping = runtime ? runtime.stop().catch(console.error) : Promise.resolve();
     void stopping.catch(console.error).finally(() => {
       if (installUpdate) {
         try {

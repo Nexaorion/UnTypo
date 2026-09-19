@@ -35,9 +35,7 @@ describe('untypo packer', () => {
     expect(packedPromise).toBeInstanceOf(Promise);
     const packed = await packedPromise;
     expect(packed.subarray(0, 8).equals(UNTYPO_FILE_MAGIC)).toBe(true);
-    await expect(unpackSyncFile(packed, 'K7M2NX4P')).resolves.toMatchObject(
-      payload,
-    );
+    await expect(unpackSyncFile(packed, 'K7M2NX4P')).resolves.toMatchObject(payload);
   });
 
   it('rejects the wrong backup code', async () => {

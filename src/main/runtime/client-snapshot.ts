@@ -1,8 +1,5 @@
 import { systemPreferences } from 'electron';
-import type {
-  ClientPermissionSnapshot,
-  ClientSnapshot,
-} from '../../shared/ipc.js';
+import type { ClientPermissionSnapshot, ClientSnapshot } from '../../shared/ipc.js';
 import type { WritingPreferenceLearningService } from '../personalization/learning.js';
 import type { ApplicationUpdateService } from '../update/application-update-service.js';
 import type { ConfigurationService } from '../storage/configuration.js';
@@ -18,9 +15,7 @@ export interface ClientSnapshotOptions {
 const darwinPermissionSnapshot = (): ClientPermissionSnapshot | undefined => {
   if (process.platform !== 'darwin') return undefined;
   return {
-    accessibility: systemPreferences.isTrustedAccessibilityClient(false)
-      ? 'granted'
-      : 'denied',
+    accessibility: systemPreferences.isTrustedAccessibilityClient(false) ? 'granted' : 'denied',
     microphone: systemPreferences.getMediaAccessStatus('microphone'),
   };
 };
@@ -39,9 +34,7 @@ export const buildClientSnapshot = async (
     dictionary: config.dictionary,
     dictionaryLearning: { enabled: config.dictionaryLearning.enabled },
     personalization: {
-      applicationStyles: structuredClone(
-        config.personalization.applicationStyles,
-      ),
+      applicationStyles: structuredClone(config.personalization.applicationStyles),
       learningEnabled: config.personalization.learningEnabled,
       preferences: memory.preferences,
       suggestions: memory.suggestions,
@@ -60,20 +53,16 @@ export const buildClientSnapshot = async (
       dictation: {
         ...(config.dictation.activeSpeechProviderProfileId
           ? {
-              activeSpeechProviderProfileId:
-                config.dictation.activeSpeechProviderProfileId,
+              activeSpeechProviderProfileId: config.dictation.activeSpeechProviderProfileId,
             }
           : {}),
         ...(config.dictation.activeTextProviderProfileId
           ? {
-              activeTextProviderProfileId:
-                config.dictation.activeTextProviderProfileId,
+              activeTextProviderProfileId: config.dictation.activeTextProviderProfileId,
             }
           : {}),
         defaultTargetLanguage: config.dictation.defaultTargetLanguage,
-        ...(config.dictation.fastMode !== undefined
-          ? { fastMode: config.dictation.fastMode }
-          : {}),
+        ...(config.dictation.fastMode !== undefined ? { fastMode: config.dictation.fastMode } : {}),
         hotkeyAccelerator: config.dictation.hotkeyAccelerator,
         language: config.dictation.language,
         ...(config.dictation.microphoneDeviceId

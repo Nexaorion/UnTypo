@@ -23,15 +23,7 @@ const browsers = new Set([
   'opera',
   'safari',
 ]);
-const chatApps = new Set([
-  'discord',
-  'slack',
-  'teams',
-  'telegram',
-  'wechat',
-  'weixin',
-  '微信',
-]);
+const chatApps = new Set(['discord', 'slack', 'teams', 'telegram', 'wechat', 'weixin', '微信']);
 const ideApps = new Set([
   'code',
   'devenv',
@@ -90,18 +82,14 @@ export class ContextDetector {
 
     if (browsers.has(processName)) {
       const browserAiTool = aiToolFromTitle(target?.windowTitle);
-      return browserAiTool
-        ? { kind: 'ai-tool', name: browserAiTool }
-        : { kind: 'browser' };
+      return browserAiTool ? { kind: 'ai-tool', name: browserAiTool } : { kind: 'browser' };
     }
     if (ideApps.has(processName)) return { kind: 'ide' };
     if (chatApps.has(processName)) return { kind: 'chat-app' };
     if (officeApps.has(processName)) return { kind: 'office' };
 
     const titledAiTool = aiToolFromTitle(target?.windowTitle);
-    return titledAiTool
-      ? { kind: 'ai-tool', name: titledAiTool }
-      : { kind: 'general' };
+    return titledAiTool ? { kind: 'ai-tool', name: titledAiTool } : { kind: 'general' };
   }
 
   shouldForceTranscription(context: TargetApplicationContext): boolean {

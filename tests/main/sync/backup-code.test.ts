@@ -20,9 +20,7 @@ describe('backup codes', () => {
   it('generates an 8-character code from the unambiguous alphabet', () => {
     const code = generateBackupCode();
     expect(code).toHaveLength(8);
-    expect(
-      [...code].every((character) => BACKUP_CODE_ALPHABET.includes(character)),
-    ).toBe(true);
+    expect([...code].every((character) => BACKUP_CODE_ALPHABET.includes(character))).toBe(true);
     expect(code).not.toMatch(/[0O1I]/u);
     expect(randomInt).toHaveBeenCalledTimes(8);
     expect(randomInt).toHaveBeenCalledWith(BACKUP_CODE_ALPHABET.length);

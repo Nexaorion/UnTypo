@@ -17,9 +17,7 @@ beforeEach(async () => {
     path.join(temporaryDirectory, 'config.json'),
     new MemorySecretProtector(),
   );
-  history = new HistoryRepository(
-    path.join(temporaryDirectory, 'history.sqlite3'),
-  );
+  history = new HistoryRepository(path.join(temporaryDirectory, 'history.sqlite3'));
   sync = new SyncService({
     appVersion: '0.1.10',
     configuration,

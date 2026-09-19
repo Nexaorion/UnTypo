@@ -11,10 +11,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
-import type {
-  SelectionAPI,
-  SelectionState,
-} from '../../shared/selection-ipc.js';
+import type { SelectionAPI, SelectionState } from '../../shared/selection-ipc.js';
 import { I18nProvider, useI18n } from '../i18n/context.js';
 import { tokens } from '../theme.js';
 
@@ -47,8 +44,7 @@ export const SelectionApp = () => {
       remove();
     };
   }, []);
-  const locale =
-    state?.locale ?? (navigator.language.startsWith('zh') ? 'zh-CN' : 'en-US');
+  const locale = state?.locale ?? (navigator.language.startsWith('zh') ? 'zh-CN' : 'en-US');
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
@@ -122,10 +118,7 @@ const SelectionPanel = ({ state }: { state: SelectionState }) => {
         '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
       }}
     >
-      <Stack
-        direction="row"
-        sx={{ alignItems: 'center', gap: 1, flexShrink: 0 }}
-      >
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1, flexShrink: 0 }}>
         <AutoAwesomeRoundedIcon fontSize="small" />
         <Typography
           id="selection-title"
@@ -134,10 +127,7 @@ const SelectionPanel = ({ state }: { state: SelectionState }) => {
           sx={{ flex: 1, fontWeight: 700 }}
         >
           UnTypo{' '}
-          <Box
-            component="span"
-            sx={{ color: 'text.secondary', fontWeight: 400 }}
-          >
+          <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400 }}>
             {t('selection.title')}
           </Box>
         </Typography>
@@ -195,12 +185,8 @@ const SelectionPanel = ({ state }: { state: SelectionState }) => {
           </Button>
         ) : null}
       </Stack>
-      {state.error ? (
-        <Alert severity="error">{t(`selection.error.${state.error}`)}</Alert>
-      ) : null}
-      {actionFailed ? (
-        <Alert severity="error">{t('selection.error.action')}</Alert>
-      ) : null}
+      {state.error ? <Alert severity="error">{t(`selection.error.${state.error}`)}</Alert> : null}
+      {actionFailed ? <Alert severity="error">{t('selection.error.action')}</Alert> : null}
       <Paper
         variant="outlined"
         sx={{
@@ -223,34 +209,23 @@ const SelectionPanel = ({ state }: { state: SelectionState }) => {
             borderColor: 'divider',
           }}
         >
-          <AutoAwesomeRoundedIcon
-            fontSize="small"
-            sx={{ color: 'text.secondary' }}
-          />
+          <AutoAwesomeRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
           <Typography component="h2" variant="subtitle2" sx={{ flex: 1 }}>
-            {t(
-              state.intent === 'translation'
-                ? 'selection.translation'
-                : 'selection.answer',
-            )}
+            {t(state.intent === 'translation' ? 'selection.translation' : 'selection.answer')}
           </Typography>
           <IconButton
             aria-label={t(copied ? 'selection.copied' : 'action.copy')}
             disabled={!state.output || processing || pending}
             onClick={() => {
-              void act(() => window.selection.copy(state.sessionId)).then(
-                (success) => {
-                  if (success) setCopied(true);
-                },
-              );
+              void act(() => window.selection.copy(state.sessionId)).then((success) => {
+                if (success) setCopied(true);
+              });
             }}
           >
             <ContentCopyRoundedIcon fontSize="small" />
           </IconButton>
         </Stack>
-        {processing ? (
-          <LinearProgress aria-label={t('selection.processing')} />
-        ) : null}
+        {processing ? <LinearProgress aria-label={t('selection.processing')} /> : null}
         <Box
           sx={{
             p: 2,
@@ -266,21 +241,12 @@ const SelectionPanel = ({ state }: { state: SelectionState }) => {
             sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.75 }}
             color={state.output ? 'text.primary' : 'text.secondary'}
           >
-            {state.output ||
-              t(processing ? 'selection.processing' : 'selection.empty')}
+            {state.output || t(processing ? 'selection.processing' : 'selection.empty')}
           </Typography>
         </Box>
       </Paper>
-      <Stack
-        direction="row"
-        sx={{ alignItems: 'center', gap: 1, flexShrink: 0 }}
-      >
-        <Typography
-          role="status"
-          variant="caption"
-          color="text.secondary"
-          sx={{ flex: 1 }}
-        >
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 1, flexShrink: 0 }}>
+        <Typography role="status" variant="caption" color="text.secondary" sx={{ flex: 1 }}>
           {t(
             copied
               ? 'selection.copied'

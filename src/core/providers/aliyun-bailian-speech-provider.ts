@@ -18,10 +18,9 @@ import {
   type ProviderConnectionConfiguration,
 } from './provider-http.js';
 
-export type AliyunBailianSpeechProviderConfiguration =
-  ProviderConnectionConfiguration & {
-    realtimeSpeechEnabled?: boolean;
-  };
+export type AliyunBailianSpeechProviderConfiguration = ProviderConnectionConfiguration & {
+  realtimeSpeechEnabled?: boolean;
+};
 
 export interface ProviderWebSocket {
   close: () => void;
@@ -89,9 +88,7 @@ const connectionTestWav = (): Uint8Array => {
   writeAscii(view, 36, 'data');
   view.setUint32(40, dataBytes, true);
   for (let index = 0; index < samples; index += 1) {
-    const sample = Math.round(
-      8_000 * Math.sin((2 * Math.PI * 440 * index) / sampleRate),
-    );
+    const sample = Math.round(8_000 * Math.sin((2 * Math.PI * 440 * index) / sampleRate));
     view.setInt16(44 + index * 2, sample, true);
   }
   return new Uint8Array(buffer);
@@ -102,17 +99,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const extractTranscript = (payload: unknown): string => {
   const output = (payload as AliyunSpeechPayload).output;
-  for (const value of [
-    output?.text,
-    output?.sentence?.text,
-    output?.output?.sentence?.text,
-  ]) {
+  for (const value of [output?.text, output?.sentence?.text, output?.output?.sentence?.text]) {
     if (value?.trim()) return value;
   }
-  throw new ProviderContractError(
-    'EMPTY_RESULT',
-    'Aliyun Bailian returned an empty transcript',
-  );
+  throw new ProviderContractError('EMPTY_RESULT', 'Aliyun Bailian returned an empty transcript');
 };
 
 const supportsInstantHotword = (term: string): boolean => {
@@ -124,9 +114,7 @@ const supportsInstantHotword = (term: string): boolean => {
   return term.split(/\s+/u).length <= 7;
 };
 
-const instantVocabulary = (
-  dictionary: readonly string[],
-): Readonly<Record<string, number>> => {
+const instantVocabulary = (dictionary: readonly string[]): Readonly<Record<string, number>> => {
   const entries = new Map<string, number>();
   for (const source of dictionary) {
     const term = source.normalize('NFKC').trim().replace(/\s+/gu, ' ');
@@ -140,9 +128,7 @@ const instantVocabulary = (
 const realtimeUrl = (baseUrl: string): string => {
   const url = new URL(baseUrl);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-  const basePath = url.pathname
-    .replace(/\/api\/v1\/?$/u, '')
-    .replace(/\/$/u, '');
+  const basePath = url.pathname.replace(/\/api\/v1\/?$/u, '').replace(/\/$/u, '');
   url.pathname = `${basePath}/api-ws/v1/inference`;
   url.search = '';
   url.hash = '';
@@ -153,9 +139,7 @@ const realtimeMessageSource = (data: unknown): string | undefined => {
   if (typeof data === 'string') return data;
   if (data instanceof ArrayBuffer) return new TextDecoder().decode(data);
   if (ArrayBuffer.isView(data)) {
-    return new TextDecoder().decode(
-      new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
-    );
+    return new TextDecoder().decode(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
   }
   return undefined;
 };
@@ -262,9 +246,7 @@ class AliyunRealtimeTranscriptionSession implements RealtimeTranscriptionSession
     });
     this.#socket.onClose(() => {
       if (!this.#finished && !this.#failure) {
-        this.fail(
-          new Error('Aliyun Bailian realtime connection closed unexpectedly'),
-        );
+        this.fail(new Error('Aliyun Bailian realtime connection closed unexpectedly'));
       }
     });
     this.#startTimer = setTimeout(() => {
@@ -275,18 +257,11 @@ class AliyunRealtimeTranscriptionSession implements RealtimeTranscriptionSession
   }
 
   abort(): void {
-    this.fail(
-      new ProviderContractError('ABORTED', 'Realtime transcription aborted'),
-    );
+    this.fail(new ProviderContractError('ABORTED', 'Realtime transcription aborted'));
   }
 
   appendAudio(chunk: Uint8Array): void {
-    if (
-      chunk.byteLength === 0 ||
-      this.#failure ||
-      this.#finished ||
-      this.#finishRequested
-    ) {
+    if (chunk.byteLength === 0 || this.#failure || this.#finished || this.#finishRequested) {
       return;
     }
     const copy = Uint8Array.from(chunk);
@@ -294,13 +269,8 @@ class AliyunRealtimeTranscriptionSession implements RealtimeTranscriptionSession
       this.send(copy);
       return;
     }
-    if (
-      this.#pendingAudioBytes + copy.byteLength >
-      maximumPendingRealtimeAudioBytes
-    ) {
-      this.fail(
-        new Error('Aliyun Bailian realtime connection started too slowly'),
-      );
+    if (this.#pendingAudioBytes + copy.byteLength > maximumPendingRealtimeAudioBytes) {
+      this.fail(new Error('Aliyun Bailian realtime connection started too slowly'));
       return;
     }
     this.#pendingAudio.push(copy);
@@ -336,11 +306,7 @@ class AliyunRealtimeTranscriptionSession implements RealtimeTranscriptionSession
     try {
       message = parseRealtimeMessage(data);
     } catch (error) {
-      this.fail(
-        error instanceof Error
-          ? error
-          : new Error('Aliyun Bailian realtime event failed'),
-      );
+      this.fail(error instanceof Error ? error : new Error('Aliyun Bailian realtime event failed'));
       return;
     }
     const header = isRecord(message.header) ? message.header : undefined;
@@ -362,8 +328,7 @@ class AliyunRealtimeTranscriptionSession implements RealtimeTranscriptionSession
       return;
     }
     if (event === 'task-failed') {
-      const code =
-        typeof header?.error_code === 'string' ? header.error_code : undefined;
+      const code = typeof header?.error_code === 'string' ? header.error_code : undefined;
       const detail =
         typeof header?.error_message === 'string'
           ? header.error_message.replace(/\s+/gu, ' ').trim().slice(0, 500)
@@ -445,11 +410,7 @@ class AliyunRealtimeTranscriptionSession implements RealtimeTranscriptionSession
     try {
       this.#socket.send(data);
     } catch (error) {
-      this.fail(
-        error instanceof Error
-          ? error
-          : new Error('Aliyun Bailian realtime send failed'),
-      );
+      this.fail(error instanceof Error ? error : new Error('Aliyun Bailian realtime send failed'));
     }
   }
 
@@ -551,9 +512,7 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
     this.#apiKey = resolved.apiKey;
     this.#baseUrl = resolved.baseUrl;
     this.#model = resolved.model;
-    this.#httpModel = this.#realtimeSpeechEnabled
-      ? synchronousModel
-      : resolved.model;
+    this.#httpModel = this.#realtimeSpeechEnabled ? synchronousModel : resolved.model;
     this.#fetch = fetchImplementation;
     this.#webSocketFactory = webSocketFactory;
     this.capabilities = {
@@ -569,9 +528,7 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
     }
   }
 
-  createRealtimeTranscriptionSession(
-    options: TranscribeOptions,
-  ): RealtimeTranscriptionSession {
+  createRealtimeTranscriptionSession(options: TranscribeOptions): RealtimeTranscriptionSession {
     if (!this.#realtimeSpeechEnabled || !this.#webSocketFactory) {
       throw new ProviderContractError(
         'UNSUPPORTED_CAPABILITY',
@@ -589,10 +546,7 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
     });
   }
 
-  async transcribe(
-    audio: AudioPayload,
-    options: TranscribeOptions,
-  ): Promise<TranscriptResult> {
+  async transcribe(audio: AudioPayload, options: TranscribeOptions): Promise<TranscriptResult> {
     if (audio.durationMs > maximumDurationMs) {
       throw new ProviderContractError(
         'INVALID_OPTIONS',
@@ -612,10 +566,7 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
 
     const vocabulary = instantVocabulary(options.dictionary);
     const response = await this.#fetch(
-      providerUrl(
-        this.#baseUrl,
-        '/services/aigc/multimodal-generation/generation',
-      ),
+      providerUrl(this.#baseUrl, '/services/aigc/multimodal-generation/generation'),
       {
         body: JSON.stringify({
           input: {
@@ -680,10 +631,7 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
     const wav = connectionTestWav();
     const dataUri = `data:audio/wav;base64,${Buffer.from(wav).toString('base64')}`;
     const response = await this.#fetch(
-      providerUrl(
-        this.#baseUrl,
-        '/services/aigc/multimodal-generation/generation',
-      ),
+      providerUrl(this.#baseUrl, '/services/aigc/multimodal-generation/generation'),
       {
         body: JSON.stringify({
           input: {

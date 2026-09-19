@@ -9,9 +9,7 @@ import { createStoredConfig, createStoredProvider } from './fixtures.js';
 
 const learnedPreferences = [{ id: 'preference-1' }];
 
-const createContext = async (
-  providers: ProviderActivationService,
-): Promise<DictationContext> => {
+const createContext = async (providers: ProviderActivationService): Promise<DictationContext> => {
   const configuration = {
     getProfile: vi.fn(() => ({ name: 'Tester' })),
     load: vi.fn(() =>
@@ -83,9 +81,9 @@ describe('buildUserProfileContext', () => {
   });
 
   it('requires an active speech provider before dictation can run', async () => {
-    await expect(
-      createContext(createProviders(undefined, 'text-1')),
-    ).rejects.toThrow('No speech recognition model is configured');
+    await expect(createContext(createProviders(undefined, 'text-1'))).rejects.toThrow(
+      'No speech recognition model is configured',
+    );
   });
 
   it('disables learning features when no text provider is active', async () => {

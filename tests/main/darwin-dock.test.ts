@@ -18,10 +18,7 @@ vi.mock('electron', () => ({
   app: electronMocks.app,
 }));
 
-import {
-  hideMainWindowOnClose,
-  keepDarwinDockVisible,
-} from '../../src/main/darwin-dock';
+import { hideMainWindowOnClose, keepDarwinDockVisible } from '../../src/main/darwin-dock';
 
 describe('keepDarwinDockVisible', () => {
   beforeEach(() => {
@@ -33,9 +30,7 @@ describe('keepDarwinDockVisible', () => {
 
   it('shows a regular Dock icon after Darwin startup', () => {
     keepDarwinDockVisible({ isQuitting: false, platform: 'darwin' });
-    expect(electronMocks.app.setActivationPolicy).toHaveBeenCalledWith(
-      'regular',
-    );
+    expect(electronMocks.app.setActivationPolicy).toHaveBeenCalledWith('regular');
     expect(electronMocks.app.dock?.show).toHaveBeenCalledTimes(1);
   });
 
@@ -54,9 +49,7 @@ describe('keepDarwinDockVisible', () => {
   it('keeps a regular activation policy when the Dock API is missing', () => {
     electronMocks.app.dock = undefined;
     keepDarwinDockVisible({ isQuitting: false, platform: 'darwin' });
-    expect(electronMocks.app.setActivationPolicy).toHaveBeenCalledWith(
-      'regular',
-    );
+    expect(electronMocks.app.setActivationPolicy).toHaveBeenCalledWith('regular');
   });
 });
 
@@ -82,9 +75,7 @@ describe('hideMainWindowOnClose', () => {
     });
     expect(event.preventDefault).toHaveBeenCalledTimes(1);
     expect(window.hide).toHaveBeenCalledTimes(1);
-    expect(electronMocks.app.setActivationPolicy).toHaveBeenCalledWith(
-      'regular',
-    );
+    expect(electronMocks.app.setActivationPolicy).toHaveBeenCalledWith('regular');
     expect(electronMocks.app.dock?.show).toHaveBeenCalledTimes(1);
   });
 
@@ -138,8 +129,6 @@ describe('main process Dock callers', () => {
     );
     expect(startRuntime).toBeGreaterThan(-1);
     expect(restoreAfterStart).toBeGreaterThan(startRuntime);
-    expect(source).toContain(
-      'hideMainWindowOnClose(event, window, { isQuitting, isSmokeTest })',
-    );
+    expect(source).toContain('hideMainWindowOnClose(event, window, { isQuitting, isSmokeTest })');
   });
 });

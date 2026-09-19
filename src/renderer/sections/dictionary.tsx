@@ -124,9 +124,7 @@ export const DictionarySection = ({ store }: { store: ClientStore }) => {
               py: 4,
             }}
           >
-            <Stack
-              sx={{ alignItems: 'center', gap: 1.25, textAlign: 'center' }}
-            >
+            <Stack sx={{ alignItems: 'center', gap: 1.25, textAlign: 'center' }}>
               <Box
                 sx={{
                   alignItems: 'center',
@@ -181,10 +179,7 @@ export const DictionarySection = ({ store }: { store: ClientStore }) => {
                   ),
                   '&:hover': {
                     backgroundColor: 'action.hover',
-                    borderColor: themeAlpha(
-                      themePalette(currentTheme).primary.main,
-                      0.36,
-                    ),
+                    borderColor: themeAlpha(themePalette(currentTheme).primary.main, 0.36),
                   },
                 })}
               >
@@ -207,18 +202,14 @@ export const DictionarySection = ({ store }: { store: ClientStore }) => {
                     sx={{ fontSize: 20 }}
                   />
                 )}
-                <Typography
-                  sx={{ flex: 1, fontSize: 14.5, fontWeight: 560, minWidth: 0 }}
-                >
+                <Typography sx={{ flex: 1, fontSize: 14.5, fontWeight: 560, minWidth: 0 }}>
                   {entry.term}
                 </Typography>
                 <IconButton
                   aria-label={t('dictionary.remove', { term: entry.term })}
                   disabled={isPending(`remove-${entry.term}`)}
                   onClick={() =>
-                    void run(`remove-${entry.term}`, () =>
-                      store.removeDictionaryEntry(entry.term),
-                    )
+                    void run(`remove-${entry.term}`, () => store.removeDictionaryEntry(entry.term))
                   }
                   size="small"
                 >

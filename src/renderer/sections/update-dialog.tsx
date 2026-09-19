@@ -59,10 +59,7 @@ export const UpdateDialog = ({
       onClose={() => onOpenChange(false)}
       open={open}
     >
-      <DialogContent
-        data-testid="update-dialog"
-        sx={{ px: { xs: 3, sm: 4 }, pt: 4.5 }}
-      >
+      <DialogContent data-testid="update-dialog" sx={{ px: { xs: 3, sm: 4 }, pt: 4.5 }}>
         <Stack sx={{ alignItems: 'center', textAlign: 'center' }}>
           <Box
             sx={(currentTheme) => ({
@@ -81,11 +78,7 @@ export const UpdateDialog = ({
           >
             {icon}
           </Box>
-          <Typography
-            component="h2"
-            id={titleId}
-            sx={{ fontSize: 22, fontWeight: 740 }}
-          >
+          <Typography component="h2" id={titleId} sx={{ fontSize: 22, fontWeight: 740 }}>
             {downloaded
               ? t('update.readyTitle')
               : failed
@@ -122,10 +115,7 @@ export const UpdateDialog = ({
             <Button onClick={() => onOpenChange(false)} variant="outlined">
               {t('update.later')}
             </Button>
-            <Button
-              onClick={() => void store.installUpdate()}
-              variant="contained"
-            >
+            <Button onClick={() => void store.installUpdate()} variant="contained">
               {t('update.restartNow')}
             </Button>
           </>
@@ -138,11 +128,7 @@ export const UpdateDialog = ({
             <Button onClick={() => onOpenChange(false)} variant="text">
               {t('action.cancel')}
             </Button>
-            <Button
-              disabled={busy}
-              onClick={() => void retry()}
-              variant="contained"
-            >
+            <Button disabled={busy} onClick={() => void retry()} variant="contained">
               {failed ? t('update.retry') : t('update.downloadNow')}
             </Button>
           </>

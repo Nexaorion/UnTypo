@@ -21,10 +21,7 @@ const crc32 = (data: Buffer): number => {
 
 const zipPath = (value: string): string => {
   const normalized = value.replace(/\\/gu, '/').replace(/^\/+|\/+$/gu, '');
-  if (
-    !normalized ||
-    normalized.split('/').some((segment) => segment === '..' || !segment)
-  ) {
+  if (!normalized || normalized.split('/').some((segment) => segment === '..' || !segment)) {
     throw new Error('Diagnostic archive entry path is invalid');
   }
   return normalized;
@@ -35,10 +32,7 @@ const dosTimestamp = (date: Date): { date: number; time: number } => ({
     ((Math.max(1980, date.getFullYear()) - 1980) << 9) |
     ((date.getMonth() + 1) << 5) |
     date.getDate(),
-  time:
-    (date.getHours() << 11) |
-    (date.getMinutes() << 5) |
-    Math.floor(date.getSeconds() / 2),
+  time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
 });
 
 export const createDiagnosticZip = (
@@ -52,9 +46,7 @@ export const createDiagnosticZip = (
 
   for (const entry of entries) {
     const name = Buffer.from(zipPath(entry.path), 'utf8');
-    const source = Buffer.isBuffer(entry.data)
-      ? entry.data
-      : Buffer.from(entry.data, 'utf8');
+    const source = Buffer.isBuffer(entry.data) ? entry.data : Buffer.from(entry.data, 'utf8');
     const compressed = deflateRawSync(source);
     const checksum = crc32(source);
     const local = Buffer.alloc(30);

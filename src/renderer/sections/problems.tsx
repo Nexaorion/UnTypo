@@ -28,9 +28,7 @@ export const ProblemsSection = ({ store }: { store: ClientStore }) => {
   const { isPending, run } = useAction();
   const settings = store.snapshot?.settings.diagnostics;
   const issues = store.diagnostics?.issues ?? [];
-  const pendingCount = issues.filter(
-    ({ acknowledgedAt }) => acknowledgedAt === undefined,
-  ).length;
+  const pendingCount = issues.filter(({ acknowledgedAt }) => acknowledgedAt === undefined).length;
   const [selectedIssueId, setSelectedIssueId] = useState<string>();
   const [page, setPage] = useState(1);
   const [confirmingClear, setConfirmingClear] = useState(false);
@@ -196,10 +194,7 @@ export const ProblemsSection = ({ store }: { store: ClientStore }) => {
                           variant="outlined"
                         />
                         {issue.acknowledgedAt !== undefined ? (
-                          <Chip
-                            label={t('problems.acknowledged')}
-                            size="small"
-                          />
+                          <Chip label={t('problems.acknowledged')} size="small" />
                         ) : null}
                         <Typography color="text.secondary" variant="caption">
                           {new Intl.DateTimeFormat(locale, {
@@ -228,14 +223,10 @@ export const ProblemsSection = ({ store }: { store: ClientStore }) => {
                 if (type === 'first') return t('problems.paginationFirst');
                 if (type === 'last') return t('problems.paginationLast');
                 if (type === 'next') return t('problems.paginationNext');
-                if (type === 'previous')
-                  return t('problems.paginationPrevious');
-                return t(
-                  selected
-                    ? 'problems.paginationCurrent'
-                    : 'problems.paginationGoTo',
-                  { page: String(itemPage) },
-                );
+                if (type === 'previous') return t('problems.paginationPrevious');
+                return t(selected ? 'problems.paginationCurrent' : 'problems.paginationGoTo', {
+                  page: String(itemPage),
+                });
               }}
               onChange={(_event, nextPage) => setPage(nextPage)}
               page={page}

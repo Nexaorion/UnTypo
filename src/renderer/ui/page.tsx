@@ -22,13 +22,7 @@ export const Page = ({ children }: { children: ReactNode }) => (
   </Stack>
 );
 
-export const PageHeader = ({
-  action,
-  title,
-}: {
-  action?: ReactNode;
-  title: string;
-}) => (
+export const PageHeader = ({ action, title }: { action?: ReactNode; title: string }) => (
   <Stack
     direction={{ xs: 'column', sm: 'row' }}
     sx={{
@@ -38,11 +32,7 @@ export const PageHeader = ({
       minHeight: 52,
     }}
   >
-    <Typography
-      component="h1"
-      sx={{ fontSize: { xs: 34, sm: 42, lg: 52 } }}
-      variant="h1"
-    >
+    <Typography component="h1" sx={{ fontSize: { xs: 34, sm: 42, lg: 52 } }} variant="h1">
       {title}
     </Typography>
     {action}

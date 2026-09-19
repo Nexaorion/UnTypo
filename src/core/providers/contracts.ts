@@ -167,8 +167,7 @@ export interface TextGenerationCallTrace extends ModelCallTraceBase {
   kind: 'text-generation';
 }
 
-export type ModelCallTrace =
-  SpeechRecognitionCallTrace | TextGenerationCallTrace;
+export type ModelCallTrace = SpeechRecognitionCallTrace | TextGenerationCallTrace;
 
 export interface ProcessResult {
   dictionaryCandidates?: readonly DictionaryCandidate[];
@@ -192,28 +191,16 @@ export interface ProviderIdentity {
 export interface SpeechRecognitionProvider extends ProviderIdentity {
   readonly preferredAudioFormat?: ProviderAudioFormat;
   readonly realtimeAudioConfiguration?: RealtimeAudioConfiguration;
-  createRealtimeTranscriptionSession?: (
-    options: TranscribeOptions,
-  ) => RealtimeTranscriptionSession;
-  transcribe: (
-    audio: AudioPayload,
-    options: TranscribeOptions,
-  ) => Promise<TranscriptResult>;
+  createRealtimeTranscriptionSession?: (options: TranscribeOptions) => RealtimeTranscriptionSession;
+  transcribe: (audio: AudioPayload, options: TranscribeOptions) => Promise<TranscriptResult>;
 }
 
 export interface TextGenerationProvider extends ProviderIdentity {
-  processTranscript: (
-    text: string,
-    context: TextProcessContext,
-  ) => Promise<TextProcessResult>;
+  processTranscript: (text: string, context: TextProcessContext) => Promise<TextProcessResult>;
 }
 
-export interface DictationProvider
-  extends SpeechRecognitionProvider, TextGenerationProvider {
-  process?: (
-    audio: AudioPayload,
-    options: ProcessOptions,
-  ) => Promise<ProcessResult>;
+export interface DictationProvider extends SpeechRecognitionProvider, TextGenerationProvider {
+  process?: (audio: AudioPayload, options: ProcessOptions) => Promise<ProcessResult>;
 }
 
 export type ProviderContractErrorCode =
@@ -245,10 +232,7 @@ const assertProviderIdentity = (provider: ProviderIdentity): void => {
   }
 
   if (!providerIdPattern.test(provider.id)) {
-    throw new ProviderContractError(
-      'INVALID_PROVIDER',
-      `Provider id ${provider.id} is invalid`,
-    );
+    throw new ProviderContractError('INVALID_PROVIDER', `Provider id ${provider.id} is invalid`);
   }
 
   if (!provider.displayName.trim()) {
@@ -259,9 +243,7 @@ const assertProviderIdentity = (provider: ProviderIdentity): void => {
   }
 };
 
-export const assertSpeechProviderContract = (
-  provider: SpeechRecognitionProvider,
-): void => {
+export const assertSpeechProviderContract = (provider: SpeechRecognitionProvider): void => {
   assertProviderIdentity(provider);
   if (!provider.capabilities.speechToText) {
     throw new ProviderContractError(
@@ -277,9 +259,7 @@ export const assertSpeechProviderContract = (
   }
 };
 
-export const assertTextProviderContract = (
-  provider: TextGenerationProvider,
-): void => {
+export const assertTextProviderContract = (provider: TextGenerationProvider): void => {
   assertProviderIdentity(provider);
   if (typeof provider.processTranscript !== 'function') {
     throw new ProviderContractError(
@@ -296,10 +276,7 @@ export const assertProviderContract = (provider: DictationProvider): void => {
 
 export const assertProcessResult = (result: ProcessResult): void => {
   if (!result.outputText.trim()) {
-    throw new ProviderContractError(
-      'EMPTY_RESULT',
-      'Provider returned an empty output',
-    );
+    throw new ProviderContractError('EMPTY_RESULT', 'Provider returned an empty output');
   }
 
   if (
@@ -307,9 +284,6 @@ export const assertProcessResult = (result: ProcessResult): void => {
     result.intent !== 'translation' &&
     result.intent !== 'instruction'
   ) {
-    throw new ProviderContractError(
-      'INVALID_PROVIDER',
-      'Provider returned an invalid intent',
-    );
+    throw new ProviderContractError('INVALID_PROVIDER', 'Provider returned an invalid intent');
   }
 };

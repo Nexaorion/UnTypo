@@ -39,10 +39,7 @@ const unzipEntries = (archive: Buffer): ReadonlyMap<string, Buffer> => {
     const name = archive.subarray(nameStart, nameStart + nameLength).toString();
     const dataStart = nameStart + nameLength + extraLength;
     const compressed = archive.subarray(dataStart, dataStart + compressedSize);
-    entries.set(
-      name,
-      method === 8 ? inflateRawSync(compressed) : Buffer.from(compressed),
-    );
+    entries.set(name, method === 8 ? inflateRawSync(compressed) : Buffer.from(compressed));
     offset = dataStart + compressedSize;
   }
   return entries;
@@ -68,9 +65,9 @@ describe('diagnostic redaction', () => {
     expect(redacted).not.toContain('Alice');
     expect(redacted).not.toContain('private');
     expect(redacted).not.toContain('AAAAAA');
-    expect(
-      sanitizeDiagnosticEndpoint('https://u:p@example.test/v1?q=secret'),
-    ).toBe('https://example.test/v1');
+    expect(sanitizeDiagnosticEndpoint('https://u:p@example.test/v1?q=secret')).toBe(
+      'https://example.test/v1',
+    );
   });
 
   it('redacts audio data URLs without ambiguous separators', () => {
@@ -138,9 +135,10 @@ describe('DiagnosticCollector', () => {
     expect(snapshot.issues).toEqual([]);
     expect(readdirSync(path.join(rootDirectory, 'attachments'))).toEqual([]);
     expect(readdirSync(path.join(rootDirectory, 'logs'))).toEqual([]);
-    expect(
-      JSON.parse(readFileSync(path.join(rootDirectory, 'issues.json'), 'utf8')),
-    ).toEqual({ issues: [], version: 1 });
+    expect(JSON.parse(readFileSync(path.join(rootDirectory, 'issues.json'), 'utf8'))).toEqual({
+      issues: [],
+      version: 1,
+    });
   });
 
   it('stops persisting logs and issues while automatic collection is disabled', async () => {
@@ -175,9 +173,7 @@ describe('DiagnosticCollector', () => {
     expect(collector.snapshot().issues).toEqual([]);
     expect(readdirSync(logsDirectory)).toEqual(logFiles);
     expect(
-      logFiles.map((fileName) =>
-        readFileSync(path.join(logsDirectory, fileName), 'utf8'),
-      ),
+      logFiles.map((fileName) => readFileSync(path.join(logsDirectory, fileName), 'utf8')),
     ).toEqual(originalLogs);
     expect(readdirSync(path.join(rootDirectory, 'attachments'))).toEqual([]);
 
@@ -234,9 +230,7 @@ describe('DiagnosticCollector', () => {
         durationMs: 120,
         payloadSizeBytes: 4,
       },
-      error: new Error(
-        'Aliyun failed: Bearer must-not-leak sk-live-secret12345678',
-      ),
+      error: new Error('Aliyun failed: Bearer must-not-leak sk-live-secret12345678'),
       kind: 'provider',
       source: 'provider.speech-processing',
     });
@@ -258,24 +252,18 @@ describe('DiagnosticCollector', () => {
     const withoutAudio = unzipEntries(
       collector.buildArchive({ includeAudio: false, issueIds: [issue.id] }),
     );
-    expect([...withoutAudio.keys()]).not.toContain(
-      `attachments/${issue.id}.webm`,
-    );
-    const manifestWithoutAudio = JSON.parse(
-      withoutAudio.get('manifest.json')!.toString(),
-    ) as { privacy: { audioIncluded: boolean } };
+    expect([...withoutAudio.keys()]).not.toContain(`attachments/${issue.id}.webm`);
+    const manifestWithoutAudio = JSON.parse(withoutAudio.get('manifest.json')!.toString()) as {
+      privacy: { audioIncluded: boolean };
+    };
     expect(manifestWithoutAudio.privacy.audioIncluded).toBe(false);
 
     const withAudio = unzipEntries(
       collector.buildArchive({ includeAudio: true, issueIds: [issue.id] }),
     );
-    expect(withAudio.get(`attachments/${issue.id}.webm`)).toEqual(
-      Buffer.from([1, 2, 3, 4]),
-    );
+    expect(withAudio.get(`attachments/${issue.id}.webm`)).toEqual(Buffer.from([1, 2, 3, 4]));
     expect([...withAudio.keys()]).toContain('issues.json');
-    expect([...withAudio.keys()].some((name) => name.startsWith('logs/'))).toBe(
-      true,
-    );
+    expect([...withAudio.keys()].some((name) => name.startsWith('logs/'))).toBe(true);
 
     const reloaded = createCollector({
       appName: 'UnTypo',
@@ -290,9 +278,9 @@ describe('DiagnosticCollector', () => {
       id: issue.id,
     });
     expect(readdirSync(path.join(rootDirectory, 'attachments'))).toEqual([]);
-    expect(
-      readFileSync(path.join(rootDirectory, 'issues.json'), 'utf8'),
-    ).not.toContain('audioFileName');
+    expect(readFileSync(path.join(rootDirectory, 'issues.json'), 'utf8')).not.toContain(
+      'audioFileName',
+    );
   });
 
   it('removes expired issues and their recordings even when they were not acknowledged', async () => {
@@ -347,15 +335,11 @@ describe('DiagnosticCollector', () => {
 
     const logsDirectory = path.join(rootDirectory, 'logs');
     const contents = readdirSync(logsDirectory)
-      .map((fileName) =>
-        readFileSync(path.join(logsDirectory, fileName), 'utf8'),
-      )
+      .map((fileName) => readFileSync(path.join(logsDirectory, fileName), 'utf8'))
       .join('');
     expect(contents).toContain('"message":"First Bearer [redacted]"');
     expect(contents).toContain('"message":"Second"');
     expect(contents).not.toContain('must-not-leak');
-    expect(contents.indexOf('First Bearer')).toBeLessThan(
-      contents.indexOf('"message":"Second"'),
-    );
+    expect(contents.indexOf('First Bearer')).toBeLessThan(contents.indexOf('"message":"Second"'));
   });
 });

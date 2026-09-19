@@ -35,10 +35,7 @@ describe('formatTimestamp', () => {
 
 describe('mergeHistoryPage', () => {
   it('appends new records and skips ids already loaded', () => {
-    const merged = mergeHistoryPage(
-      [{ id: 'a' }, { id: 'b' }],
-      [{ id: 'b' }, { id: 'c' }],
-    );
+    const merged = mergeHistoryPage([{ id: 'a' }, { id: 'b' }], [{ id: 'b' }, { id: 'c' }]);
     expect(merged).toEqual([{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
   });
 });

@@ -8,10 +8,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SupportedLanguage } from '../../core/providers/contracts.js';
 import type { ClientMicrophoneDevice } from '../../shared/ipc.js';
 import { useI18n } from '../i18n/context.js';
-import {
-  formatHotkeyAccelerator,
-  isValidHotkeyAccelerator,
-} from '../logic/hotkey.js';
+import { formatHotkeyAccelerator, isValidHotkeyAccelerator } from '../logic/hotkey.js';
 import { describeUserFacingError } from '../logic/user-facing-error.js';
 import type { ClientStore } from '../state/client.js';
 import { useAction } from '../state/use-action.js';
@@ -36,9 +33,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
   const listMicrophones = store.listMicrophones;
   const [hotkey, setHotkey] = useState('');
   const [hotkeyError, setHotkeyError] = useState<string | undefined>(undefined);
-  const [microphones, setMicrophones] = useState<
-    readonly ClientMicrophoneDevice[]
-  >([]);
+  const [microphones, setMicrophones] = useState<readonly ClientMicrophoneDevice[]>([]);
   const [microphoneError, setMicrophoneError] = useState<string>();
   const [microphonesLoading, setMicrophonesLoading] = useState(false);
   const microphoneRequest = useRef(0);
@@ -67,10 +62,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
       if (document.visibilityState !== 'visible') return;
       void store.reloadSnapshot().catch(() => undefined);
     };
-    const stopTimer = window.setTimeout(
-      () => setAccessibilityFlowActive(false),
-      30_000,
-    );
+    const stopTimer = window.setTimeout(() => setAccessibilityFlowActive(false), 30_000);
     const interval = window.setInterval(refresh, 1_000);
     window.addEventListener('focus', refresh);
     document.addEventListener('visibilitychange', refresh);
@@ -129,8 +121,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
         : t('field.hotkeyUnavailable');
     void run(
       'hotkey',
-      () =>
-        store.updateSettings({ dictation: { hotkeyAccelerator: normalized } }),
+      () => store.updateSettings({ dictation: { hotkeyAccelerator: normalized } }),
       {
         describeError: failureMessage,
         onError: (error) => {
@@ -148,9 +139,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
       return;
     }
     if (parsed === settings.history.retentionDays) return;
-    void run('retention', () =>
-      store.updateSettings({ history: { retentionDays: parsed } }),
-    );
+    void run('retention', () => store.updateSettings({ history: { retentionDays: parsed } }));
   };
 
   const saveProfile = () => {
@@ -159,11 +148,9 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
       ...(preferredName.trim() ? { preferredName: preferredName.trim() } : {}),
       ...(signature.trim() ? { signature: signature.trim() } : {}),
     };
-    void run(
-      'profile',
-      () => store.setProfile(Object.keys(next).length > 0 ? next : undefined),
-      { successMessage: t('provider.saved') },
-    );
+    void run('profile', () => store.setProfile(Object.keys(next).length > 0 ? next : undefined), {
+      successMessage: t('provider.saved'),
+    });
   };
 
   const languageSelect = (
@@ -186,14 +173,9 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
   );
 
   const microphoneDeviceId = settings.dictation.microphoneDeviceId ?? '';
-  const selectedMicrophone = microphones.find(
-    ({ deviceId }) => deviceId === microphoneDeviceId,
-  );
+  const selectedMicrophone = microphones.find(({ deviceId }) => deviceId === microphoneDeviceId);
   const selectedMicrophoneMissing =
-    microphoneDeviceId.length > 0 &&
-    !microphonesLoading &&
-    !microphoneError &&
-    !selectedMicrophone;
+    microphoneDeviceId.length > 0 && !microphonesLoading && !microphoneError && !selectedMicrophone;
   const microphoneHelperText = microphoneError
     ? microphoneError
     : selectedMicrophoneMissing
@@ -232,17 +214,13 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
               label={t('settings.microphone')}
               onChange={(event) => {
                 const next = event.target.value;
-                const selected = microphones.find(
-                  ({ deviceId }) => deviceId === next,
-                );
+                const selected = microphones.find(({ deviceId }) => deviceId === next);
                 void run('microphone', () =>
                   store.updateSettings({
                     dictation: {
                       microphoneDeviceId: next.length > 0 ? next : null,
                       microphoneDeviceLabel:
-                        selected && !selected.generatedLabel
-                          ? selected.label
-                          : null,
+                        selected && !selected.generatedLabel ? selected.label : null,
                     },
                   }),
                 );
@@ -252,9 +230,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
             >
               <MenuItem value="">{t('settings.microphoneAuto')}</MenuItem>
               {selectedMicrophoneMissing ? (
-                <MenuItem value={microphoneDeviceId}>
-                  {t('settings.microphoneMissing')}
-                </MenuItem>
+                <MenuItem value={microphoneDeviceId}>{t('settings.microphoneMissing')}</MenuItem>
               ) : null}
               {microphones
                 .filter(({ deviceId }) => deviceId !== 'default')
@@ -308,9 +284,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
             description={t('settings.fastModeHint')}
             label={t('settings.fastMode')}
             onCheckedChange={(checked) =>
-              void run('fastMode', () =>
-                store.updateSettings({ dictation: { fastMode: checked } }),
-              )
+              void run('fastMode', () => store.updateSettings({ dictation: { fastMode: checked } }))
             }
           />
           {languageSelect(
@@ -339,10 +313,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
           {languageSelect(
             t('settings.locale'),
             settings.general.locale,
-            (next) =>
-              void run('locale', () =>
-                store.updateSettings({ general: { locale: next } }),
-              ),
+            (next) => void run('locale', () => store.updateSettings({ general: { locale: next } })),
           )}
           <SwitchField
             checked={settings.general.launchAtLogin}
@@ -423,8 +394,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
             <Stack sx={{ gap: 0.35 }}>
               <Typography sx={{ fontSize: 13.5, fontWeight: 650 }}>
                 {t('settings.currentVersion', {
-                  version:
-                    update?.currentVersion ?? store.runtime?.version ?? '—',
+                  version: update?.currentVersion ?? store.runtime?.version ?? '—',
                 })}
               </Typography>
               <Typography color="text.secondary" variant="caption">
@@ -440,9 +410,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
                 update?.status === 'downloaded' ||
                 isPending('checkForUpdates')
               }
-              onClick={() =>
-                void run('checkForUpdates', () => store.checkForUpdates())
-              }
+              onClick={() => void run('checkForUpdates', () => store.checkForUpdates())}
               startIcon={<RefreshRoundedIcon />}
               variant="outlined"
             >
@@ -481,11 +449,7 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
 
       <Card
         actions={
-          <Button
-            disabled={isPending('profile')}
-            onClick={saveProfile}
-            variant="contained"
-          >
+          <Button disabled={isPending('profile')} onClick={saveProfile} variant="contained">
             {t('action.save')}
           </Button>
         }

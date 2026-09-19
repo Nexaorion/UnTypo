@@ -3,19 +3,14 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  HistoryRepository,
-  HistoryService,
-} from '../../src/main/storage/history';
+import { HistoryRepository, HistoryService } from '../../src/main/storage/history';
 
 let temporaryDirectory: string;
 let repository: HistoryRepository;
 
 beforeEach(async () => {
   temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'untypo-history-'));
-  repository = new HistoryRepository(
-    path.join(temporaryDirectory, 'history.sqlite3'),
-  );
+  repository = new HistoryRepository(path.join(temporaryDirectory, 'history.sqlite3'));
 });
 
 afterEach(async () => {
@@ -106,9 +101,7 @@ describe('HistoryRepository', () => {
       modelName: 'glm-5.3-flash',
       outputText: '整理后的文本',
     });
-    expect(call?.kind === 'text-generation' ? call.input.text : undefined).toBe(
-      '原始文本',
-    );
+    expect(call?.kind === 'text-generation' ? call.input.text : undefined).toBe('原始文本');
   });
 
   it('migrates existing history databases without losing old records', () => {
@@ -154,9 +147,7 @@ describe('HistoryRepository', () => {
         },
         providerId: 'mock',
       });
-      expect(migrated.list()[0]?.processingTrace?.operationId).toBe(
-        'operation-2',
-      );
+      expect(migrated.list()[0]?.processingTrace?.operationId).toBe('operation-2');
     } finally {
       migrated.close();
     }
@@ -229,10 +220,7 @@ describe('HistoryRepository', () => {
       },
     ]);
     expect(imported).toBe(1);
-    expect(repository.listAll().map((record) => record.id)).toEqual([
-      'remote-1',
-      'local-1',
-    ]);
+    expect(repository.listAll().map((record) => record.id)).toEqual(['remote-1', 'local-1']);
     expect(repository.listAll()[1]?.outputText).toBe('local');
   });
 
@@ -292,9 +280,7 @@ describe('HistoryRepository', () => {
 
   it('reuses prepared statements across repeated repository calls', () => {
     const prepareSpy = vi.spyOn(Database.prototype, 'prepare');
-    const reused = new HistoryRepository(
-      path.join(temporaryDirectory, 'reuse.sqlite3'),
-    );
+    const reused = new HistoryRepository(path.join(temporaryDirectory, 'reuse.sqlite3'));
     try {
       const preparedDuringConstruction = prepareSpy.mock.calls.length;
 

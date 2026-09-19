@@ -1,10 +1,7 @@
 import { app, BrowserWindow, clipboard, nativeTheme } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type {
-  SupportedLanguage,
-  TextGenerationProvider,
-} from '../../core/providers/contracts.js';
+import type { SupportedLanguage, TextGenerationProvider } from '../../core/providers/contracts.js';
 import { textProviderCapabilities } from '../../core/providers/text-provider-utils.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
 import type { NativeHelperClient } from '../native/client.js';
@@ -13,10 +10,7 @@ import { SelectionWindowController } from './selection-window.js';
 import { focusSelectionFixture } from './smoke-focus.js';
 import { DictationCoordinator } from '../dictation/coordinator.js';
 import { MockDictationProvider } from '../../core/providers/mock-provider.js';
-import {
-  SpeechProviderRegistry,
-  TextProviderRegistry,
-} from '../../core/providers/registry.js';
+import { SpeechProviderRegistry, TextProviderRegistry } from '../../core/providers/registry.js';
 import { DEFAULT_APPLICATION_WRITING_STYLES } from '../../shared/personalization.js';
 import { NativeHotkeyAction } from '../native/protocol.js';
 
@@ -26,9 +20,7 @@ const assert = (condition: unknown, step: string): void => {
   if (!condition) throw new Error(`Selection smoke failed: ${step}`);
 };
 
-export const runSelectionSmokeTest = async (
-  realNative: NativeHelperClient,
-): Promise<void> => {
+export const runSelectionSmokeTest = async (realNative: NativeHelperClient): Promise<void> => {
   const verifyNative = process.argv.includes('--smoke-selection-native');
   const originalTheme = nativeTheme.themeSource;
   const originalAccessibility = app.accessibilitySupportEnabled;
@@ -54,11 +46,9 @@ export const runSelectionSmokeTest = async (
       if (mode === 'error') throw new Error('Simulated failure');
       if (mode === 'pending') {
         await new Promise<void>((_resolve, reject) =>
-          context.signal?.addEventListener(
-            'abort',
-            () => reject(new Error('cancelled')),
-            { once: true },
-          ),
+          context.signal?.addEventListener('abort', () => reject(new Error('cancelled')), {
+            once: true,
+          }),
         );
       }
       context.onOutputTextUpdate?.('Mount Fuji');
@@ -79,8 +69,7 @@ export const runSelectionSmokeTest = async (
   });
   target.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   target.webContents.on('will-navigate', (event) => event.preventDefault());
-  let capturedFixture:
-    { text: string; editable: boolean; start: number; end: number } | undefined;
+  let capturedFixture: { text: string; editable: boolean; start: number; end: number } | undefined;
   const fixtureSelection = () =>
     target.webContents.executeJavaScript(`(() => {
     const field = document.activeElement;
@@ -97,10 +86,7 @@ export const runSelectionSmokeTest = async (
     : {
         captureTarget: () =>
           Promise.resolve({
-            windowHandle: target
-              .getNativeWindowHandle()
-              .readBigUInt64LE()
-              .toString(),
+            windowHandle: target.getNativeWindowHandle().readBigUInt64LE().toString(),
             processId: process.pid,
             editable: true,
             higherIntegrity: false,
@@ -128,8 +114,7 @@ export const runSelectionSmokeTest = async (
       };
   const controller = new SelectionWindowController({
     native,
-    context: () =>
-      Promise.resolve({ locale, defaultTargetLanguage: 'en-US', provider }),
+    context: () => Promise.resolve({ locale, defaultTargetLanguage: 'en-US', provider }),
   });
   const spokenInstruction = 'Translate to English';
   const speech = new MockDictationProvider({ transcript: spokenInstruction });
@@ -181,9 +166,7 @@ export const runSelectionSmokeTest = async (
     },
     injection: {
       inject: () => {
-        throw new Error(
-          'Selection voice should not paste the spoken instruction',
-        );
+        throw new Error('Selection voice should not paste the spoken instruction');
       },
     },
     presenter: {
@@ -244,17 +227,12 @@ export const runSelectionSmokeTest = async (
       assert(coordinator.state === 'recording', 'same hotkey starts recording');
       assert(
         !BrowserWindow.getAllWindows().some(
-          (window) =>
-            window.isVisible() &&
-            window.webContents.getURL().endsWith('/selection.html'),
+          (window) => window.isVisible() && window.webContents.getURL().endsWith('/selection.html'),
         ),
         'no manual popup before speaking',
       );
       await coordinator.handleHotkey(NativeHotkeyAction.Toggle);
-      assert(
-        coordinator.state === 'idle',
-        'same hotkey finishes voice processing',
-      );
+      assert(coordinator.state === 'idle', 'same hotkey finishes voice processing');
     };
     await select();
     const captured = await native.captureSelection();
@@ -342,15 +320,12 @@ export const runSelectionSmokeTest = async (
     await window.webContents.executeJavaScript(
       `Array.from(document.querySelectorAll('button')).find(button => button.textContent === 'Replace selection')?.click()`,
     );
-    for (let attempt = 0; attempt < 40 && controller.isOpen; attempt += 1)
-      await wait(50);
+    for (let attempt = 0; attempt < 40 && controller.isOpen; attempt += 1) await wait(50);
     if (controller.isOpen) {
-      const state = (await window.webContents.executeJavaScript(
-        'window.selection.getState()',
-      )) as { error?: string };
-      throw new Error(
-        `Selection smoke replacement failed: ${state.error ?? 'unknown'}`,
-      );
+      const state = (await window.webContents.executeJavaScript('window.selection.getState()')) as {
+        error?: string;
+      };
+      throw new Error(`Selection smoke replacement failed: ${state.error ?? 'unknown'}`);
     }
     assert(
       await target.webContents.executeJavaScript(
@@ -373,20 +348,14 @@ export const runSelectionSmokeTest = async (
       `(() => { const field = document.querySelector('input'); field.value = 'fixture-only'; field.focus(); field.select(); })()`,
     );
     await wait(200);
-    assert(
-      (await native.captureSelection()).text === '',
-      'password selection rejected',
-    );
+    assert((await native.captureSelection()).text === '', 'password selection rejected');
     await target.webContents.executeJavaScript(
       `(() => { const field = document.querySelector('p'); field.focus(); const range = document.createRange(); range.selectNodeContents(field); const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); })()`,
     );
     await wait(200);
     expectedSource = 'Read-only source text';
     const readOnly = await native.captureSelection();
-    assert(
-      readOnly.text === expectedSource && !readOnly.editable,
-      'native read-only capture',
-    );
+    assert(readOnly.text === expectedSource && !readOnly.editable, 'native read-only capture');
     await native.clearSelection();
     await dictate();
     const readOnlyPanel = panel();

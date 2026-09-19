@@ -28,9 +28,7 @@ export const resolveMicrophoneSelection = (
   const labelKey = microphoneLabelKey(selection.label);
   const matches = devices.filter(
     ({ deviceId, generatedLabel, label }) =>
-      deviceId !== 'default' &&
-      !generatedLabel &&
-      microphoneLabelKey(label) === labelKey,
+      deviceId !== 'default' && !generatedLabel && microphoneLabelKey(label) === labelKey,
   );
   const [match] = matches;
   if (matches.length !== 1 || !match) return undefined;

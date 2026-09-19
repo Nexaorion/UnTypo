@@ -1,8 +1,5 @@
 import type { ProviderAudioFormat } from '../core/providers/contracts.js';
-import type {
-  MicrophoneDeviceInfo,
-  MicrophoneSelection,
-} from './microphone.js';
+import type { MicrophoneDeviceInfo, MicrophoneSelection } from './microphone.js';
 
 export const RECORDER_CHANNELS = {
   chunk: 'recorder:chunk',
@@ -48,11 +45,7 @@ export interface RecorderApi {
   onStop: (listener: (sessionId: string) => void) => void;
   sendChunk: (sessionId: string, chunk: ArrayBuffer) => void;
   sendError: (sessionId: string, message: string) => void;
-  sendDevices: (
-    requestId: string,
-    devices: readonly RecorderDeviceInfo[],
-    error?: string,
-  ) => void;
+  sendDevices: (requestId: string, devices: readonly RecorderDeviceInfo[], error?: string) => void;
   sendLevel: (sessionId: string, level: number) => void;
   sendRealtimeChunk: (sessionId: string, chunk: ArrayBuffer) => void;
   sendStarted: (

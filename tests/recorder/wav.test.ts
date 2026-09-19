@@ -7,9 +7,7 @@ import {
 } from '../../src/recorder/wav';
 
 const ascii = (view: DataView, offset: number, length: number): string =>
-  String.fromCharCode(
-    ...Array.from({ length }, (_, index) => view.getUint8(offset + index)),
-  );
+  String.fromCharCode(...Array.from({ length }, (_, index) => view.getUint8(offset + index)));
 
 describe('encodePcm16Wav', () => {
   it('encodes mono 16 kHz PCM with a valid WAV header', () => {

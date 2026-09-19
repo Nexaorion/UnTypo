@@ -20,10 +20,7 @@ const rms = (samples: Float32Array<ArrayBuffer>): number => {
   return Math.sqrt(sumOfSquares / samples.length);
 };
 
-const speechBandRatio = (
-  frequencies: Float32Array<ArrayBuffer>,
-  sampleRateHz: number,
-): number => {
+const speechBandRatio = (frequencies: Float32Array<ArrayBuffer>, sampleRateHz: number): number => {
   const binWidthHz = sampleRateHz / (frequencies.length * 2);
   if (!Number.isFinite(binWidthHz) || binWidthHz <= 0) return 0;
 
@@ -32,10 +29,7 @@ const speechBandRatio = (
     frequencies.length - 1,
     Math.floor(SPEECH_BAND_END_HZ / binWidthHz),
   );
-  const endBin = Math.min(
-    frequencies.length - 1,
-    Math.floor(SPECTRUM_END_HZ / binWidthHz),
-  );
+  const endBin = Math.min(frequencies.length - 1, Math.floor(SPECTRUM_END_HZ / binWidthHz));
   if (startBin > speechEndBin || speechEndBin > endBin) return 0;
 
   let totalEnergy = 0;
@@ -74,10 +68,7 @@ export class VoiceActivityDetector {
     }
 
     const level = rms(samples);
-    const requiredLevel = Math.max(
-      MINIMUM_SPEECH_RMS,
-      this.#noiseFloor * NOISE_FLOOR_MULTIPLIER,
-    );
+    const requiredLevel = Math.max(MINIMUM_SPEECH_RMS, this.#noiseFloor * NOISE_FLOOR_MULTIPLIER);
     const isSpeechFrame =
       level >= requiredLevel &&
       speechBandRatio(frequencies, sampleRateHz) >= MINIMUM_SPEECH_BAND_RATIO;
@@ -103,8 +94,7 @@ export class VoiceActivityDetector {
   snapshot(): VoiceActivitySnapshot {
     return {
       speechDurationMs: Math.round(this.#longestSpeechDurationMs),
-      voiceDetected:
-        this.#longestSpeechDurationMs >= MINIMUM_VOICE_ACTIVITY_DURATION_MS,
+      voiceDetected: this.#longestSpeechDurationMs >= MINIMUM_VOICE_ACTIVITY_DURATION_MS,
     };
   }
 }

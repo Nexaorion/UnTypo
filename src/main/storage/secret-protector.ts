@@ -17,9 +17,7 @@ export class MemorySecretProtector implements SecretProtector {
   }
 
   reveal(encrypted: EncryptedValue): string {
-    const decoded = Buffer.from(encrypted.ciphertext, 'base64').toString(
-      'utf8',
-    );
+    const decoded = Buffer.from(encrypted.ciphertext, 'base64').toString('utf8');
     if (encrypted.scheme !== 'memory-test-v1' || !decoded.startsWith('test:')) {
       throw new Error('Unsupported encrypted value');
     }

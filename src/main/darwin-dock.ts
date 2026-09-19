@@ -5,9 +5,7 @@ export type DarwinDockVisibilityOptions = {
   platform?: NodeJS.Platform;
 };
 
-export const keepDarwinDockVisible = (
-  options: DarwinDockVisibilityOptions,
-): void => {
+export const keepDarwinDockVisible = (options: DarwinDockVisibilityOptions): void => {
   const platform = options.platform ?? process.platform;
   if (platform !== 'darwin' || options.isQuitting) return;
   app.setActivationPolicy('regular');

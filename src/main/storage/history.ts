@@ -2,10 +2,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type {
-  DictationIntent,
-  SupportedLanguage,
-} from '../../core/providers/contracts.js';
+import type { DictationIntent, SupportedLanguage } from '../../core/providers/contracts.js';
 import type { HistoryPolicy } from './configuration.js';
 import type { ClientHistoryProcessingTrace } from '../../shared/ipc.js';
 
@@ -42,9 +39,7 @@ interface HistoryRow {
   scene: string | null;
 }
 
-const parseProcessingTrace = (
-  value: string | null,
-): ClientHistoryProcessingTrace | undefined => {
+const parseProcessingTrace = (value: string | null): ClientHistoryProcessingTrace | undefined => {
   if (value === null) return undefined;
   try {
     const parsed: unknown = JSON.parse(value);
@@ -73,14 +68,10 @@ const mapRow = (row: HistoryRow): HistoryRecord => {
     language: row.language,
     outputText: row.output_text,
     providerId: row.provider_id,
-    ...(row.audio_duration_ms === null
-      ? {}
-      : { audioDurationMs: row.audio_duration_ms }),
+    ...(row.audio_duration_ms === null ? {} : { audioDurationMs: row.audio_duration_ms }),
     ...(row.model_name === null ? {} : { modelName: row.model_name }),
     ...(processingTrace ? { processingTrace } : {}),
-    ...(row.raw_transcript === null
-      ? {}
-      : { rawTranscript: row.raw_transcript }),
+    ...(row.raw_transcript === null ? {} : { rawTranscript: row.raw_transcript }),
     ...(row.scene === null ? {} : { scene: row.scene }),
   };
 };
@@ -112,9 +103,7 @@ export class HistoryRepository {
   readonly #mostUsedModelStatement: Database.Statement;
   readonly #deleteOlderThanStatement: Database.Statement;
   readonly #clearStatement: Database.Statement;
-  readonly #importMissingTransaction: (
-    records: readonly HistoryRecord[],
-  ) => number;
+  readonly #importMissingTransaction: (records: readonly HistoryRecord[]) => number;
 
   constructor(databasePath: string) {
     mkdirSync(path.dirname(databasePath), { recursive: true });
@@ -169,9 +158,7 @@ export class HistoryRepository {
     this.#deleteOlderThanStatement = this.#database.prepare(
       'DELETE FROM dictation_history WHERE created_at < ?',
     );
-    this.#clearStatement = this.#database.prepare(
-      'DELETE FROM dictation_history',
-    );
+    this.#clearStatement = this.#database.prepare('DELETE FROM dictation_history');
     this.#importMissingTransaction = this.#database.transaction(
       (entries: readonly HistoryRecord[]): number => {
         let imported = 0;
@@ -203,9 +190,7 @@ export class HistoryRepository {
       ...record,
       audioDurationMs: record.audioDurationMs ?? null,
       modelName: record.modelName ?? null,
-      processingTraceJson: record.processingTrace
-        ? JSON.stringify(record.processingTrace)
-        : null,
+      processingTraceJson: record.processingTrace ? JSON.stringify(record.processingTrace) : null,
       rawTranscript: record.rawTranscript ?? null,
       scene: record.scene ?? null,
     });
@@ -221,8 +206,7 @@ export class HistoryRepository {
 
   getUsageStats(): HistoryUsageStats {
     const totals = this.#usageTotalsStatement.get() as UsageStatsRow;
-    const model = this.#mostUsedModelStatement.get() as
-      MostUsedModelRow | undefined;
+    const model = this.#mostUsedModelStatement.get() as MostUsedModelRow | undefined;
 
     return {
       ...(model ? { mostUsedModel: model.model_name } : {}),
@@ -276,19 +260,13 @@ export class HistoryRepository {
       .all() as readonly { name: string }[];
     const names = new Set(columns.map((column) => column.name));
     if (!names.has('audio_duration_ms')) {
-      this.#database.exec(
-        'ALTER TABLE dictation_history ADD COLUMN audio_duration_ms INTEGER',
-      );
+      this.#database.exec('ALTER TABLE dictation_history ADD COLUMN audio_duration_ms INTEGER');
     }
     if (!names.has('model_name')) {
-      this.#database.exec(
-        'ALTER TABLE dictation_history ADD COLUMN model_name TEXT',
-      );
+      this.#database.exec('ALTER TABLE dictation_history ADD COLUMN model_name TEXT');
     }
     if (!names.has('processing_trace_json')) {
-      this.#database.exec(
-        'ALTER TABLE dictation_history ADD COLUMN processing_trace_json TEXT',
-      );
+      this.#database.exec('ALTER TABLE dictation_history ADD COLUMN processing_trace_json TEXT');
     }
     this.#database.pragma('user_version = 3');
   }

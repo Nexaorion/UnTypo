@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  mergeSyncState,
-  parseSyncPayload,
-} from '../../../src/main/sync/merger';
+import { mergeSyncState, parseSyncPayload } from '../../../src/main/sync/merger';
 import { DEFAULT_APPLICATION_WRITING_STYLES } from '../../../src/shared/personalization';
 
 const emptyLearning = {

@@ -1,7 +1,4 @@
-import type {
-  ClientProviderInput,
-  ClientProviderSummary,
-} from '../../shared/ipc.js';
+import type { ClientProviderInput, ClientProviderSummary } from '../../shared/ipc.js';
 import {
   createProviderProfileId,
   getDefaultProviderPreset,
@@ -16,8 +13,7 @@ import {
 
 export const PROFILE_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
 
-export const ALIYUN_REALTIME_MODEL =
-  'qwen-audio-3.0-asr-flash-streaming' as const;
+export const ALIYUN_REALTIME_MODEL = 'qwen-audio-3.0-asr-flash-streaming' as const;
 export const ALIYUN_SYNCHRONOUS_MODEL = 'qwen-audio-3.0-asr-flash' as const;
 
 export const PROVIDER_LIMITS = {
@@ -44,8 +40,7 @@ export interface ProviderFormState {
   realtimeSpeechEnabled: boolean;
 }
 
-export type ProviderFormField =
-  'apiKey' | 'baseUrl' | 'id' | 'model' | 'name' | 'presetId';
+export type ProviderFormField = 'apiKey' | 'baseUrl' | 'id' | 'model' | 'name' | 'presetId';
 
 export type ProviderFormErrorCode =
   | 'insecureUrl'
@@ -56,14 +51,9 @@ export type ProviderFormErrorCode =
   | 'required'
   | 'tooLong';
 
-export type ProviderFormErrors = Partial<
-  Record<ProviderFormField, ProviderFormErrorCode>
->;
+export type ProviderFormErrors = Partial<Record<ProviderFormField, ProviderFormErrorCode>>;
 
-const textError = (
-  value: string,
-  maximumLength: number,
-): ProviderFormErrorCode | undefined => {
+const textError = (value: string, maximumLength: number): ProviderFormErrorCode | undefined => {
   const trimmed = value.trim();
   if (trimmed.length === 0) return 'required';
   if (trimmed.length > maximumLength) return 'tooLong';
@@ -115,8 +105,7 @@ const formForPreset = (
 export const emptyProviderForm = (
   kind: ProviderKind,
   existingIds: ReadonlySet<string> = new Set(),
-): ProviderFormState =>
-  formForPreset(getDefaultProviderPreset(kind), existingIds);
+): ProviderFormState => formForPreset(getDefaultProviderPreset(kind), existingIds);
 
 export const selectProviderPreset = (
   form: ProviderFormState,
@@ -158,8 +147,7 @@ export const setAliyunRealtimeSpeechEnabled = (
 
 export const selectTextEndpointType = (
   form: ProviderFormState,
-  providerId:
-    'anthropic-text' | 'openai-compatible-text' | 'openai-responses-text',
+  providerId: 'anthropic-text' | 'openai-compatible-text' | 'openai-responses-text',
 ): ProviderFormState => {
   if (form.providerId === providerId) return form;
   return {
@@ -170,12 +158,9 @@ export const selectTextEndpointType = (
   };
 };
 
-const asString = (value: unknown): string =>
-  typeof value === 'string' ? value : '';
+const asString = (value: unknown): string => (typeof value === 'string' ? value : '');
 
-export const providerFormFromSummary = (
-  summary: ClientProviderSummary,
-): ProviderFormState => {
+export const providerFormFromSummary = (summary: ClientProviderSummary): ProviderFormState => {
   const baseUrl = asString(summary.values.baseUrl);
   const preset = resolveProviderPreset({
     baseUrl,
@@ -185,8 +170,7 @@ export const providerFormFromSummary = (
   });
 
   return {
-    allowInsecurePrivateEndpoint:
-      summary.values.allowInsecurePrivateEndpoint === true,
+    allowInsecurePrivateEndpoint: summary.values.allowInsecurePrivateEndpoint === true,
     apiKey: '',
     baseUrl,
     hasStoredApiKey: summary.configuredSecretKeys.includes('apiKey'),
@@ -200,9 +184,7 @@ export const providerFormFromSummary = (
   };
 };
 
-export const validateProviderForm = (
-  form: ProviderFormState,
-): ProviderFormErrors => {
+export const validateProviderForm = (form: ProviderFormState): ProviderFormErrors => {
   const errors: ProviderFormErrors = {};
   const id = form.id.trim();
 
@@ -210,11 +192,7 @@ export const validateProviderForm = (
   else if (!PROFILE_ID_PATTERN.test(id)) errors.id = 'invalidId';
 
   const preset = getProviderPreset(form.presetId);
-  if (
-    !preset ||
-    preset.kind !== form.kind ||
-    !presetSupportsProviderId(preset, form.providerId)
-  ) {
+  if (!preset || preset.kind !== form.kind || !presetSupportsProviderId(preset, form.providerId)) {
     errors.presetId = 'invalidPreset';
   }
 
@@ -235,18 +213,13 @@ export const validateProviderForm = (
   if (apiKey.length === 0 && !form.hasStoredApiKey) errors.apiKey = 'required';
   else if (apiKey.length > PROVIDER_LIMITS.apiKey) errors.apiKey = 'tooLong';
 
-  const baseUrl = validateBaseUrlInput(
-    form.baseUrl,
-    form.allowInsecurePrivateEndpoint,
-  );
+  const baseUrl = validateBaseUrlInput(form.baseUrl, form.allowInsecurePrivateEndpoint);
   if (baseUrl) errors.baseUrl = baseUrl;
 
   return errors;
 };
 
-export const toProviderInput = (
-  form: ProviderFormState,
-): ClientProviderInput => {
+export const toProviderInput = (form: ProviderFormState): ClientProviderInput => {
   const apiKey = form.apiKey.trim();
   return {
     id: form.id.trim(),

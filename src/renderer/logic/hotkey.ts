@@ -79,13 +79,10 @@ const namedKeyLabels: Readonly<Record<string, string>> = {
 };
 
 const isSupportedKey = (value: string): boolean =>
-  namedKeys.includes(value) ||
-  /^[a-z0-9]$/u.test(value) ||
-  /^f([1-9]|1\d|2[0-4])$/u.test(value);
+  namedKeys.includes(value) || /^[a-z0-9]$/u.test(value) || /^f([1-9]|1\d|2[0-4])$/u.test(value);
 
 const keyLabel = (value: string): string =>
-  namedKeyLabels[value] ??
-  (/^f\d{1,2}$/u.test(value) ? value.toUpperCase() : value.toUpperCase());
+  namedKeyLabels[value] ?? (/^f\d{1,2}$/u.test(value) ? value.toUpperCase() : value.toUpperCase());
 
 export const HOTKEY_MAX_LENGTH = 128;
 
@@ -98,10 +95,7 @@ export const isValidHotkeyAccelerator = (accelerator: string): boolean => {
     .map((part) => part.trim())
     .filter(Boolean);
   if (parts.length === 0) return false;
-  if (
-    parts.length === 1 &&
-    modifierAliases[parts[0]?.toLowerCase() ?? ''] === 'Alt'
-  ) {
+  if (parts.length === 1 && modifierAliases[parts[0]?.toLowerCase() ?? ''] === 'Alt') {
     return true;
   }
 
@@ -156,10 +150,7 @@ const numpadCodes = new Set([
   'NumpadSubtract',
 ]);
 
-const eventKeyToAcceleratorKey = (
-  key: string,
-  code?: string,
-): string | undefined => {
+const eventKeyToAcceleratorKey = (key: string, code?: string): string | undefined => {
   if (code && numpadCodes.has(code)) return code;
   const map: Readonly<Record<string, string>> = {
     ' ': 'Space',
@@ -224,12 +215,8 @@ const physicalKeyFromCode = (code?: string): string | undefined => {
   return undefined;
 };
 
-export const acceleratorFromEvent = (
-  event: HotkeyCaptureEvent,
-): string | undefined => {
-  const key =
-    eventKeyToAcceleratorKey(event.key, event.code) ??
-    physicalKeyFromCode(event.code);
+export const acceleratorFromEvent = (event: HotkeyCaptureEvent): string | undefined => {
+  const key = eventKeyToAcceleratorKey(event.key, event.code) ?? physicalKeyFromCode(event.code);
   if (key === undefined) return undefined;
 
   const parts: string[] = [];
@@ -274,9 +261,7 @@ export const createHotkeyCaptureSession = (): HotkeyCaptureSession => ({
   modifierChord: false,
 });
 
-export const resetHotkeyCaptureSession = (
-  session: HotkeyCaptureSession,
-): void => {
+export const resetHotkeyCaptureSession = (session: HotkeyCaptureSession): void => {
   session.captured = false;
   session.heldModifiers.clear();
   session.modifierChord = false;
@@ -284,9 +269,7 @@ export const resetHotkeyCaptureSession = (
 };
 
 const modifierPreview = (held: ReadonlySet<string>): string | undefined => {
-  const preview = modifierOrder
-    .filter((candidate) => held.has(candidate))
-    .join('+');
+  const preview = modifierOrder.filter((candidate) => held.has(candidate)).join('+');
   return preview.length > 0 ? preview : undefined;
 };
 
@@ -360,15 +343,10 @@ const darwinModifierLabels: Readonly<Record<string, string>> = {
   Win: 'Command',
 };
 
-export const formatHotkeyDisplay = (
-  accelerator: string,
-  platform?: string,
-): string => hotkeyKeycapLabels(accelerator, platform).join(' + ');
+export const formatHotkeyDisplay = (accelerator: string, platform?: string): string =>
+  hotkeyKeycapLabels(accelerator, platform).join(' + ');
 
-export const hotkeyKeycapLabels = (
-  accelerator: string,
-  platform?: string,
-): readonly string[] =>
+export const hotkeyKeycapLabels = (accelerator: string, platform?: string): readonly string[] =>
   formatHotkeyAccelerator(accelerator)
     .split('+')
     .filter(Boolean)
@@ -376,7 +354,5 @@ export const hotkeyKeycapLabels = (
       const mapped = /^Numpad\d$/u.test(part)
         ? `Num ${part.slice(-1)}`
         : (keycapLabels[part] ?? part);
-      return platform === 'darwin'
-        ? (darwinModifierLabels[mapped] ?? mapped)
-        : mapped;
+      return platform === 'darwin' ? (darwinModifierLabels[mapped] ?? mapped) : mapped;
     });

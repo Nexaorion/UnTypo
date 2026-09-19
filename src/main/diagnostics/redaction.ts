@@ -25,10 +25,7 @@ export const redactDiagnosticText = (value: string): string =>
     .replace(longEncodedValuePattern, '[redacted-encoded-data]')
     .slice(0, 20_000);
 
-const sanitizeValue = (
-  value: unknown,
-  depth: number,
-): ClientJsonValue | undefined => {
+const sanitizeValue = (value: unknown, depth: number): ClientJsonValue | undefined => {
   if (depth > 6) return '[truncated]';
   if (value === null || typeof value === 'boolean') return value;
   if (typeof value === 'number') {
@@ -38,9 +35,7 @@ const sanitizeValue = (
   if (typeof value === 'bigint') return value.toString();
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) {
-    return value
-      .slice(0, 100)
-      .map((item) => sanitizeValue(item, depth + 1) ?? '[unsupported]');
+    return value.slice(0, 100).map((item) => sanitizeValue(item, depth + 1) ?? '[unsupported]');
   }
   if (typeof value !== 'object') return undefined;
 

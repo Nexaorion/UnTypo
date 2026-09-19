@@ -1,9 +1,4 @@
-import {
-  clipboard,
-  ipcMain,
-  type IpcMainInvokeEvent,
-  type WebContents,
-} from 'electron';
+import { clipboard, ipcMain, type IpcMainInvokeEvent, type WebContents } from 'electron';
 import type { UserProfileContext } from '../../core/providers/contracts.js';
 import type {
   ClientDiagnosticExportRequest,
@@ -58,8 +53,7 @@ export interface ClientBackendPort {
   acknowledgeDiagnostics: (
     issueIds: readonly string[],
   ) => ClientDiagnosticSnapshot | Promise<ClientDiagnosticSnapshot>;
-  clearDiagnostics: () =>
-    ClientDiagnosticSnapshot | Promise<ClientDiagnosticSnapshot>;
+  clearDiagnostics: () => ClientDiagnosticSnapshot | Promise<ClientDiagnosticSnapshot>;
   clearHistory: () => number;
   clearPersonalizationMemory: () => Promise<ClientSnapshot>;
   checkForUpdates: () => Promise<ClientUpdateSnapshot>;
@@ -85,18 +79,13 @@ export interface ClientBackendPort {
   removeWritingPreference: (id: string) => Promise<ClientSnapshot>;
   rejectWritingPreference: (id: string) => Promise<ClientSnapshot>;
   reportRendererIssue: (issue: ClientRendererIssueInput) => void;
-  setHotkeyCaptureActive: (
-    active: boolean,
-    sender?: WebContents,
-  ) => Promise<void>;
+  setHotkeyCaptureActive: (active: boolean, sender?: WebContents) => Promise<void>;
   setDictionaryLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
   setApplicationWritingStyle: (
     update: ClientApplicationWritingStyleUpdate,
   ) => Promise<ClientSnapshot>;
   setProfile: (profile?: UserProfileContext) => Promise<ClientSnapshot>;
-  setPersonalizationLearningEnabled: (
-    enabled: boolean,
-  ) => Promise<ClientSnapshot>;
+  setPersonalizationLearningEnabled: (enabled: boolean) => Promise<ClientSnapshot>;
   testProvider: (profileId: string) => Promise<{ ok: true }>;
   testSyncConnection: () => Promise<{ ok: true }>;
   updateSettings: (update: ClientSettingsUpdate) => Promise<ClientSnapshot>;
@@ -122,35 +111,20 @@ export class ClientIpcController {
       [IPC_CHANNELS.addDictionaryEntry, this.addDictionaryEntry],
       [IPC_CHANNELS.acknowledgeDiagnostics, this.acknowledgeDiagnostics],
       [IPC_CHANNELS.clearDiagnostics, this.clearDiagnostics],
-      [
-        IPC_CHANNELS.clearPersonalizationMemory,
-        this.clearPersonalizationMemory,
-      ],
+      [IPC_CHANNELS.clearPersonalizationMemory, this.clearPersonalizationMemory],
       [IPC_CHANNELS.exportDiagnostics, this.exportDiagnostics],
       [IPC_CHANNELS.getDiagnostics, this.getDiagnostics],
       [IPC_CHANNELS.getSnapshot, this.getSnapshot],
       [IPC_CHANNELS.getUsageStats, this.getUsageStats],
       [IPC_CHANNELS.listMicrophones, this.listMicrophones],
-      [
-        IPC_CHANNELS.requestAccessibilityAccess,
-        this.requestAccessibilityAccess,
-      ],
+      [IPC_CHANNELS.requestAccessibilityAccess, this.requestAccessibilityAccess],
       [IPC_CHANNELS.updateSettings, this.updateSettings],
       [IPC_CHANNELS.removeDictionaryEntry, this.removeDictionaryEntry],
       [IPC_CHANNELS.removeWritingPreference, this.removeWritingPreference],
       [IPC_CHANNELS.rejectWritingPreference, this.rejectWritingPreference],
-      [
-        IPC_CHANNELS.setDictionaryLearningEnabled,
-        this.setDictionaryLearningEnabled,
-      ],
-      [
-        IPC_CHANNELS.setApplicationWritingStyle,
-        this.setApplicationWritingStyle,
-      ],
-      [
-        IPC_CHANNELS.setPersonalizationLearningEnabled,
-        this.setPersonalizationLearningEnabled,
-      ],
+      [IPC_CHANNELS.setDictionaryLearningEnabled, this.setDictionaryLearningEnabled],
+      [IPC_CHANNELS.setApplicationWritingStyle, this.setApplicationWritingStyle],
+      [IPC_CHANNELS.setPersonalizationLearningEnabled, this.setPersonalizationLearningEnabled],
       [IPC_CHANNELS.setProfile, this.setProfile],
       [IPC_CHANNELS.upsertProvider, this.upsertProvider],
       [IPC_CHANNELS.removeProvider, this.removeProvider],
@@ -197,9 +171,7 @@ export class ClientIpcController {
     value: unknown,
   ): Promise<ClientSnapshot> => {
     trust(event);
-    return this.#backend.acceptWritingPreference(
-      parseWritingPreferenceId(value),
-    );
+    return this.#backend.acceptWritingPreference(parseWritingPreferenceId(value));
   };
 
   private readonly acknowledgeDiagnostics = (
@@ -224,16 +196,12 @@ export class ClientIpcController {
     return this.#backend.clearPersonalizationMemory();
   };
 
-  private readonly getSnapshot = (
-    event: IpcMainInvokeEvent,
-  ): Promise<ClientSnapshot> => {
+  private readonly getSnapshot = (event: IpcMainInvokeEvent): Promise<ClientSnapshot> => {
     trust(event);
     return this.#backend.getClientSnapshot();
   };
 
-  private readonly getUsageStats = (
-    event: IpcMainInvokeEvent,
-  ): ClientUsageStats => {
+  private readonly getUsageStats = (event: IpcMainInvokeEvent): ClientUsageStats => {
     trust(event);
     return this.#backend.getUsageStats();
   };
@@ -273,9 +241,7 @@ export class ClientIpcController {
     value: unknown,
   ): Promise<ClientSnapshot> => {
     trust(event);
-    return this.#backend.removeWritingPreference(
-      parseWritingPreferenceId(value),
-    );
+    return this.#backend.removeWritingPreference(parseWritingPreferenceId(value));
   };
 
   private readonly rejectWritingPreference = (
@@ -283,9 +249,7 @@ export class ClientIpcController {
     value: unknown,
   ): Promise<ClientSnapshot> => {
     trust(event);
-    return this.#backend.rejectWritingPreference(
-      parseWritingPreferenceId(value),
-    );
+    return this.#backend.rejectWritingPreference(parseWritingPreferenceId(value));
   };
 
   private readonly setHotkeyCaptureActive = (
@@ -304,9 +268,7 @@ export class ClientIpcController {
     value: unknown,
   ): Promise<ClientSnapshot> => {
     trust(event);
-    return this.#backend.setDictionaryLearningEnabled(
-      parseDictionaryLearningEnabled(value),
-    );
+    return this.#backend.setDictionaryLearningEnabled(parseDictionaryLearningEnabled(value));
   };
 
   private readonly setApplicationWritingStyle = (
@@ -314,9 +276,7 @@ export class ClientIpcController {
     value: unknown,
   ): Promise<ClientSnapshot> => {
     trust(event);
-    return this.#backend.setApplicationWritingStyle(
-      parseApplicationWritingStyleUpdate(value),
-    );
+    return this.#backend.setApplicationWritingStyle(parseApplicationWritingStyleUpdate(value));
   };
 
   private readonly setPersonalizationLearningEnabled = (
@@ -374,16 +334,12 @@ export class ClientIpcController {
     return this.#backend.clearHistory();
   };
 
-  private readonly checkForUpdates = (
-    event: IpcMainInvokeEvent,
-  ): Promise<ClientUpdateSnapshot> => {
+  private readonly checkForUpdates = (event: IpcMainInvokeEvent): Promise<ClientUpdateSnapshot> => {
     trust(event);
     return this.#backend.checkForUpdates();
   };
 
-  private readonly downloadUpdate = (
-    event: IpcMainInvokeEvent,
-  ): Promise<ClientUpdateSnapshot> => {
+  private readonly downloadUpdate = (event: IpcMainInvokeEvent): Promise<ClientUpdateSnapshot> => {
     trust(event);
     return this.#backend.downloadUpdate();
   };
@@ -393,10 +349,7 @@ export class ClientIpcController {
     this.#backend.installUpdate();
   };
 
-  private readonly copyText = (
-    event: IpcMainInvokeEvent,
-    value: unknown,
-  ): Promise<void> => {
+  private readonly copyText = (event: IpcMainInvokeEvent, value: unknown): Promise<void> => {
     trust(event);
     return clipboard.writeText(parseClipboardText(value));
   };
@@ -409,24 +362,17 @@ export class ClientIpcController {
     return this.#backend.exportDiagnostics(parseDiagnosticExportRequest(value));
   };
 
-  private readonly getDiagnostics = (
-    event: IpcMainInvokeEvent,
-  ): ClientDiagnosticSnapshot => {
+  private readonly getDiagnostics = (event: IpcMainInvokeEvent): ClientDiagnosticSnapshot => {
     trust(event);
     return this.#backend.getDiagnostics();
   };
 
-  private readonly reportRendererIssue = (
-    event: IpcMainInvokeEvent,
-    value: unknown,
-  ): void => {
+  private readonly reportRendererIssue = (event: IpcMainInvokeEvent, value: unknown): void => {
     trust(event);
     this.#backend.reportRendererIssue(parseRendererIssue(value));
   };
 
-  private readonly getSyncConfig = (
-    event: IpcMainInvokeEvent,
-  ): Promise<ClientSyncSnapshot> => {
+  private readonly getSyncConfig = (event: IpcMainInvokeEvent): Promise<ClientSyncSnapshot> => {
     trust(event);
     return this.#backend.getSyncConfig();
   };
@@ -439,16 +385,12 @@ export class ClientIpcController {
     return this.#backend.updateSyncConfig(parseSyncConfigUpdate(value));
   };
 
-  private readonly testSyncConnection = (
-    event: IpcMainInvokeEvent,
-  ): Promise<{ ok: true }> => {
+  private readonly testSyncConnection = (event: IpcMainInvokeEvent): Promise<{ ok: true }> => {
     trust(event);
     return this.#backend.testSyncConnection();
   };
 
-  private readonly createBackup = (
-    event: IpcMainInvokeEvent,
-  ): Promise<ClientSyncResult> => {
+  private readonly createBackup = (event: IpcMainInvokeEvent): Promise<ClientSyncResult> => {
     trust(event);
     return this.#backend.createBackup();
   };
@@ -476,9 +418,7 @@ export class ClientIpcController {
     return this.#backend.deleteBackup(parseRemoteBackupPath(value));
   };
 
-  private readonly generateBackupCode = (
-    event: IpcMainInvokeEvent,
-  ): Promise<string> => {
+  private readonly generateBackupCode = (event: IpcMainInvokeEvent): Promise<string> => {
     trust(event);
     return this.#backend.generateBackupCode();
   };

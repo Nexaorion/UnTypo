@@ -4,10 +4,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 
 const require = createRequire(import.meta.url);
-const {
-  NativeHelperClient,
-  nativeHelperFileName,
-} = require('../dist/main/native/client.js');
+const { NativeHelperClient, nativeHelperFileName } = require('../dist/main/native/client.js');
 const execFileAsync = promisify(execFile);
 
 const executablePath = path.resolve('build/Release', nativeHelperFileName());
@@ -29,9 +26,7 @@ const waitForHotkey = (targetClient) =>
 
 const sendCtrlAltShiftF24 = async () => {
   if (process.platform !== 'win32') {
-    throw new Error(
-      'Synthetic hotkey injection is only implemented on Windows',
-    );
+    throw new Error('Synthetic hotkey injection is only implemented on Windows');
   }
   const script = String.raw`
 Add-Type -TypeDefinition @'
@@ -64,11 +59,9 @@ public static class UnTypoHotkeySmoke {
 $sent = [UnTypoHotkeySmoke]::Send()
 if ($sent -ne 8) { throw "SendInput delivered $sent of 8 events" }
 `;
-  await execFileAsync(
-    'powershell.exe',
-    ['-NoProfile', '-NonInteractive', '-Command', script],
-    { windowsHide: true },
-  );
+  await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    windowsHide: true,
+  });
 };
 
 const spawnOptions = process.platform === 'win32' ? { windowsHide: true } : {};

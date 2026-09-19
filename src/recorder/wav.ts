@@ -28,10 +28,7 @@ export const encodePcm16WavChunks = (
   if (!Number.isInteger(sampleRateHz) || sampleRateHz < 1) {
     throw new Error('WAV sample rate must be a positive integer');
   }
-  const dataByteLength = chunks.reduce(
-    (total, chunk) => total + chunk.byteLength,
-    0,
-  );
+  const dataByteLength = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
   if (dataByteLength % 2 !== 0) {
     throw new Error('PCM16 data must contain complete samples');
   }
@@ -64,5 +61,4 @@ export const encodePcm16WavChunks = (
 export const encodePcm16Wav = (
   samples: Float32Array,
   sampleRateHz = BAILIAN_WAV_SAMPLE_RATE_HZ,
-): ArrayBuffer =>
-  encodePcm16WavChunks([new Uint8Array(encodePcm16(samples))], sampleRateHz);
+): ArrayBuffer => encodePcm16WavChunks([new Uint8Array(encodePcm16(samples))], sampleRateHz);

@@ -56,9 +56,7 @@ describe('ApplicationUpdateService', () => {
     const onChanged = vi.fn();
     const service = new ApplicationUpdateService({
       diagnostics: { log: vi.fn() } as never,
-      fetchImplementation: vi.fn(() =>
-        Promise.resolve(releaseResponse('0.1.1')),
-      ),
+      fetchImplementation: vi.fn(() => Promise.resolve(releaseResponse('0.1.1'))),
       isPackaged: true,
       onChanged,
       platform: 'win32',
@@ -87,9 +85,7 @@ describe('ApplicationUpdateService', () => {
     });
     const service = new ApplicationUpdateService({
       diagnostics: { log: vi.fn() } as never,
-      fetchImplementation: vi.fn(() =>
-        Promise.resolve(releaseResponse('0.2.0')),
-      ),
+      fetchImplementation: vi.fn(() => Promise.resolve(releaseResponse('0.2.0'))),
       isPackaged: true,
       onChanged: vi.fn(),
       platform: 'win32',
@@ -117,18 +113,17 @@ describe('ApplicationUpdateService', () => {
   it('keeps the discovery timeout active while the Hazel response body stalls', async () => {
     vi.useFakeTimers();
     const onChanged = vi.fn();
-    const fetchImplementation = vi.fn(
-      (_input: RequestInfo | URL, init?: RequestInit) =>
-        Promise.resolve({
-          ok: true,
-          json: () =>
-            new Promise((_, reject) => {
-              init?.signal?.addEventListener('abort', () => {
-                reject(new DOMException('Timed out', 'AbortError'));
-              });
-            }),
-          status: 200,
-        } as Response),
+    const fetchImplementation = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      Promise.resolve({
+        ok: true,
+        json: () =>
+          new Promise((_, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('Timed out', 'AbortError'));
+            });
+          }),
+        status: 200,
+      } as Response),
     );
     const service = new ApplicationUpdateService({
       diagnostics: { log: vi.fn() } as never,

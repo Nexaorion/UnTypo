@@ -50,9 +50,7 @@ describe('isValidHotkeyAccelerator', () => {
 
 describe('formatHotkeyAccelerator', () => {
   it('normalises aliases, order and casing', () => {
-    expect(formatHotkeyAccelerator('shift+control+space')).toBe(
-      'Ctrl+Shift+Space',
-    );
+    expect(formatHotkeyAccelerator('shift+control+space')).toBe('Ctrl+Shift+Space');
     expect(formatHotkeyAccelerator('meta+option+k')).toBe('Alt+Win+K');
     expect(formatHotkeyAccelerator('ctrl+f5')).toBe('Ctrl+F5');
   });
@@ -60,23 +58,13 @@ describe('formatHotkeyAccelerator', () => {
 
 describe('hotkeyKeycapLabels', () => {
   it('keeps Windows modifier names by default', () => {
-    expect(hotkeyKeycapLabels('Ctrl+Alt+Space')).toEqual([
-      'Ctrl',
-      'Alt',
-      'Space',
-    ]);
+    expect(hotkeyKeycapLabels('Ctrl+Alt+Space')).toEqual(['Ctrl', 'Alt', 'Space']);
   });
 
   it('uses macOS modifier names when the platform is darwin', () => {
-    expect(hotkeyKeycapLabels('Ctrl+Alt+Space', 'darwin')).toEqual([
-      'Control',
-      'Option',
-      'Space',
-    ]);
+    expect(hotkeyKeycapLabels('Ctrl+Alt+Space', 'darwin')).toEqual(['Control', 'Option', 'Space']);
     expect(hotkeyKeycapLabels('Win+K', 'darwin')).toEqual(['Command', 'K']);
-    expect(formatHotkeyDisplay('Ctrl+Alt+Space', 'darwin')).toBe(
-      'Control + Option + Space',
-    );
+    expect(formatHotkeyDisplay('Ctrl+Alt+Space', 'darwin')).toBe('Control + Option + Space');
   });
 });
 
@@ -126,20 +114,14 @@ describe('acceleratorFromEvent', () => {
       shiftKey: false,
     };
     expect(acceleratorFromEvent({ ...base, code: 'Digit0' })).toBe('Ctrl+0');
-    expect(acceleratorFromEvent({ ...base, code: 'Numpad0' })).toBe(
-      'Ctrl+Numpad0',
-    );
+    expect(acceleratorFromEvent({ ...base, code: 'Numpad0' })).toBe('Ctrl+Numpad0');
   });
 
   it('identifies modifiers for keyup-only Alt capture', () => {
     expect(modifierAcceleratorFromEvent({ key: 'Alt' })).toBe('Alt');
     expect(modifierAcceleratorFromEvent({ key: 'Control' })).toBe('Ctrl');
-    expect(modifierAcceleratorFromEvent({ code: 'AltLeft', key: 'Dead' })).toBe(
-      'Alt',
-    );
-    expect(
-      modifierAcceleratorFromEvent({ code: 'MetaLeft', key: 'Meta' }),
-    ).toBe('Win');
+    expect(modifierAcceleratorFromEvent({ code: 'AltLeft', key: 'Dead' })).toBe('Alt');
+    expect(modifierAcceleratorFromEvent({ code: 'MetaLeft', key: 'Meta' })).toBe('Win');
   });
 
   it('uses the physical key code when Option remaps event.key on macOS', () => {

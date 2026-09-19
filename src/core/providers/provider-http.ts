@@ -29,10 +29,7 @@ export const normalizeProviderBaseUrl = (
   try {
     url = new URL(value);
   } catch {
-    throw new ProviderContractError(
-      'INVALID_OPTIONS',
-      'Provider endpoint is not a valid URL',
-    );
+    throw new ProviderContractError('INVALID_OPTIONS', 'Provider endpoint is not a valid URL');
   }
 
   if (
@@ -70,10 +67,7 @@ export const resolveProviderConfiguration = (
   const apiKey = configuration.apiKey.trim();
   const model = configuration.model.trim() || defaults.model?.trim() || '';
   if (!providerIdPattern.test(id)) {
-    throw new ProviderContractError(
-      'INVALID_OPTIONS',
-      'Provider id is invalid',
-    );
+    throw new ProviderContractError('INVALID_OPTIONS', 'Provider id is invalid');
   }
   if (!displayName || !apiKey || !model) {
     throw new ProviderContractError(
@@ -98,10 +92,7 @@ export const providerUrl = (baseUrl: string, pathname: string): string =>
   `${baseUrl}${pathname.startsWith('/') ? pathname : `/${pathname}`}`;
 
 export const isProviderEventStream = (response: Response): boolean =>
-  response.headers
-    .get('content-type')
-    ?.toLowerCase()
-    .includes('text/event-stream') ?? false;
+  response.headers.get('content-type')?.toLowerCase().includes('text/event-stream') ?? false;
 
 const responseMessage = (payload: unknown): string | undefined => {
   if (typeof payload !== 'object' || payload === null) return undefined;
@@ -128,16 +119,10 @@ const responseDetail = (
   return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 };
 
-const successfulErrorEnvelopeMessage = (
-  payload: unknown,
-): string | undefined => {
+const successfulErrorEnvelopeMessage = (payload: unknown): string | undefined => {
   if (typeof payload !== 'object' || payload === null) return undefined;
   const record = payload as Record<string, unknown>;
-  if (
-    'error' in record &&
-    record.error !== undefined &&
-    record.error !== null
-  ) {
+  if ('error' in record && record.error !== undefined && record.error !== null) {
     if (typeof record.error === 'object') {
       const error = record.error as Record<string, unknown>;
       for (const value of [error.message, error.code, error.type]) {

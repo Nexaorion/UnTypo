@@ -16,10 +16,7 @@ import Typography from '@mui/material/Typography';
 import { useEffect, useMemo, useState } from 'react';
 import type { ClientDiagnosticIssue } from '../../shared/diagnostics.js';
 import { useI18n } from '../i18n/context.js';
-import {
-  diagnosticKindKey,
-  latestDiagnosticIssue,
-} from '../logic/diagnostics.js';
+import { diagnosticKindKey, latestDiagnosticIssue } from '../logic/diagnostics.js';
 import { describeUserFacingError } from '../logic/user-facing-error.js';
 import type { ClientStore } from '../state/client.js';
 import { tokens } from '../theme.js';
@@ -27,9 +24,7 @@ import { useToast } from '../ui/toast.js';
 
 const issueLog = (issue: ClientDiagnosticIssue): string => {
   const timeline = issue.timeline.map((entry) => {
-    const context = entry.context
-      ? ` ${JSON.stringify(entry.context, null, 2)}`
-      : '';
+    const context = entry.context ? ` ${JSON.stringify(entry.context, null, 2)}` : '';
     return `${new Date(entry.timestamp).toISOString()} ${entry.level.toUpperCase()} [${entry.scope}] ${entry.message}${context}`;
   });
   const stack = issue.error.stack ? `\n\n${issue.error.stack}` : '';
@@ -60,10 +55,7 @@ export const DiagnosticsDialog = ({
 
   useEffect(() => setIncludeAudio(false), [selectedIssue?.id, open]);
 
-  const log = useMemo(
-    () => (selectedIssue ? issueLog(selectedIssue) : ''),
-    [selectedIssue],
-  );
+  const log = useMemo(() => (selectedIssue ? issueLog(selectedIssue) : ''), [selectedIssue]);
 
   const exportSelected = async () => {
     if (!selectedIssue) return;
@@ -135,17 +127,9 @@ export const DiagnosticsDialog = ({
             <Typography component="span" sx={{ fontSize: 21, fontWeight: 760 }}>
               {t(detailMode ? 'diagnostics.detailTitle' : 'diagnostics.title')}
             </Typography>
-            <Typography
-              color="text.secondary"
-              sx={{ display: 'block' }}
-              variant="body2"
-            >
+            <Typography color="text.secondary" sx={{ display: 'block' }} variant="body2">
               {selectedIssue
-                ? t(
-                    detailMode
-                      ? 'diagnostics.detailSummary'
-                      : 'diagnostics.latestSummary',
-                  )
+                ? t(detailMode ? 'diagnostics.detailSummary' : 'diagnostics.latestSummary')
                 : t('diagnostics.empty')}
             </Typography>
           </Box>
@@ -189,10 +173,7 @@ export const DiagnosticsDialog = ({
                 overflow: 'hidden',
               }}
             >
-              <Stack
-                direction="row"
-                sx={{ alignItems: 'center', gap: 1, px: 2, py: 1.25 }}
-              >
+              <Stack direction="row" sx={{ alignItems: 'center', gap: 1, px: 2, py: 1.25 }}>
                 <DescriptionOutlinedIcon color="action" fontSize="small" />
                 <Typography sx={{ fontSize: 13, fontWeight: 700 }}>
                   {t('diagnostics.logTitle')}
@@ -205,8 +186,7 @@ export const DiagnosticsDialog = ({
                   borderTop: '1px solid',
                   borderTopColor: 'divider',
                   color: 'text.secondary',
-                  fontFamily:
-                    '"Cascadia Mono", "SFMono-Regular", Consolas, monospace',
+                  fontFamily: '"Cascadia Mono", "SFMono-Regular", Consolas, monospace',
                   fontSize: 11.5,
                   lineHeight: 1.65,
                   m: 0,
@@ -239,11 +219,7 @@ export const DiagnosticsDialog = ({
                 }
                 label={t('diagnostics.includeAudio')}
               />
-              <Typography
-                color="text.secondary"
-                sx={{ pl: 4 }}
-                variant="caption"
-              >
+              <Typography color="text.secondary" sx={{ pl: 4 }} variant="caption">
                 {selectedIssue.audioAvailable
                   ? t('diagnostics.audioHint')
                   : t('diagnostics.noAudio')}
@@ -273,10 +249,7 @@ export const DiagnosticsDialog = ({
           },
         }}
       >
-        <Button
-          data-testid="diagnostics-later"
-          onClick={() => onOpenChange(false)}
-        >
+        <Button data-testid="diagnostics-later" onClick={() => onOpenChange(false)}>
           {t(detailMode ? 'action.close' : 'diagnostics.later')}
         </Button>
         {selectedIssue?.acknowledgedAt === undefined ? (

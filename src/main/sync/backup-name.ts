@@ -14,10 +14,7 @@ export const normalizeBackupDeviceName = (value: string): string => {
   return name || 'Unknown device';
 };
 
-export const createBackupFileName = (
-  createdAt: number,
-  deviceName: string,
-): string =>
+export const createBackupFileName = (createdAt: number, deviceName: string): string =>
   `untypo-${createdAt}-${Buffer.from(normalizeBackupDeviceName(deviceName), 'utf8').toString('base64url')}.untypo`;
 
 export const parseBackupFileName = (

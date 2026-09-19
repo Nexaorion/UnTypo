@@ -6,11 +6,9 @@ const electronMocks = vi.hoisted(() => {
   const windows: Array<Record<string, unknown>> = [];
   const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
   const ipcMain = {
-    on: vi.fn(
-      (channel: string, handler: (...arguments_: unknown[]) => void) => {
-        handlers.set(channel, handler);
-      },
-    ),
+    on: vi.fn((channel: string, handler: (...arguments_: unknown[]) => void) => {
+      handlers.set(channel, handler);
+    }),
     removeListener: vi.fn(),
   };
   const loadURL = vi.fn(() => Promise.resolve());
@@ -209,9 +207,7 @@ describe('CapsuleWindowController', () => {
     );
     electronMocks.handlers.get(CAPSULE_CHANNELS.copy)?.(event);
 
-    expect(electronMocks.clipboard.writeText).toHaveBeenCalledWith(
-      'Copied result',
-    );
+    expect(electronMocks.clipboard.writeText).toHaveBeenCalledWith('Copied result');
     controller.destroy();
   });
 
@@ -225,14 +221,10 @@ describe('CapsuleWindowController', () => {
   });
 
   it('rejects a pending confirmation when its capsule cannot load', async () => {
-    electronMocks.loadURL.mockRejectedValueOnce(
-      new Error('capsule load failed'),
-    );
+    electronMocks.loadURL.mockRejectedValueOnce(new Error('capsule load failed'));
     const controller = new CapsuleWindowController();
 
-    await expect(controller.showConfirm(confirmResult, 'en-US')).resolves.toBe(
-      false,
-    );
+    await expect(controller.showConfirm(confirmResult, 'en-US')).resolves.toBe(false);
   });
 
   it('replaces the success window with an editable dictionary suggestion after 1.5 seconds', async () => {
@@ -247,12 +239,7 @@ describe('CapsuleWindowController', () => {
       destroy: ReturnType<typeof vi.fn>;
     };
     const validate = vi.fn(() => Promise.resolve(undefined));
-    const suggestion = controller.showDictionarySuggestion(
-      'UnTypo',
-      'zh-CN',
-      generation,
-      validate,
-    );
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'zh-CN', generation, validate);
 
     await vi.advanceTimersByTimeAsync(1_499);
     expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(1);
@@ -260,10 +247,7 @@ describe('CapsuleWindowController', () => {
     expect(firstWindow.destroy).toHaveBeenCalledOnce();
     expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(2);
 
-    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(
-      event,
-      'UnTypo Desktop',
-    );
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(event, 'UnTypo Desktop');
     await Promise.resolve();
 
     await expect(suggestion).resolves.toBe('accepted');
@@ -278,21 +262,15 @@ describe('CapsuleWindowController', () => {
       'inserted',
       'en-US',
     );
-    const suggestion = controller.showDictionarySuggestion(
-      'UnTypo',
-      'en-US',
-      generation,
-      () => Promise.resolve('duplicate'),
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'en-US', generation, () =>
+      Promise.resolve('duplicate'),
     );
     await vi.advanceTimersByTimeAsync(1_500);
     const window = electronMocks.windows[1] as {
       webContents: { send: ReturnType<typeof vi.fn> };
     };
     electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
-    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(
-      event,
-      'UnTypo',
-    );
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(event, 'UnTypo');
     await Promise.resolve();
 
     expect(window.webContents.send).toHaveBeenLastCalledWith(
@@ -312,22 +290,14 @@ describe('CapsuleWindowController', () => {
       'en-US',
     );
     const validate = vi.fn(() => Promise.resolve(undefined));
-    const suggestion = controller.showDictionarySuggestion(
-      'UnTypo',
-      'en-US',
-      generation,
-      validate,
-    );
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'en-US', generation, validate);
     await vi.advanceTimersByTimeAsync(1_500);
     const window = electronMocks.windows[1] as {
       webContents: { send: ReturnType<typeof vi.fn> };
     };
     electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
 
-    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(
-      event,
-      'x'.repeat(129),
-    );
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(event, 'x'.repeat(129));
 
     expect(validate).not.toHaveBeenCalled();
     expect(window.webContents.send).toHaveBeenLastCalledWith(
@@ -346,11 +316,8 @@ describe('CapsuleWindowController', () => {
       'inserted',
       'en-US',
     );
-    const suggestion = controller.showDictionarySuggestion(
-      'UnTypo',
-      'en-US',
-      generation,
-      () => Promise.resolve(undefined),
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'en-US', generation, () =>
+      Promise.resolve(undefined),
     );
     await controller.showRecording('en-US');
     await vi.advanceTimersByTimeAsync(1_500);
@@ -367,11 +334,8 @@ describe('CapsuleWindowController', () => {
       'inserted',
       'en-US',
     );
-    const suggestion = controller.showDictionarySuggestion(
-      'UnTypo',
-      'en-US',
-      generation,
-      () => Promise.resolve(undefined),
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'en-US', generation, () =>
+      Promise.resolve(undefined),
     );
     await vi.advanceTimersByTimeAsync(1_500);
 

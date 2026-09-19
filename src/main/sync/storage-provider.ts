@@ -37,10 +37,7 @@ export interface WebDavStorageSettings {
 const privateHostPattern =
   /^(localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|\[?::1\]?|\[?f[cd][0-9a-f:]+\]?|[^.]+\.local)$/iu;
 
-export const normalizeSyncUrl = (
-  value: string,
-  allowInsecurePrivateEndpoint: boolean,
-): string => {
+export const normalizeSyncUrl = (value: string, allowInsecurePrivateEndpoint: boolean): string => {
   let url: URL;
   try {
     url = new URL(value);
@@ -71,9 +68,7 @@ export const normalizeRemoteDirectory = (value: string): string => {
   const trimmed = value.trim().replaceAll('\\', '/');
   const withoutDots = trimmed
     .split('/')
-    .filter(
-      (segment) => segment.length > 0 && segment !== '.' && segment !== '..',
-    )
+    .filter((segment) => segment.length > 0 && segment !== '.' && segment !== '..')
     .join('/');
   return withoutDots;
 };

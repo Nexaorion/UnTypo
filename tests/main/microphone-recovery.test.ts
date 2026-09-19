@@ -9,9 +9,7 @@ import { resolveMicrophoneSelection } from '../../src/shared/microphone';
 
 describe('Microphone device recovery', () => {
   it('persists an explicit microphone through the production configuration service', async () => {
-    const directory = await mkdtemp(
-      path.join(os.tmpdir(), 'untypo-microphone-'),
-    );
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'untypo-microphone-'));
     try {
       const configuration = new ConfigurationService(
         path.join(directory, 'config.json'),
@@ -45,37 +43,28 @@ describe('Microphone device recovery', () => {
 
   it('recovers a rotated device id from one matching persistent label', () => {
     expect(
-      resolveMicrophoneSelection(
-        { deviceId: 'old-id', label: ' USB   Microphone ' },
-        [
-          { deviceId: 'default', label: 'Default - USB Microphone' },
-          { deviceId: 'new-id', label: 'USB Microphone' },
-        ],
-      ),
+      resolveMicrophoneSelection({ deviceId: 'old-id', label: ' USB   Microphone ' }, [
+        { deviceId: 'default', label: 'Default - USB Microphone' },
+        { deviceId: 'new-id', label: 'USB Microphone' },
+      ]),
     ).toEqual({ deviceId: 'new-id', label: 'USB Microphone' });
   });
 
   it('does not recover when a label is ambiguous or generated', () => {
     expect(
-      resolveMicrophoneSelection(
-        { deviceId: 'old-id', label: 'USB Microphone' },
-        [
-          { deviceId: 'first', label: 'USB Microphone' },
-          { deviceId: 'second', label: 'USB Microphone' },
-        ],
-      ),
+      resolveMicrophoneSelection({ deviceId: 'old-id', label: 'USB Microphone' }, [
+        { deviceId: 'first', label: 'USB Microphone' },
+        { deviceId: 'second', label: 'USB Microphone' },
+      ]),
     ).toBeUndefined();
     expect(
-      resolveMicrophoneSelection(
-        { deviceId: 'old-id', label: 'Microphone 1' },
-        [
-          {
-            deviceId: 'new-id',
-            generatedLabel: true,
-            label: 'Microphone 1',
-          },
-        ],
-      ),
+      resolveMicrophoneSelection({ deviceId: 'old-id', label: 'Microphone 1' }, [
+        {
+          deviceId: 'new-id',
+          generatedLabel: true,
+          label: 'Microphone 1',
+        },
+      ]),
     ).toBeUndefined();
   });
 });

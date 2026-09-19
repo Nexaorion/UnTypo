@@ -1,9 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import {
-  parseHotkeyAccelerator,
-  toElectronAccelerator,
-} from '../../src/main/native/hotkey';
+import { parseHotkeyAccelerator, toElectronAccelerator } from '../../src/main/native/hotkey';
 
 describe('parseHotkeyAccelerator', () => {
   it('maps the default Windows shortcut', () => {
@@ -55,9 +52,7 @@ describe('parseHotkeyAccelerator', () => {
 describe('toElectronAccelerator', () => {
   it('maps stored accelerators to Electron shortcut strings', () => {
     expect(toElectronAccelerator('Ctrl+Alt+Space')).toBe('Control+Alt+Space');
-    expect(toElectronAccelerator('Control+Option+Space')).toBe(
-      'Control+Alt+Space',
-    );
+    expect(toElectronAccelerator('Control+Option+Space')).toBe('Control+Alt+Space');
     expect(toElectronAccelerator('Win+K')).toBe('Command+K');
     expect(toElectronAccelerator('F9')).toBe('F9');
     expect(toElectronAccelerator('Ctrl+Numpad0')).toBe('Control+num0');
@@ -67,14 +62,8 @@ describe('toElectronAccelerator', () => {
 
 describe('native hotkey registration', () => {
   it('uses acknowledged, transactional RegisterHotKey configuration', async () => {
-    const monitorSource = await readFile(
-      'native/helper/src/hotkey_monitor.cpp',
-      'utf8',
-    );
-    const pipeSource = await readFile(
-      'native/helper/src/pipe_server.cpp',
-      'utf8',
-    );
+    const monitorSource = await readFile('native/helper/src/hotkey_monitor.cpp', 'utf8');
+    const pipeSource = await readFile('native/helper/src/pipe_server.cpp', 'utf8');
 
     expect(monitorSource).toContain('RegisterHotKey(');
     expect(monitorSource).toContain('MOD_NOREPEAT');
@@ -85,8 +74,6 @@ describe('native hotkey registration', () => {
     expect(monitorSource).toContain('SendMessageW(');
     expect(monitorSource).not.toContain('SetWindowsHookExW');
     expect(pipeSource).toContain('MessageType::HotkeyConfigured');
-    expect(pipeSource).toMatch(
-      /callbacks_\.configure_hotkey\(configuration\)[\s\S]*?WriteFrame/u,
-    );
+    expect(pipeSource).toMatch(/callbacks_\.configure_hotkey\(configuration\)[\s\S]*?WriteFrame/u);
   });
 });

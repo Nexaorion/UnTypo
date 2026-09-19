@@ -26,10 +26,7 @@ export const SwitchField = ({
 
   return (
     <div>
-      <Stack
-        direction="row"
-        sx={{ alignItems: 'center', gap: 2, justifyContent: 'space-between' }}
-      >
+      <Stack direction="row" sx={{ alignItems: 'center', gap: 2, justifyContent: 'space-between' }}>
         <Typography
           data-testid={testId ? `${testId}-label` : undefined}
           id={labelId}
@@ -52,9 +49,7 @@ export const SwitchField = ({
           }}
         />
       </Stack>
-      {description ? (
-        <FormHelperText id={descriptionId}>{description}</FormHelperText>
-      ) : null}
+      {description ? <FormHelperText id={descriptionId}>{description}</FormHelperText> : null}
     </div>
   );
 };

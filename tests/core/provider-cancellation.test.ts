@@ -54,9 +54,7 @@ const settledWithin = async (
       () => 'settled' as const,
       () => 'settled' as const,
     ),
-    new Promise<'pending'>((resolve) =>
-      setTimeout(() => resolve('pending'), milliseconds),
-    ),
+    new Promise<'pending'>((resolve) => setTimeout(() => resolve('pending'), milliseconds)),
   ]);
 
 describe('provider cancellation', () => {

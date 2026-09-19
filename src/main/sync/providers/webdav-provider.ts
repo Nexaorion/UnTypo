@@ -17,20 +17,14 @@ interface WebDavFileStat {
 }
 
 interface WebDavClient {
-  createDirectory: (
-    path: string,
-    options?: { recursive?: boolean },
-  ) => Promise<unknown>;
+  createDirectory: (path: string, options?: { recursive?: boolean }) => Promise<unknown>;
   deleteFile: (path: string) => Promise<unknown>;
   exists: (path: string) => Promise<boolean>;
   getDirectoryContents: (
     path: string,
     options?: { deep?: boolean },
   ) => Promise<WebDavFileStat[] | { file?: boolean }>;
-  getFileContents: (
-    path: string,
-    options?: { format?: 'binary' },
-  ) => Promise<unknown>;
+  getFileContents: (path: string, options?: { format?: 'binary' }) => Promise<unknown>;
   putFileContents: (
     path: string,
     data: Buffer,
@@ -90,13 +84,9 @@ export class WebDavStorageProvider implements SyncStorageProvider {
     throw new Error('Remote file could not be read');
   }
 
-  async list(
-    remoteDirectory: string,
-  ): Promise<readonly RemoteSyncObjectInfo[]> {
+  async list(remoteDirectory: string): Promise<readonly RemoteSyncObjectInfo[]> {
     const directory = asDirectory(
-      remoteDirectory
-        ? joinRemotePath(this.#basePath, remoteDirectory)
-        : this.#basePath,
+      remoteDirectory ? joinRemotePath(this.#basePath, remoteDirectory) : this.#basePath,
     );
     const client = await this.client();
     const exists = await client.exists(directory);
@@ -126,10 +116,7 @@ export class WebDavStorageProvider implements SyncStorageProvider {
   private async client(): Promise<WebDavClient> {
     if (this.#client) return this.#client;
     const module = (await import('webdav')) as {
-      createClient: (
-        url: string,
-        options: { password: string; username: string },
-      ) => WebDavClient;
+      createClient: (url: string, options: { password: string; username: string }) => WebDavClient;
     };
     this.#client = module.createClient(this.#url, {
       password: this.#password,

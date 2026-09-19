@@ -22,8 +22,7 @@ import {
 } from './text-provider-utils.js';
 import { chatCompletionsNoThinking } from './text-reasoning-policy.js';
 
-export type OpenAICompatibleTextProviderConfiguration =
-  ProviderConnectionConfiguration;
+export type OpenAICompatibleTextProviderConfiguration = ProviderConnectionConfiguration;
 
 interface ChatCompletionPayload {
   choices?: Array<{
@@ -42,8 +41,7 @@ interface ChatCompletionStreamEvent {
 }
 
 const extractDeltaText = (event: unknown): string => {
-  const content = (event as ChatCompletionStreamEvent).choices?.[0]?.delta
-    ?.content;
+  const content = (event as ChatCompletionStreamEvent).choices?.[0]?.delta?.content;
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
   return content
@@ -53,8 +51,7 @@ const extractDeltaText = (event: unknown): string => {
 };
 
 const extractText = (payload: unknown): string => {
-  const content = (payload as ChatCompletionPayload).choices?.[0]?.message
-    ?.content;
+  const content = (payload as ChatCompletionPayload).choices?.[0]?.message?.content;
   if (typeof content === 'string' && content.trim()) return content;
   if (Array.isArray(content)) {
     const text = content
@@ -96,13 +93,8 @@ export class OpenAICompatibleTextProvider implements TextGenerationProvider {
     this.#fetch = fetchImplementation;
   }
 
-  async processTranscript(
-    text: string,
-    context: TextProcessContext,
-  ): Promise<TextProcessResult> {
-    const outputTextStream = createTranscriptOutputTextStream(
-      context.onOutputTextUpdate,
-    );
+  async processTranscript(text: string, context: TextProcessContext): Promise<TextProcessResult> {
+    const outputTextStream = createTranscriptOutputTextStream(context.onOutputTextUpdate);
     const output = await this.textResponse(
       text,
       transcriptProcessingInstructions(context),
@@ -120,38 +112,31 @@ export class OpenAICompatibleTextProvider implements TextGenerationProvider {
     signal?: AbortSignal,
     onTextDelta?: (delta: string) => void,
   ): Promise<string> {
-    const response = await this.#fetch(
-      providerUrl(this.#baseUrl, '/chat/completions'),
-      {
-        body: JSON.stringify({
-          ...chatCompletionsNoThinking(this.#baseUrl, this.#model),
-          messages: [
-            { content: instructions, role: 'system' },
-            { content: input, role: 'user' },
-          ],
-          model: this.#model,
-          stream: true,
-        }),
-        headers: {
-          Authorization: `Bearer ${this.#apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-        signal,
+    const response = await this.#fetch(providerUrl(this.#baseUrl, '/chat/completions'), {
+      body: JSON.stringify({
+        ...chatCompletionsNoThinking(this.#baseUrl, this.#model),
+        messages: [
+          { content: instructions, role: 'system' },
+          { content: input, role: 'user' },
+        ],
+        model: this.#model,
+        stream: true,
+      }),
+      headers: {
+        Authorization: `Bearer ${this.#apiKey}`,
+        'Content-Type': 'application/json',
       },
-    );
+      method: 'POST',
+      signal,
+    });
     if (isProviderEventStream(response)) {
       let output = '';
-      await readProviderEventStream(
-        response,
-        'OpenAI-compatible provider',
-        (event) => {
-          const delta = extractDeltaText(event);
-          if (!delta) return;
-          output += delta;
-          onTextDelta?.(delta);
-        },
-      );
+      await readProviderEventStream(response, 'OpenAI-compatible provider', (event) => {
+        const delta = extractDeltaText(event);
+        if (!delta) return;
+        output += delta;
+        onTextDelta?.(delta);
+      });
       if (!output.trim()) {
         throw new ProviderContractError(
           'EMPTY_RESULT',
@@ -160,8 +145,6 @@ export class OpenAICompatibleTextProvider implements TextGenerationProvider {
       }
       return output;
     }
-    return extractText(
-      await readProviderJson(response, 'OpenAI-compatible provider'),
-    );
+    return extractText(await readProviderJson(response, 'OpenAI-compatible provider'));
   }
 }

@@ -42,25 +42,18 @@ const NavigationItem = ({
       minHeight: 46,
       px: 1.5,
       position: 'relative',
-      transition: currentTheme.transitions.create(
-        ['background-color', 'color'],
-        { duration: currentTheme.transitions.duration.shorter },
-      ),
+      transition: currentTheme.transitions.create(['background-color', 'color'], {
+        duration: currentTheme.transitions.duration.shorter,
+      }),
       '&:hover': {
         backgroundColor: 'action.hover',
         color: 'text.primary',
       },
       '&.Mui-selected': {
-        backgroundColor: themeAlpha(
-          themePalette(currentTheme).primary.main,
-          0.1,
-        ),
+        backgroundColor: themeAlpha(themePalette(currentTheme).primary.main, 0.1),
       },
       '&.Mui-selected:hover': {
-        backgroundColor: themeAlpha(
-          themePalette(currentTheme).primary.main,
-          0.14,
-        ),
+        backgroundColor: themeAlpha(themePalette(currentTheme).primary.main, 0.14),
       },
       '@media (max-width: 700px)': {
         justifyContent: 'center',
@@ -106,10 +99,9 @@ const UtilityNavigationItem = ({
       color: 'text.secondary',
       minHeight: 46,
       px: 1.5,
-      transition: currentTheme.transitions.create(
-        ['background-color', 'color'],
-        { duration: currentTheme.transitions.duration.shorter },
-      ),
+      transition: currentTheme.transitions.create(['background-color', 'color'], {
+        duration: currentTheme.transitions.duration.shorter,
+      }),
       '&:hover': {
         backgroundColor: 'action.hover',
         color: 'text.primary',
@@ -205,10 +197,7 @@ export const AppShell = ({
   ];
 
   return (
-    <Stack
-      direction="row"
-      sx={{ bgcolor: 'background.default', height: '100vh', minHeight: 0 }}
-    >
+    <Stack direction="row" sx={{ bgcolor: 'background.default', height: '100vh', minHeight: 0 }}>
       <Stack
         component="aside"
         sx={(currentTheme) => ({
@@ -276,19 +265,13 @@ export const AppShell = ({
               onClick={onOpenUpdate}
               sx={(currentTheme) => ({
                 alignItems: 'center',
-                backgroundColor: themeAlpha(
-                  themePalette(currentTheme).primary.main,
-                  0.07,
-                ),
+                backgroundColor: themeAlpha(themePalette(currentTheme).primary.main, 0.07),
                 gap: 1.25,
                 mb: 1,
                 minHeight: 58,
                 px: 1.5,
                 '&:hover': {
-                  backgroundColor: themeAlpha(
-                    themePalette(currentTheme).primary.main,
-                    0.12,
-                  ),
+                  backgroundColor: themeAlpha(themePalette(currentTheme).primary.main, 0.12),
                 },
                 '@media (max-width: 700px)': {
                   justifyContent: 'center',

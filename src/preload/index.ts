@@ -62,8 +62,7 @@ const channels = {
   setHotkeyCaptureActive: 'client:set-hotkey-capture-active',
   setDictionaryLearningEnabled: 'client:set-dictionary-learning-enabled',
   setApplicationWritingStyle: 'client:set-application-writing-style',
-  setPersonalizationLearningEnabled:
-    'client:set-personalization-learning-enabled',
+  setPersonalizationLearningEnabled: 'client:set-personalization-learning-enabled',
   setProfile: 'client:set-profile',
   testProvider: 'client:test-provider',
   testSyncConnection: 'client:test-sync-connection',
@@ -74,157 +73,91 @@ const channels = {
 
 const api: UntypoApi = {
   acceptWritingPreference: (id: string) =>
-    ipcRenderer.invoke(
-      channels.acceptWritingPreference,
-      id,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.acceptWritingPreference, id) as Promise<ClientSnapshot>,
   addDictionaryEntry: (term: string) =>
-    ipcRenderer.invoke(
-      channels.addDictionaryEntry,
-      term,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.addDictionaryEntry, term) as Promise<ClientSnapshot>,
   acknowledgeDiagnostics: (issueIds: readonly string[]) =>
     ipcRenderer.invoke(
       channels.acknowledgeDiagnostics,
       issueIds,
     ) as Promise<ClientDiagnosticSnapshot>,
   clearDiagnostics: () =>
-    ipcRenderer.invoke(
-      channels.clearDiagnostics,
-    ) as Promise<ClientDiagnosticSnapshot>,
-  clearHistory: () =>
-    ipcRenderer.invoke(channels.clearHistory) as Promise<number>,
+    ipcRenderer.invoke(channels.clearDiagnostics) as Promise<ClientDiagnosticSnapshot>,
+  clearHistory: () => ipcRenderer.invoke(channels.clearHistory) as Promise<number>,
   clearPersonalizationMemory: () =>
-    ipcRenderer.invoke(
-      channels.clearPersonalizationMemory,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.clearPersonalizationMemory) as Promise<ClientSnapshot>,
   checkForUpdates: () =>
-    ipcRenderer.invoke(
-      channels.checkForUpdates,
-    ) as Promise<ClientUpdateSnapshot>,
-  copyText: (text: string) =>
-    ipcRenderer.invoke(channels.copyText, text) as Promise<void>,
+    ipcRenderer.invoke(channels.checkForUpdates) as Promise<ClientUpdateSnapshot>,
+  copyText: (text: string) => ipcRenderer.invoke(channels.copyText, text) as Promise<void>,
   applyBackup: (remoteFile: string) =>
-    ipcRenderer.invoke(
-      channels.applyBackup,
-      remoteFile,
-    ) as Promise<ClientSyncResult>,
-  createBackup: () =>
-    ipcRenderer.invoke(channels.createBackup) as Promise<ClientSyncResult>,
+    ipcRenderer.invoke(channels.applyBackup, remoteFile) as Promise<ClientSyncResult>,
+  createBackup: () => ipcRenderer.invoke(channels.createBackup) as Promise<ClientSyncResult>,
   deleteBackup: (remoteFile: string) =>
     ipcRenderer.invoke(channels.deleteBackup, remoteFile) as Promise<{
       ok: true;
     }>,
   downloadUpdate: () =>
-    ipcRenderer.invoke(
-      channels.downloadUpdate,
-    ) as Promise<ClientUpdateSnapshot>,
+    ipcRenderer.invoke(channels.downloadUpdate) as Promise<ClientUpdateSnapshot>,
   exportDiagnostics: (request: ClientDiagnosticExportRequest) =>
     ipcRenderer.invoke(
       channels.exportDiagnostics,
       request,
     ) as Promise<ClientDiagnosticExportResult>,
   getDiagnostics: () =>
-    ipcRenderer.invoke(
-      channels.getDiagnostics,
-    ) as Promise<ClientDiagnosticSnapshot>,
-  generateBackupCode: () =>
-    ipcRenderer.invoke(channels.generateBackupCode) as Promise<string>,
-  getSnapshot: () =>
-    ipcRenderer.invoke(channels.getSnapshot) as Promise<ClientSnapshot>,
-  getSyncConfig: () =>
-    ipcRenderer.invoke(channels.getSyncConfig) as Promise<ClientSyncSnapshot>,
-  getUsageStats: () =>
-    ipcRenderer.invoke(channels.getUsageStats) as Promise<ClientUsageStats>,
-  installUpdate: () =>
-    ipcRenderer.invoke(channels.installUpdate) as Promise<void>,
+    ipcRenderer.invoke(channels.getDiagnostics) as Promise<ClientDiagnosticSnapshot>,
+  generateBackupCode: () => ipcRenderer.invoke(channels.generateBackupCode) as Promise<string>,
+  getSnapshot: () => ipcRenderer.invoke(channels.getSnapshot) as Promise<ClientSnapshot>,
+  getSyncConfig: () => ipcRenderer.invoke(channels.getSyncConfig) as Promise<ClientSyncSnapshot>,
+  getUsageStats: () => ipcRenderer.invoke(channels.getUsageStats) as Promise<ClientUsageStats>,
+  installUpdate: () => ipcRenderer.invoke(channels.installUpdate) as Promise<void>,
   listHistory: (query?: ClientHistoryQuery) =>
-    ipcRenderer.invoke(channels.listHistory, query) as ReturnType<
-      UntypoApi['listHistory']
-    >,
+    ipcRenderer.invoke(channels.listHistory, query) as ReturnType<UntypoApi['listHistory']>,
   listMicrophones: () =>
-    ipcRenderer.invoke(channels.listMicrophones) as Promise<
-      readonly ClientMicrophoneDevice[]
-    >,
+    ipcRenderer.invoke(channels.listMicrophones) as Promise<readonly ClientMicrophoneDevice[]>,
   listRemoteBackups: () =>
-    ipcRenderer.invoke(channels.listRemoteBackups) as Promise<
-      readonly SyncBackupInfo[]
-    >,
+    ipcRenderer.invoke(channels.listRemoteBackups) as Promise<readonly SyncBackupInfo[]>,
   onHotkeyCaptureEvent: (listener: (input: HotkeyCaptureInput) => void) => {
-    const handleCapture = (
-      _event: Electron.IpcRendererEvent,
-      input: HotkeyCaptureInput,
-    ) => listener(input);
+    const handleCapture = (_event: Electron.IpcRendererEvent, input: HotkeyCaptureInput) =>
+      listener(input);
     ipcRenderer.on(HOTKEY_CAPTURE_EVENT_CHANNEL, handleCapture);
-    return () =>
-      ipcRenderer.removeListener(HOTKEY_CAPTURE_EVENT_CHANNEL, handleCapture);
+    return () => ipcRenderer.removeListener(HOTKEY_CAPTURE_EVENT_CHANNEL, handleCapture);
   },
   onDiagnosticsChanged: (listener: () => void) => {
     const handleChanged = () => listener();
     ipcRenderer.on(DIAGNOSTIC_CHANGED_CHANNEL, handleChanged);
-    return () =>
-      ipcRenderer.removeListener(DIAGNOSTIC_CHANGED_CHANNEL, handleChanged);
+    return () => ipcRenderer.removeListener(DIAGNOSTIC_CHANGED_CHANNEL, handleChanged);
   },
   onSnapshotChanged: (listener: (snapshot: ClientSnapshot) => void) => {
-    const handleChanged = (
-      _event: Electron.IpcRendererEvent,
-      snapshot: ClientSnapshot,
-    ) => listener(snapshot);
+    const handleChanged = (_event: Electron.IpcRendererEvent, snapshot: ClientSnapshot) =>
+      listener(snapshot);
     ipcRenderer.on(SNAPSHOT_CHANGED_CHANNEL, handleChanged);
-    return () =>
-      ipcRenderer.removeListener(SNAPSHOT_CHANGED_CHANNEL, handleChanged);
+    return () => ipcRenderer.removeListener(SNAPSHOT_CHANGED_CHANNEL, handleChanged);
   },
   onUpdateChanged: (listener: (update: ClientUpdateSnapshot) => void) => {
-    const handleChanged = (
-      _event: Electron.IpcRendererEvent,
-      update: ClientUpdateSnapshot,
-    ) => listener(update);
+    const handleChanged = (_event: Electron.IpcRendererEvent, update: ClientUpdateSnapshot) =>
+      listener(update);
     ipcRenderer.on(UPDATE_CHANGED_CHANNEL, handleChanged);
-    return () =>
-      ipcRenderer.removeListener(UPDATE_CHANGED_CHANNEL, handleChanged);
+    return () => ipcRenderer.removeListener(UPDATE_CHANGED_CHANNEL, handleChanged);
   },
   ping: () => ipcRenderer.invoke(PING_CHANNEL) as Promise<PingResponse>,
   requestAccessibilityAccess: () =>
-    ipcRenderer.invoke(
-      channels.requestAccessibilityAccess,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.requestAccessibilityAccess) as Promise<ClientSnapshot>,
   removeProvider: (profileId: string) =>
-    ipcRenderer.invoke(
-      channels.removeProvider,
-      profileId,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.removeProvider, profileId) as Promise<ClientSnapshot>,
   removeDictionaryEntry: (term: string) =>
-    ipcRenderer.invoke(
-      channels.removeDictionaryEntry,
-      term,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.removeDictionaryEntry, term) as Promise<ClientSnapshot>,
   removeWritingPreference: (id: string) =>
-    ipcRenderer.invoke(
-      channels.removeWritingPreference,
-      id,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.removeWritingPreference, id) as Promise<ClientSnapshot>,
   rejectWritingPreference: (id: string) =>
-    ipcRenderer.invoke(
-      channels.rejectWritingPreference,
-      id,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.rejectWritingPreference, id) as Promise<ClientSnapshot>,
   reportRendererIssue: (issue: ClientRendererIssueInput) =>
     ipcRenderer.invoke(channels.reportRendererIssue, issue) as Promise<void>,
   setHotkeyCaptureActive: (active: boolean) =>
-    ipcRenderer.invoke(
-      channels.setHotkeyCaptureActive,
-      active,
-    ) as Promise<void>,
+    ipcRenderer.invoke(channels.setHotkeyCaptureActive, active) as Promise<void>,
   setDictionaryLearningEnabled: (enabled: boolean) =>
-    ipcRenderer.invoke(
-      channels.setDictionaryLearningEnabled,
-      enabled,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.setDictionaryLearningEnabled, enabled) as Promise<ClientSnapshot>,
   setApplicationWritingStyle: (update: ClientApplicationWritingStyleUpdate) =>
-    ipcRenderer.invoke(
-      channels.setApplicationWritingStyle,
-      update,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.setApplicationWritingStyle, update) as Promise<ClientSnapshot>,
   setPersonalizationLearningEnabled: (enabled: boolean) =>
     ipcRenderer.invoke(
       channels.setPersonalizationLearningEnabled,
@@ -239,20 +172,11 @@ const api: UntypoApi = {
   testSyncConnection: () =>
     ipcRenderer.invoke(channels.testSyncConnection) as Promise<{ ok: true }>,
   updateSettings: (update: ClientSettingsUpdate) =>
-    ipcRenderer.invoke(
-      channels.updateSettings,
-      update,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.updateSettings, update) as Promise<ClientSnapshot>,
   updateSyncConfig: (config: ClientSyncConfigUpdate) =>
-    ipcRenderer.invoke(
-      channels.updateSyncConfig,
-      config,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.updateSyncConfig, config) as Promise<ClientSnapshot>,
   upsertProvider: (profile: ClientProviderInput) =>
-    ipcRenderer.invoke(
-      channels.upsertProvider,
-      profile,
-    ) as Promise<ClientSnapshot>,
+    ipcRenderer.invoke(channels.upsertProvider, profile) as Promise<ClientSnapshot>,
 };
 
 contextBridge.exposeInMainWorld('untypo', api);

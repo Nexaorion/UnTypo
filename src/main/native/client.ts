@@ -37,9 +37,7 @@ export class NativeHotkeyRegistrationError extends Error {
   readonly windowsErrorCode: number;
 
   constructor(nativeErrorCode: number) {
-    super(
-      `Native hotkey registration failed with error ${String(nativeErrorCode)}`,
-    );
+    super(`Native hotkey registration failed with error ${String(nativeErrorCode)}`);
     this.name = 'NativeHotkeyRegistrationError';
     this.nativeErrorCode = nativeErrorCode;
     this.windowsErrorCode = nativeErrorCode;
@@ -50,9 +48,7 @@ export const isNativeHotkeyConflictError = (error: unknown): boolean =>
   error instanceof NativeHotkeyRegistrationError &&
   error.nativeErrorCode === NATIVE_HOTKEY_ALREADY_REGISTERED;
 
-export const nativeHelperFileName = (
-  platform: NodeJS.Platform = process.platform,
-): string =>
+export const nativeHelperFileName = (platform: NodeJS.Platform = process.platform): string =>
   platform === 'win32' ? 'untypo_native_helper.exe' : 'untypo_native_helper';
 
 export const nativeIpcPath = (
@@ -60,13 +56,9 @@ export const nativeIpcPath = (
   uniqueId: string,
   platform: NodeJS.Platform = process.platform,
 ): string => {
-  if (platform === 'win32')
-    return `\\\\.\\pipe\\untypo-${String(pid)}-${uniqueId}`;
+  if (platform === 'win32') return `\\\\.\\pipe\\untypo-${String(pid)}-${uniqueId}`;
 
-  const socketPath = path.join(
-    os.tmpdir(),
-    `untypo-${String(pid)}-${uniqueId}.sock`,
-  );
+  const socketPath = path.join(os.tmpdir(), `untypo-${String(pid)}-${uniqueId}.sock`);
   if (Buffer.byteLength(socketPath, 'utf8') < 104) return socketPath;
 
   const compactPath = path.join('/tmp', `u-${String(pid)}-${uniqueId}.sock`);
@@ -96,32 +88,21 @@ export class NativeHelperClient {
   }
 
   async start(): Promise<void> {
-    if (this.#process || this.#socket)
-      throw new Error('Native helper is active');
+    if (this.#process || this.#socket) throw new Error('Native helper is active');
     await access(this.#executablePath);
     const pipeName = nativeIpcPath(process.pid, randomUUID());
     const token = randomBytes(32).toString('hex');
-    const helper = spawn(
-      this.#executablePath,
-      ['--pipe', pipeName, '--token', token],
-      {
-        env: {
-          ...process.env,
-          ...(process.argv.includes('--smoke-test')
-            ? { UNTYPO_SKIP_TCC_PROMPT: '1' }
-            : {}),
-        },
-        stdio: 'ignore',
-        ...(process.platform === 'win32' ? { windowsHide: true } : {}),
+    const helper = spawn(this.#executablePath, ['--pipe', pipeName, '--token', token], {
+      env: {
+        ...process.env,
+        ...(process.argv.includes('--smoke-test') ? { UNTYPO_SKIP_TCC_PROMPT: '1' } : {}),
       },
-    );
+      stdio: 'ignore',
+      ...(process.platform === 'win32' ? { windowsHide: true } : {}),
+    });
     this.#process = helper;
     helper.once('exit', (code) => {
-      this.failPending(
-        new Error(
-          `Native helper exited with code ${String(code ?? 'unknown')}`,
-        ),
-      );
+      this.failPending(new Error(`Native helper exited with code ${String(code ?? 'unknown')}`));
       this.#socket?.destroy();
       this.#socket = undefined;
       this.#process = undefined;
@@ -131,14 +112,10 @@ export class NativeHelperClient {
       const socket = await this.connectWithRetry(pipeName);
       this.#socket = socket;
       socket.on('data', (chunk) =>
-        this.handleData(
-          typeof chunk === 'string' ? Buffer.from(chunk, 'binary') : chunk,
-        ),
+        this.handleData(typeof chunk === 'string' ? Buffer.from(chunk, 'binary') : chunk),
       );
       socket.once('error', (error) => this.failPending(error));
-      socket.once('close', () =>
-        this.failPending(new Error('Native helper pipe closed')),
-      );
+      socket.once('close', () => this.failPending(new Error('Native helper pipe closed')));
       await this.request(
         NativeMessageType.Authenticate,
         Buffer.from(token, 'ascii'),
@@ -152,9 +129,7 @@ export class NativeHelperClient {
     }
   }
 
-  async configureHotkey(
-    configuration: NativeHotkeyConfiguration,
-  ): Promise<void> {
+  async configureHotkey(configuration: NativeHotkeyConfiguration): Promise<void> {
     const frame = await this.request(
       NativeMessageType.ConfigureHotkey,
       encodeHotkeyConfiguration(configuration),
@@ -220,11 +195,7 @@ export class NativeHelperClient {
   }
 
   async ping(): Promise<void> {
-    await this.request(
-      NativeMessageType.Ping,
-      undefined,
-      NativeMessageType.Pong,
-    );
+    await this.request(NativeMessageType.Ping, undefined, NativeMessageType.Pong);
   }
 
   onHotkey(listener: NativeHotkeyListener): () => void {
@@ -269,9 +240,7 @@ export class NativeHelperClient {
           } catch (error) {
             clearTimeout(timer);
             this.#pending = undefined;
-            reject(
-              error instanceof Error ? error : new Error('Native write failed'),
-            );
+            reject(error instanceof Error ? error : new Error('Native write failed'));
           }
         }),
     );
@@ -290,9 +259,7 @@ export class NativeHelperClient {
     try {
       for (const frame of this.#decoder.push(chunk)) this.handleFrame(frame);
     } catch (error) {
-      this.failPending(
-        error instanceof Error ? error : new Error('Native protocol failed'),
-      );
+      this.failPending(error instanceof Error ? error : new Error('Native protocol failed'));
       this.#socket?.destroy();
     }
   }
@@ -302,16 +269,13 @@ export class NativeHelperClient {
       if (frame.payload.byteLength !== 1) return;
       const action = frame.payload.readUInt8(0);
       if (action !== Number(NativeHotkeyAction.Toggle)) return;
-      for (const listener of this.#hotkeyListeners)
-        listener(NativeHotkeyAction.Toggle);
+      for (const listener of this.#hotkeyListeners) listener(NativeHotkeyAction.Toggle);
       return;
     }
     const pending = this.#pending;
     if (!pending) return;
     if (frame.type !== pending.expectedType) {
-      this.failPending(
-        new Error('Native helper returned an unexpected response'),
-      );
+      this.failPending(new Error('Native helper returned an unexpected response'));
       return;
     }
     clearTimeout(pending.timer);
@@ -337,8 +301,7 @@ export class NativeHelperClient {
           socket.once('error', reject);
         });
       } catch (error) {
-        lastError =
-          error instanceof Error ? error : new Error('Native pipe failed');
+        lastError = error instanceof Error ? error : new Error('Native pipe failed');
         await wait(50);
       }
     }

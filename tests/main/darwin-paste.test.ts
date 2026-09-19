@@ -43,9 +43,7 @@ describe('pasteOnDarwin', () => {
 
   it('pastes without stealing focus when the user has switched apps', async () => {
     const execute = vi.fn().mockResolvedValue({ stdout: '', stderr: '' });
-    await expect(pasteOnDarwin(target, execute, 99)).resolves.toBe(
-      NativePasteStatus.Success,
-    );
+    await expect(pasteOnDarwin(target, execute, 99)).resolves.toBe(NativePasteStatus.Success);
     expect(execute).toHaveBeenCalledWith(
       '/usr/bin/osascript',
       [
@@ -63,9 +61,7 @@ describe('pasteOnDarwin', () => {
       stderr: '0:1: execution error: target changed (1001)',
     });
     const execute = vi.fn().mockRejectedValue(error);
-    await expect(pasteOnDarwin(target, execute, 99)).resolves.toBe(
-      NativePasteStatus.TargetChanged,
-    );
+    await expect(pasteOnDarwin(target, execute, 99)).resolves.toBe(NativePasteStatus.TargetChanged);
   });
 
   it('maps osascript failures to send-input failed', async () => {
@@ -88,42 +84,36 @@ describe('pasteDarwinWithHelperFallback', () => {
   it('keeps an AX insert that already landed', async () => {
     const keyPaste = vi.fn().mockResolvedValue(NativePasteStatus.Success);
     const helperPaste = vi.fn().mockResolvedValue(NativePasteStatus.Success);
-    await expect(
-      pasteDarwinWithHelperFallback(target, helperPaste, keyPaste),
-    ).resolves.toBe(NativePasteStatus.Success);
+    await expect(pasteDarwinWithHelperFallback(target, helperPaste, keyPaste)).resolves.toBe(
+      NativePasteStatus.Success,
+    );
     expect(keyPaste).not.toHaveBeenCalled();
   });
 
   it('does not send Command-V after the user has switched apps', async () => {
     const keyPaste = vi.fn().mockResolvedValue(NativePasteStatus.Success);
-    const helperPaste = vi
-      .fn()
-      .mockResolvedValue(NativePasteStatus.TargetChanged);
-    await expect(
-      pasteDarwinWithHelperFallback(target, helperPaste, keyPaste),
-    ).resolves.toBe(NativePasteStatus.TargetChanged);
+    const helperPaste = vi.fn().mockResolvedValue(NativePasteStatus.TargetChanged);
+    await expect(pasteDarwinWithHelperFallback(target, helperPaste, keyPaste)).resolves.toBe(
+      NativePasteStatus.TargetChanged,
+    );
     expect(keyPaste).not.toHaveBeenCalled();
   });
 
   it('sends Command-V when accessibility cannot see the focused field', async () => {
     const keyPaste = vi.fn().mockResolvedValue(NativePasteStatus.Success);
-    const helperPaste = vi
-      .fn()
-      .mockResolvedValue(NativePasteStatus.NotEditable);
-    await expect(
-      pasteDarwinWithHelperFallback(target, helperPaste, keyPaste),
-    ).resolves.toBe(NativePasteStatus.Success);
+    const helperPaste = vi.fn().mockResolvedValue(NativePasteStatus.NotEditable);
+    await expect(pasteDarwinWithHelperFallback(target, helperPaste, keyPaste)).resolves.toBe(
+      NativePasteStatus.Success,
+    );
     expect(keyPaste).toHaveBeenCalledWith(target);
   });
 
   it('sends Command-V when the helper is not accessibility-trusted', async () => {
     const keyPaste = vi.fn().mockResolvedValue(NativePasteStatus.Success);
-    const helperPaste = vi
-      .fn()
-      .mockResolvedValue(NativePasteStatus.HigherIntegrity);
-    await expect(
-      pasteDarwinWithHelperFallback(target, helperPaste, keyPaste),
-    ).resolves.toBe(NativePasteStatus.Success);
+    const helperPaste = vi.fn().mockResolvedValue(NativePasteStatus.HigherIntegrity);
+    await expect(pasteDarwinWithHelperFallback(target, helperPaste, keyPaste)).resolves.toBe(
+      NativePasteStatus.Success,
+    );
     expect(keyPaste).toHaveBeenCalledWith(target);
   });
 
@@ -141,27 +131,17 @@ describe('pasteDarwinWithHelperFallback', () => {
 
 describe('native macOS paste', () => {
   it('refuses to activate a captured app after the user switched away', async () => {
-    const source = await readFile(
-      'native/helper/src/macos/window_target.mm',
-      'utf8',
-    );
-    expect(source).toMatch(
-      /front_pid != process_id && !IsOwnProcess\(front_pid\)/u,
-    );
+    const source = await readFile('native/helper/src/macos/window_target.mm', 'utf8');
+    expect(source).toMatch(/front_pid != process_id && !IsOwnProcess\(front_pid\)/u);
     expect(source).toMatch(
       /front_pid != process_id && !IsOwnProcess\(front_pid\)[\s\S]*PasteStatus::TargetChanged/u,
     );
   });
 
   it('checks the target app focused field, not UnTypo system focus', async () => {
-    const source = await readFile(
-      'native/helper/src/macos/window_target.mm',
-      'utf8',
-    );
+    const source = await readFile('native/helper/src/macos/window_target.mm', 'utf8');
     expect(source).toContain('CopyFocusedElementForProcess(process_id)');
-    expect(source).toContain(
-      'if (!ElementIsEditable(focused)) return {PasteStatus::NotEditable};',
-    );
+    expect(source).toContain('if (!ElementIsEditable(focused)) return {PasteStatus::NotEditable};');
     expect(source).toContain('InsertClipboardViaAx(focused)');
     expect(source).toContain('return {PasteStatus::SendInputFailed};');
   });

@@ -33,19 +33,16 @@ describe('macOS native build cache', () => {
     vi.unstubAllGlobals();
   });
 
-  it.each(['\n', '\r\n'])(
-    'preserves a matching cache with %j line endings',
-    async (newline) => {
-      readFile.mockResolvedValue(
-        `CMAKE_HOME_DIRECTORY:INTERNAL=${path.resolve('native/helper')}${newline}`,
-      );
+  it.each(['\n', '\r\n'])('preserves a matching cache with %j line endings', async (newline) => {
+    readFile.mockResolvedValue(
+      `CMAKE_HOME_DIRECTORY:INTERNAL=${path.resolve('native/helper')}${newline}`,
+    );
 
-      await import(buildScript);
+    await import(buildScript);
 
-      expect(rm).not.toHaveBeenCalled();
-      expect(spawn).toHaveBeenCalledTimes(2);
-    },
-  );
+    expect(rm).not.toHaveBeenCalled();
+    expect(spawn).toHaveBeenCalledTimes(2);
+  });
 
   it.each([
     `CMAKE_HOME_DIRECTORY:INTERNAL=${process.cwd()}-copy/native/helper\n`,
@@ -60,9 +57,7 @@ describe('macOS native build cache', () => {
       recursive: true,
       force: true,
     });
-    expect(rm.mock.invocationCallOrder[0]).toBeLessThan(
-      spawn.mock.invocationCallOrder[0] ?? 0,
-    );
+    expect(rm.mock.invocationCallOrder[0]).toBeLessThan(spawn.mock.invocationCallOrder[0] ?? 0);
     expect(spawn).toHaveBeenCalledTimes(2);
   });
 
@@ -76,9 +71,7 @@ describe('macOS native build cache', () => {
   });
 
   it('stops before CMake when stale cache removal fails', async () => {
-    readFile.mockResolvedValue(
-      'CMAKE_HOME_DIRECTORY:INTERNAL=/old/native/helper\n',
-    );
+    readFile.mockResolvedValue('CMAKE_HOME_DIRECTORY:INTERNAL=/old/native/helper\n');
     const error = new Error('Cache removal denied');
     rm.mockRejectedValue(error);
 

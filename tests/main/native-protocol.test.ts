@@ -22,10 +22,7 @@ const targetContextField = (value: string): Buffer => {
 
 describe('native helper protocol v4', () => {
   it('encodes the packed C++ frame header', () => {
-    const frame = encodeNativeFrame(
-      NativeMessageType.Ping,
-      new Uint8Array([1, 2]),
-    );
+    const frame = encodeNativeFrame(NativeMessageType.Ping, new Uint8Array([1, 2]));
 
     expect(frame.byteLength).toBe(NATIVE_FRAME_HEADER_BYTES + 2);
     expect(frame.readUInt32LE(0)).toBe(NATIVE_PROTOCOL_MAGIC);
@@ -56,10 +53,7 @@ describe('native helper protocol v4', () => {
 
   it('decodes fragmented and coalesced pipe frames', () => {
     const first = encodeNativeFrame(NativeMessageType.Pong);
-    const second = encodeNativeFrame(
-      NativeMessageType.HotkeyEvent,
-      new Uint8Array([3]),
-    );
+    const second = encodeNativeFrame(NativeMessageType.HotkeyEvent, new Uint8Array([3]));
     const combined = Buffer.concat([first, second]);
     const decoder = new NativeFrameDecoder();
 
@@ -98,10 +92,7 @@ describe('native helper protocol v4', () => {
   });
 
   it('rejects malformed target context fields', () => {
-    const payload = Buffer.concat([
-      Buffer.alloc(14),
-      Buffer.from([2, 0, 65, 0]),
-    ]);
+    const payload = Buffer.concat([Buffer.alloc(14), Buffer.from([2, 0, 65, 0])]);
 
     expect(() => decodeTargetSnapshot(payload)).toThrow('invalid size');
   });

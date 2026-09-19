@@ -21,9 +21,10 @@ import {
 describe('client IPC validation', () => {
   it('validates diagnostic export and renderer issue payloads', () => {
     const issueId = 'ec1e6ca3-dc50-412c-9aff-3eac670ff5de';
-    expect(
-      parseDiagnosticExportRequest({ includeAudio: true, issueIds: [issueId] }),
-    ).toEqual({ includeAudio: true, issueIds: [issueId] });
+    expect(parseDiagnosticExportRequest({ includeAudio: true, issueIds: [issueId] })).toEqual({
+      includeAudio: true,
+      issueIds: [issueId],
+    });
     expect(
       parseRendererIssue({
         line: 42,
@@ -34,9 +35,9 @@ describe('client IPC validation', () => {
     expect(() => parseDiagnosticIssueIds(['not-an-issue-id'])).toThrow(
       'Invalid diagnostic issue ids',
     );
-    expect(() =>
-      parseRendererIssue({ message: 'Renderer failed', token: 'secret' }),
-    ).toThrow('unsupported field');
+    expect(() => parseRendererIssue({ message: 'Renderer failed', token: 'secret' })).toThrow(
+      'unsupported field',
+    );
   });
 
   it('accepts bounded settings and history requests', () => {
@@ -83,9 +84,7 @@ describe('client IPC validation', () => {
       }),
     ).toEqual({ application: 'chat-app', style: 'casual' });
     expect(parsePersonalizationLearningEnabled(true)).toBe(true);
-    expect(parseWritingPreferenceId('1234567890abcdef12345678')).toBe(
-      '1234567890abcdef12345678',
-    );
+    expect(parseWritingPreferenceId('1234567890abcdef12345678')).toBe('1234567890abcdef12345678');
     expect(
       parseSyncConfigUpdate({
         enabled: true,
@@ -97,26 +96,18 @@ describe('client IPC validation', () => {
       providerId: 's3',
       s3: { bucket: 'backups' },
     });
-    expect(parseRemoteBackupPath('untypo/latest.untypo')).toBe(
-      'untypo/latest.untypo',
-    );
+    expect(parseRemoteBackupPath('untypo/latest.untypo')).toBe('untypo/latest.untypo');
   });
 
   it('rejects unknown fields and unbounded values', () => {
-    expect(() => parseSettingsUpdate({ admin: true })).toThrow(
-      'unsupported field',
-    );
+    expect(() => parseSettingsUpdate({ admin: true })).toThrow('unsupported field');
     expect(() =>
       parseSettingsUpdate({
         dictation: { activeProviderProfileId: 'legacy-profile' },
       }),
     ).toThrow('unsupported field');
-    expect(() => parseHistoryQuery({ limit: 501 })).toThrow(
-      'Invalid history query',
-    );
-    expect(() => parseDictionaryTerm('x'.repeat(129))).toThrow(
-      'Invalid dictionary term',
-    );
+    expect(() => parseHistoryQuery({ limit: 501 })).toThrow('Invalid history query');
+    expect(() => parseDictionaryTerm('x'.repeat(129))).toThrow('Invalid dictionary term');
     expect(() =>
       parseSettingsUpdate({
         dictation: { microphoneDeviceId: 'x'.repeat(513) },
@@ -127,21 +118,13 @@ describe('client IPC validation', () => {
         dictation: { microphoneDeviceLabel: 'USB Microphone' },
       }),
     ).toThrow('requires a device id');
-    expect(() => parseClipboardText('x'.repeat(1_000_001))).toThrow(
-      'Invalid clipboard text',
+    expect(() => parseClipboardText('x'.repeat(1_000_001))).toThrow('Invalid clipboard text');
+    expect(() => parseSettingsUpdate({ updates: { autoCheck: 'yes' } })).toThrow(
+      'Invalid automatic update check setting',
     );
-    expect(() =>
-      parseSettingsUpdate({ updates: { autoCheck: 'yes' } }),
-    ).toThrow('Invalid automatic update check setting');
-    expect(() => parseSyncConfigUpdate({ providerId: 'ftp' })).toThrow(
-      'Invalid sync provider',
-    );
-    expect(() => parseRemoteBackupPath('../secret.untypo')).toThrow(
-      'Invalid remote backup path',
-    );
-    expect(() => parseRemoteBackupPath('untypo/notes.txt')).toThrow(
-      'Invalid remote backup path',
-    );
+    expect(() => parseSyncConfigUpdate({ providerId: 'ftp' })).toThrow('Invalid sync provider');
+    expect(() => parseRemoteBackupPath('../secret.untypo')).toThrow('Invalid remote backup path');
+    expect(() => parseRemoteBackupPath('untypo/notes.txt')).toThrow('Invalid remote backup path');
     expect(() =>
       parseApplicationWritingStyleUpdate({
         application: 'chat-app',
@@ -151,9 +134,7 @@ describe('client IPC validation', () => {
     expect(() => parsePersonalizationLearningEnabled('yes')).toThrow(
       'Invalid personalization learning setting',
     );
-    expect(() => parseWritingPreferenceId('../memory')).toThrow(
-      'Invalid writing preference id',
-    );
+    expect(() => parseWritingPreferenceId('../memory')).toThrow('Invalid writing preference id');
     expect(() =>
       parseSettingsUpdate({
         diagnostics: { showErrorDialogs: 'yes' },
@@ -162,9 +143,7 @@ describe('client IPC validation', () => {
   });
 
   it('accepts text for the trusted clipboard bridge', () => {
-    expect(parseClipboardText('Copied history record')).toBe(
-      'Copied history record',
-    );
+    expect(parseClipboardText('Copied history record')).toBe('Copied history record');
   });
 
   it.each([
@@ -173,26 +152,23 @@ describe('client IPC validation', () => {
     ['text', 'anthropic-text', 'anthropic-text'],
     ['speech', 'openai-compatible-speech', 'openai-speech'],
     ['speech', 'aliyun-bailian-speech', 'aliyun-bailian-speech'],
-  ] as const)(
-    'accepts the %s/%s provider shape',
-    (kind, providerId, presetId) => {
-      expect(
-        parseProviderInput({
-          id: `${kind}-${presetId}`,
-          kind,
-          providerId,
-          secrets: { apiKey: 'secret' },
-          values: {
-            allowInsecurePrivateEndpoint: false,
-            baseUrl: 'https://provider.example.test/v1',
-            model: 'test-model',
-            name: 'Test provider',
-            presetId,
-          },
-        }),
-      ).toMatchObject({ kind, providerId });
-    },
-  );
+  ] as const)('accepts the %s/%s provider shape', (kind, providerId, presetId) => {
+    expect(
+      parseProviderInput({
+        id: `${kind}-${presetId}`,
+        kind,
+        providerId,
+        secrets: { apiKey: 'secret' },
+        values: {
+          allowInsecurePrivateEndpoint: false,
+          baseUrl: 'https://provider.example.test/v1',
+          model: 'test-model',
+          name: 'Test provider',
+          presetId,
+        },
+      }),
+    ).toMatchObject({ kind, providerId });
+  });
 
   it('enforces provider ids jointly with their kind', () => {
     expect(() =>
@@ -279,9 +255,10 @@ describe('client IPC validation', () => {
   });
 
   it('bounds the encrypted personal profile fields', () => {
-    expect(
-      parseProfile({ preferredName: 'Alice', signature: 'Warm regards' }),
-    ).toEqual({ preferredName: 'Alice', signature: 'Warm regards' });
+    expect(parseProfile({ preferredName: 'Alice', signature: 'Warm regards' })).toEqual({
+      preferredName: 'Alice',
+      signature: 'Warm regards',
+    });
     expect(() => parseProfile({ role: 'admin' })).toThrow('unsupported field');
   });
 });

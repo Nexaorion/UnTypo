@@ -16,9 +16,7 @@ describe('capsuleViewModel', () => {
       title: '正在录音',
     });
 
-    expect(
-      capsuleViewModel({ locale: 'zh-CN', type: 'processing' }),
-    ).toMatchObject({
+    expect(capsuleViewModel({ locale: 'zh-CN', type: 'processing' })).toMatchObject({
       detail: '正在转写并整理文字',
       showClose: false,
       showCopy: false,

@@ -106,8 +106,7 @@ describe('TrayController', () => {
   });
 
   it('routes menu clicks through the runtime callbacks', () => {
-    const { controller, onShowSettings, onToggleDictation } =
-      createController();
+    const { controller, onShowSettings, onToggleDictation } = createController();
 
     controller.create('en-US');
     const template = menuTemplate() ?? [];

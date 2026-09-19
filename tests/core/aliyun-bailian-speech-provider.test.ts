@@ -99,20 +99,15 @@ describe('AliyunBailianSpeechProvider', () => {
     });
 
     const session = provider.createRealtimeTranscriptionSession({
-      dictionary: [
-        ' UnTypo ',
-        '百炼',
-        '这条词典内容超过十五个非ASCII字符所以不会作为热词发送',
-      ],
+      dictionary: [' UnTypo ', '百炼', '这条词典内容超过十五个非ASCII字符所以不会作为热词发送'],
       language: 'zh-CN',
     });
     session.appendAudio(new Uint8Array([1, 2, 3, 4]));
     socket.emitOpen();
 
-    expect(createSocket).toHaveBeenCalledWith(
-      'wss://dashscope.aliyuncs.com/api-ws/v1/inference',
-      { Authorization: 'Bearer sk-bailian-test' },
-    );
+    expect(createSocket).toHaveBeenCalledWith('wss://dashscope.aliyuncs.com/api-ws/v1/inference', {
+      Authorization: 'Bearer sk-bailian-test',
+    });
     const runTaskSource = socket.sent[0];
     if (typeof runTaskSource !== 'string') {
       throw new Error('Expected run-task JSON');
@@ -192,18 +187,15 @@ describe('AliyunBailianSpeechProvider', () => {
           ...configuration,
           realtimeSpeechEnabled: true,
         }),
-    ).toThrow(
-      'Aliyun Bailian realtime speech requires model qwen-audio-3.0-asr-flash-streaming',
-    );
+    ).toThrow('Aliyun Bailian realtime speech requires model qwen-audio-3.0-asr-flash-streaming');
   });
 
   it('sends Base64 WebM audio and recognition parameters', async () => {
     const request = vi.fn<typeof fetch>(() =>
       Promise.resolve(
-        new Response(
-          JSON.stringify({ output: { sentence: { text: '百炼转写' } } }),
-          { status: 200 },
-        ),
+        new Response(JSON.stringify({ output: { sentence: { text: '百炼转写' } } }), {
+          status: 200,
+        }),
       ),
     );
     const provider = new AliyunBailianSpeechProvider(configuration, request);
@@ -256,9 +248,7 @@ describe('AliyunBailianSpeechProvider', () => {
   ])('accepts supported response shapes', async (payload) => {
     const provider = new AliyunBailianSpeechProvider(
       configuration,
-      vi.fn(() =>
-        Promise.resolve(new Response(JSON.stringify(payload), { status: 200 })),
-      ),
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify(payload), { status: 200 }))),
     );
 
     await expect(
@@ -276,10 +266,7 @@ describe('AliyunBailianSpeechProvider', () => {
     const provider = new AliyunBailianSpeechProvider(configuration, request);
 
     await expect(
-      provider.transcribe(
-        { ...audio, durationMs: 300_001 },
-        { dictionary: [], language: 'en-US' },
-      ),
+      provider.transcribe({ ...audio, durationMs: 300_001 }, { dictionary: [], language: 'en-US' }),
     ).rejects.toMatchObject({ code: 'INVALID_OPTIONS' });
     expect(request).not.toHaveBeenCalled();
   });
@@ -366,9 +353,9 @@ describe('AliyunBailianSpeechProvider', () => {
       ),
     );
 
-    await expect(
-      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
-    ).rejects.toThrow('InvalidApiKey');
+    await expect(provider.transcribe(audio, { dictionary: [], language: 'en-US' })).rejects.toThrow(
+      'InvalidApiKey',
+    );
   });
 
   it('preserves an error code and request ID from failed requests', async () => {
@@ -387,9 +374,7 @@ describe('AliyunBailianSpeechProvider', () => {
       ),
     );
 
-    await expect(
-      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
-    ).rejects.toThrow(
+    await expect(provider.transcribe(audio, { dictionary: [], language: 'en-US' })).rejects.toThrow(
       'Aliyun Bailian request failed with status 400: code InvalidAudio, request_id request-123',
     );
   });
@@ -397,16 +382,10 @@ describe('AliyunBailianSpeechProvider', () => {
   it('preserves a non-JSON error response for diagnostics', async () => {
     const provider = new AliyunBailianSpeechProvider(
       configuration,
-      vi.fn(() =>
-        Promise.resolve(
-          new Response('The audio payload was rejected', { status: 400 }),
-        ),
-      ),
+      vi.fn(() => Promise.resolve(new Response('The audio payload was rejected', { status: 400 }))),
     );
 
-    await expect(
-      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
-    ).rejects.toThrow(
+    await expect(provider.transcribe(audio, { dictionary: [], language: 'en-US' })).rejects.toThrow(
       'Aliyun Bailian request failed with status 400: response The audio payload was rejected',
     );
   });
@@ -424,9 +403,7 @@ describe('AliyunBailianSpeechProvider', () => {
       ),
     );
 
-    await expect(
-      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
-    ).rejects.toThrow(
+    await expect(provider.transcribe(audio, { dictionary: [], language: 'en-US' })).rejects.toThrow(
       'Aliyun Bailian request failed with status 400: request_id request-from-header',
     );
   });
@@ -436,16 +413,15 @@ describe('AliyunBailianSpeechProvider', () => {
       configuration,
       vi.fn(() =>
         Promise.resolve(
-          new Response(
-            JSON.stringify({ code: 'InvalidApiKey', message: 'Key mismatch' }),
-            { status: 200 },
-          ),
+          new Response(JSON.stringify({ code: 'InvalidApiKey', message: 'Key mismatch' }), {
+            status: 200,
+          }),
         ),
       ),
     );
 
-    await expect(
-      provider.transcribe(audio, { dictionary: [], language: 'en-US' }),
-    ).rejects.toThrow('Key mismatch');
+    await expect(provider.transcribe(audio, { dictionary: [], language: 'en-US' })).rejects.toThrow(
+      'Key mismatch',
+    );
   });
 });

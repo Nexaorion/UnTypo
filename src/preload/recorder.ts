@@ -23,19 +23,13 @@ const channels = {
 const api: RecorderApi = {
   onAudioChannel: (listener) => {
     window.addEventListener('message', (event) => {
-      if (
-        event.source === window &&
-        event.data === 'recorder:audio-channel' &&
-        event.ports[0]
-      ) {
+      if (event.source === window && event.data === 'recorder:audio-channel' && event.ports[0]) {
         listener(event.ports[0]);
       }
     });
   },
   onListDevices: (listener) => {
-    ipcRenderer.on(channels.commandListDevices, (_event, requestId: string) =>
-      listener(requestId),
-    );
+    ipcRenderer.on(channels.commandListDevices, (_event, requestId: string) => listener(requestId));
   },
   onStart: (listener) => {
     ipcRenderer.on(
@@ -46,19 +40,11 @@ const api: RecorderApi = {
         microphoneSelection?: MicrophoneSelection,
         outputFormat?: 'wav' | 'webm',
         realtimePcmEnabled?: boolean,
-      ) =>
-        listener(
-          sessionId,
-          microphoneSelection,
-          outputFormat,
-          realtimePcmEnabled,
-        ),
+      ) => listener(sessionId, microphoneSelection, outputFormat, realtimePcmEnabled),
     );
   },
   onStop: (listener) => {
-    ipcRenderer.on(channels.commandStop, (_event, sessionId: string) =>
-      listener(sessionId),
-    );
+    ipcRenderer.on(channels.commandStop, (_event, sessionId: string) => listener(sessionId));
   },
   sendChunk: (sessionId: string, chunk: ArrayBuffer) => {
     ipcRenderer.send(channels.chunk, sessionId, chunk);
@@ -66,11 +52,7 @@ const api: RecorderApi = {
   sendError: (sessionId: string, message: string) => {
     ipcRenderer.send(channels.error, sessionId, message);
   },
-  sendDevices: (
-    requestId: string,
-    devices: readonly RecorderDeviceInfo[],
-    error?: string,
-  ) => {
+  sendDevices: (requestId: string, devices: readonly RecorderDeviceInfo[], error?: string) => {
     ipcRenderer.send(channels.devices, requestId, devices, error);
   },
   sendLevel: (sessionId: string, level: number) => {
@@ -84,12 +66,7 @@ const api: RecorderApi = {
     metadata: RecorderStartMetadata,
     microphoneSelection?: MicrophoneSelection,
   ) => {
-    ipcRenderer.send(
-      channels.started,
-      sessionId,
-      metadata,
-      microphoneSelection,
-    );
+    ipcRenderer.send(channels.started, sessionId, metadata, microphoneSelection);
   },
   sendStopped: (sessionId: string, metadata: RecorderStopMetadata) => {
     ipcRenderer.send(channels.stopped, sessionId, metadata);

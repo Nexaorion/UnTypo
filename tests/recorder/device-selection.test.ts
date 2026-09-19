@@ -20,9 +20,7 @@ describe('recorderAudioConstraints', () => {
   });
 
   it('retries only errors that mean the selected device disappeared', () => {
-    expect(isMissingMicrophoneError({ name: 'OverconstrainedError' })).toBe(
-      true,
-    );
+    expect(isMissingMicrophoneError({ name: 'OverconstrainedError' })).toBe(true);
     expect(isMissingMicrophoneError({ name: 'NotFoundError' })).toBe(true);
     expect(isMissingMicrophoneError({ name: 'NotAllowedError' })).toBe(false);
     expect(isMissingMicrophoneError({ name: 'NotReadableError' })).toBe(false);

@@ -1,15 +1,6 @@
-import {
-  BrowserWindow,
-  clipboard,
-  ipcMain,
-  screen,
-  type IpcMainEvent,
-} from 'electron';
+import { BrowserWindow, clipboard, ipcMain, screen, type IpcMainEvent } from 'electron';
 import path from 'node:path';
-import type {
-  ProcessResult,
-  SupportedLanguage,
-} from '../../core/providers/contracts.js';
+import type { ProcessResult, SupportedLanguage } from '../../core/providers/contracts.js';
 import {
   CAPSULE_CHANNELS,
   type CapsuleErrorReason,
@@ -22,8 +13,7 @@ const SUCCESS_AUTO_CLOSE_MILLISECONDS = 10_000;
 const ERROR_AUTO_CLOSE_MILLISECONDS = 8_000;
 const DICTIONARY_SUGGESTION_DELAY_MILLISECONDS = 1_500;
 
-export type DictionarySuggestionDecision =
-  'accepted' | 'dismissed' | 'rejected';
+export type DictionarySuggestionDecision = 'accepted' | 'dismissed' | 'rejected';
 
 type DictionarySuggestionValidator = (
   term: string,
@@ -88,17 +78,11 @@ export class CapsuleWindowController {
     );
     const successWebContentsId = this.#window?.webContents.id;
     let acceptedTerm = '';
-    const decision = this.showDictionarySuggestion(
-      'UnTypo',
-      'en-US',
-      generation,
-      (term) => {
-        acceptedTerm = term;
-        return Promise.resolve(undefined);
-      },
-    );
-    const suggestionDeadline =
-      Date.now() + DICTIONARY_SUGGESTION_DELAY_MILLISECONDS + 2_000;
+    const decision = this.showDictionarySuggestion('UnTypo', 'en-US', generation, (term) => {
+      acceptedTerm = term;
+      return Promise.resolve(undefined);
+    });
+    const suggestionDeadline = Date.now() + DICTIONARY_SUGGESTION_DELAY_MILLISECONDS + 2_000;
     while (Date.now() < suggestionDeadline) {
       const candidate = this.#window;
       if (
@@ -119,8 +103,7 @@ export class CapsuleWindowController {
       this.close();
       return false;
     }
-    const rendererResult = (await suggestionWindow.webContents
-      .executeJavaScript(`
+    const rendererResult = (await suggestionWindow.webContents.executeJavaScript(`
       (async () => {
         const wait = (milliseconds) =>
           new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -149,9 +132,7 @@ export class CapsuleWindowController {
       return false;
     }
     const resolvedDecision = await decision;
-    return (
-      resolvedDecision === 'accepted' && acceptedTerm === 'UnTypo Smoke Edited'
-    );
+    return resolvedDecision === 'accepted' && acceptedTerm === 'UnTypo Smoke Edited';
   }
 
   async showProcessing(locale: SupportedLanguage): Promise<void> {
@@ -161,8 +142,7 @@ export class CapsuleWindowController {
   updateProcessing(outputText: string): void {
     if (this.#status?.type !== 'processing') return;
     const normalizedOutput = outputText.trim();
-    if (!normalizedOutput || normalizedOutput === this.#status.outputText)
-      return;
+    if (!normalizedOutput || normalizedOutput === this.#status.outputText) return;
     const hadOutput = Boolean(this.#status.outputText);
     this.#status = { ...this.#status, outputText: normalizedOutput };
     if (!hadOutput && this.#window && !this.#window.isDestroyed()) {
@@ -171,10 +151,7 @@ export class CapsuleWindowController {
     this.sendCurrentStatus();
   }
 
-  async showConfirm(
-    result: ProcessResult,
-    locale: SupportedLanguage,
-  ): Promise<boolean> {
+  async showConfirm(result: ProcessResult, locale: SupportedLanguage): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       this.#confirmResolve = resolve;
       void this.present({
@@ -213,16 +190,12 @@ export class CapsuleWindowController {
   ): Promise<DictionarySuggestionDecision> {
     const remaining = Math.max(
       0,
-      DICTIONARY_SUGGESTION_DELAY_MILLISECONDS -
-        (Date.now() - this.#successPresentedAt),
+      DICTIONARY_SUGGESTION_DELAY_MILLISECONDS - (Date.now() - this.#successPresentedAt),
     );
     if (remaining > 0) {
       await new Promise<void>((resolve) => setTimeout(resolve, remaining));
     }
-    if (
-      this.#generation !== expectedSuccessGeneration ||
-      this.#status?.type !== 'success'
-    ) {
+    if (this.#generation !== expectedSuccessGeneration || this.#status?.type !== 'success') {
       return 'dismissed';
     }
 
@@ -230,9 +203,7 @@ export class CapsuleWindowController {
     return new Promise<DictionarySuggestionDecision>((resolve) => {
       this.#dictionaryAccept = validate;
       this.#dictionaryResolve = resolve;
-      void this.present({ locale, term, type: 'dictionary-suggestion' }).catch(
-        () => this.close(),
-      );
+      void this.present({ locale, term, type: 'dictionary-suggestion' }).catch(() => this.close());
     });
   }
 
@@ -279,24 +250,12 @@ export class CapsuleWindowController {
     ipcMain.removeListener(CAPSULE_CHANNELS.close, this.handleClose);
     ipcMain.removeListener(CAPSULE_CHANNELS.confirm, this.handleConfirm);
     ipcMain.removeListener(CAPSULE_CHANNELS.copy, this.handleCopy);
-    ipcMain.removeListener(
-      CAPSULE_CHANNELS.dictionaryAccept,
-      this.handleDictionaryAccept,
-    );
-    ipcMain.removeListener(
-      CAPSULE_CHANNELS.dictionaryFocus,
-      this.handleDictionaryFocus,
-    );
-    ipcMain.removeListener(
-      CAPSULE_CHANNELS.dictionaryReject,
-      this.handleDictionaryReject,
-    );
+    ipcMain.removeListener(CAPSULE_CHANNELS.dictionaryAccept, this.handleDictionaryAccept);
+    ipcMain.removeListener(CAPSULE_CHANNELS.dictionaryFocus, this.handleDictionaryFocus);
+    ipcMain.removeListener(CAPSULE_CHANNELS.dictionaryReject, this.handleDictionaryReject);
     ipcMain.removeListener(CAPSULE_CHANNELS.ready, this.handleReady);
     ipcMain.removeListener(CAPSULE_CHANNELS.reject, this.handleReject);
-    ipcMain.removeListener(
-      CAPSULE_CHANNELS.setInteractive,
-      this.handleSetInteractive,
-    );
+    ipcMain.removeListener(CAPSULE_CHANNELS.setInteractive, this.handleSetInteractive);
   }
 
   private readonly handleClose = (event: IpcMainEvent): void => {
@@ -304,30 +263,24 @@ export class CapsuleWindowController {
   };
 
   private readonly handleConfirm = (event: IpcMainEvent): void => {
-    if (!this.isExpectedSender(event) || this.#status?.type !== 'confirm')
-      return;
+    if (!this.isExpectedSender(event) || this.#status?.type !== 'confirm') return;
     this.resolveConfirmation(true);
     this.close();
   };
 
   private readonly handleReject = (event: IpcMainEvent): void => {
-    if (!this.isExpectedSender(event) || this.#status?.type !== 'confirm')
-      return;
+    if (!this.isExpectedSender(event) || this.#status?.type !== 'confirm') return;
     this.resolveConfirmation(false);
     this.close();
   };
 
   private readonly handleCopy = (event: IpcMainEvent): void => {
-    if (!this.isExpectedSender(event) || this.#status?.type !== 'success')
-      return;
+    if (!this.isExpectedSender(event) || this.#status?.type !== 'success') return;
     void clipboard.writeText(this.#status.outputText).catch(() => undefined);
     this.close();
   };
 
-  private readonly handleDictionaryAccept = (
-    event: IpcMainEvent,
-    value: unknown,
-  ): void => {
+  private readonly handleDictionaryAccept = (event: IpcMainEvent, value: unknown): void => {
     if (
       !this.isExpectedSender(event) ||
       this.#status?.type !== 'dictionary-suggestion' ||
@@ -352,10 +305,7 @@ export class CapsuleWindowController {
     this.sendCurrentStatus();
     void validate(value)
       .then((error) => {
-        if (
-          this.#generation !== generation ||
-          this.#status?.type !== 'dictionary-suggestion'
-        ) {
+        if (this.#generation !== generation || this.#status?.type !== 'dictionary-suggestion') {
           return;
         }
         if (error) {
@@ -367,10 +317,7 @@ export class CapsuleWindowController {
         this.close();
       })
       .catch(() => {
-        if (
-          this.#generation === generation &&
-          this.#status?.type === 'dictionary-suggestion'
-        ) {
+        if (this.#generation === generation && this.#status?.type === 'dictionary-suggestion') {
           this.#status = {
             ...this.#status,
             error: 'unavailable',
@@ -382,10 +329,7 @@ export class CapsuleWindowController {
   };
 
   private readonly handleDictionaryFocus = (event: IpcMainEvent): void => {
-    if (
-      this.isExpectedSender(event) &&
-      this.#status?.type === 'dictionary-suggestion'
-    ) {
+    if (this.isExpectedSender(event) && this.#status?.type === 'dictionary-suggestion') {
       this.#window?.focus();
     }
   };
@@ -408,10 +352,7 @@ export class CapsuleWindowController {
     this.sendCurrentStatus();
   };
 
-  private readonly handleSetInteractive = (
-    event: IpcMainEvent,
-    interactive: unknown,
-  ): void => {
+  private readonly handleSetInteractive = (event: IpcMainEvent, interactive: unknown): void => {
     if (
       !this.isExpectedSender(event) ||
       typeof interactive !== 'boolean' ||
@@ -431,9 +372,7 @@ export class CapsuleWindowController {
     resolve?.(useProcessed);
   }
 
-  private resolveDictionarySuggestion(
-    decision: DictionarySuggestionDecision,
-  ): void {
+  private resolveDictionarySuggestion(decision: DictionarySuggestionDecision): void {
     const resolve = this.#dictionaryResolve;
     this.#dictionaryAccept = undefined;
     this.#dictionaryResolve = undefined;
@@ -468,20 +407,12 @@ export class CapsuleWindowController {
           ? ERROR_AUTO_CLOSE_MILLISECONDS
           : undefined;
     if (autoCloseMilliseconds) {
-      this.#autoCloseTimer = setTimeout(
-        () => this.close(),
-        autoCloseMilliseconds,
-      );
+      this.#autoCloseTimer = setTimeout(() => this.close(), autoCloseMilliseconds);
     }
   }
 
   private sendCurrentStatus(): void {
-    if (
-      !this.#rendererReady ||
-      !this.#status ||
-      !this.#window ||
-      this.#window.isDestroyed()
-    )
+    if (!this.#rendererReady || !this.#status || !this.#window || this.#window.isDestroyed())
       return;
     this.#window.webContents.send(CAPSULE_CHANNELS.update, this.#status);
   }
@@ -558,10 +489,7 @@ export class CapsuleWindowController {
     return window;
   }
 
-  private sizeAndPositionWindow(
-    window: BrowserWindow,
-    status: CapsuleStatus,
-  ): void {
+  private sizeAndPositionWindow(window: BrowserWindow, status: CapsuleStatus): void {
     const bounds =
       status.type === 'dictionary-suggestion'
         ? capsuleBounds.suggestion
@@ -574,9 +502,7 @@ export class CapsuleWindowController {
             : capsuleBounds.compact;
     window.setSize(bounds.width, bounds.height, false);
 
-    const display = screen.getDisplayNearestPoint(
-      screen.getCursorScreenPoint(),
-    );
+    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
     const { x, y, width, height } = display.workArea;
     window.setPosition(
       Math.round(x + (width - bounds.width) / 2),

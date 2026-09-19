@@ -22,8 +22,7 @@ import {
 } from './text-provider-utils.js';
 import { responsesNoThinking } from './text-reasoning-policy.js';
 
-export type OpenAIResponsesTextProviderConfiguration =
-  ProviderConnectionConfiguration;
+export type OpenAIResponsesTextProviderConfiguration = ProviderConnectionConfiguration;
 
 interface ResponsesPayload {
   output?: Array<{
@@ -86,13 +85,8 @@ export class OpenAIResponsesTextProvider implements TextGenerationProvider {
     this.#fetch = fetchImplementation;
   }
 
-  async processTranscript(
-    text: string,
-    context: TextProcessContext,
-  ): Promise<TextProcessResult> {
-    const outputTextStream = createTranscriptOutputTextStream(
-      context.onOutputTextUpdate,
-    );
+  async processTranscript(text: string, context: TextProcessContext): Promise<TextProcessResult> {
+    const outputTextStream = createTranscriptOutputTextStream(context.onOutputTextUpdate);
     const output = await this.textResponse(
       text,
       transcriptProcessingInstructions(context),
@@ -110,42 +104,35 @@ export class OpenAIResponsesTextProvider implements TextGenerationProvider {
     signal?: AbortSignal,
     onTextDelta?: (delta: string) => void,
   ): Promise<string> {
-    const response = await this.#fetch(
-      providerUrl(this.#baseUrl, '/responses'),
-      {
-        body: JSON.stringify({
-          input,
-          instructions,
-          model: this.#model,
-          ...responsesNoThinking(this.#baseUrl, this.#model),
-          store: false,
-          stream: true,
-        }),
-        headers: {
-          Authorization: `Bearer ${this.#apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-        signal,
+    const response = await this.#fetch(providerUrl(this.#baseUrl, '/responses'), {
+      body: JSON.stringify({
+        input,
+        instructions,
+        model: this.#model,
+        ...responsesNoThinking(this.#baseUrl, this.#model),
+        store: false,
+        stream: true,
+      }),
+      headers: {
+        Authorization: `Bearer ${this.#apiKey}`,
+        'Content-Type': 'application/json',
       },
-    );
+      method: 'POST',
+      signal,
+    });
     if (isProviderEventStream(response)) {
       let output = '';
-      await readProviderEventStream(
-        response,
-        'OpenAI Responses-compatible provider',
-        (event) => {
-          const streamEvent = event as ResponsesStreamEvent;
-          if (
-            streamEvent.type !== 'response.output_text.delta' ||
-            typeof streamEvent.delta !== 'string'
-          ) {
-            return;
-          }
-          output += streamEvent.delta;
-          onTextDelta?.(streamEvent.delta);
-        },
-      );
+      await readProviderEventStream(response, 'OpenAI Responses-compatible provider', (event) => {
+        const streamEvent = event as ResponsesStreamEvent;
+        if (
+          streamEvent.type !== 'response.output_text.delta' ||
+          typeof streamEvent.delta !== 'string'
+        ) {
+          return;
+        }
+        output += streamEvent.delta;
+        onTextDelta?.(streamEvent.delta);
+      });
       if (!output.trim()) {
         throw new ProviderContractError(
           'EMPTY_RESULT',
@@ -154,8 +141,6 @@ export class OpenAIResponsesTextProvider implements TextGenerationProvider {
       }
       return output;
     }
-    return extractText(
-      await readProviderJson(response, 'OpenAI Responses-compatible provider'),
-    );
+    return extractText(await readProviderJson(response, 'OpenAI Responses-compatible provider'));
   }
 }

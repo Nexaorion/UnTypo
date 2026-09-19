@@ -14,10 +14,7 @@ import {
   parseTranscriptProcessing,
   transcriptProcessingInstructions,
 } from './text-provider-utils.js';
-import {
-  isProviderEventStream,
-  readProviderEventStream,
-} from './provider-http.js';
+import { isProviderEventStream, readProviderEventStream } from './provider-http.js';
 import { responsesNoThinking } from './text-reasoning-policy.js';
 
 export interface OpenAIProviderConfiguration {
@@ -70,10 +67,7 @@ const capabilities: ProviderCapabilities = {
 const privateHostPattern =
   /^(localhost|127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|\[?::1\]?|\[?f[cd][0-9a-f:]+\]?|[^.]+\.local)$/iu;
 
-const validateBaseUrl = (
-  value: string,
-  allowInsecurePrivateEndpoint: boolean,
-): string => {
+const validateBaseUrl = (value: string, allowInsecurePrivateEndpoint: boolean): string => {
   const url = new URL(value);
   if (
     url.protocol !== 'https:' &&
@@ -111,10 +105,7 @@ const extractOutputText = (payload: OpenAIResponsePayload): string => {
       }
     }
   }
-  throw new ProviderContractError(
-    'EMPTY_RESULT',
-    'OpenAI returned an empty response',
-  );
+  throw new ProviderContractError('EMPTY_RESULT', 'OpenAI returned an empty response');
 };
 
 export class OpenAIProvider implements DictationProvider {
@@ -167,10 +158,7 @@ export class OpenAIProvider implements DictationProvider {
     this.#fetch = fetchImplementation;
   }
 
-  async transcribe(
-    audio: AudioPayload,
-    options: TranscribeOptions,
-  ): Promise<TranscriptResult> {
+  async transcribe(audio: AudioPayload, options: TranscribeOptions): Promise<TranscriptResult> {
     const form = new FormData();
     const bytes = Uint8Array.from(audio.bytes).buffer;
     form.append(
@@ -181,10 +169,7 @@ export class OpenAIProvider implements DictationProvider {
     form.append('model', this.#transcriptionModel);
     form.append('language', options.language === 'zh-CN' ? 'zh' : 'en');
     if (options.dictionary.length > 0) {
-      form.append(
-        'prompt',
-        `Preserve these terms exactly: ${options.dictionary.join(', ')}`,
-      );
+      form.append('prompt', `Preserve these terms exactly: ${options.dictionary.join(', ')}`);
     }
 
     const response = await this.request('/audio/transcriptions', {
@@ -194,10 +179,7 @@ export class OpenAIProvider implements DictationProvider {
     });
     const payload = (await response.json()) as OpenAITranscriptionResponse;
     if (!payload.text?.trim()) {
-      throw new ProviderContractError(
-        'EMPTY_RESULT',
-        'OpenAI returned an empty transcript',
-      );
+      throw new ProviderContractError('EMPTY_RESULT', 'OpenAI returned an empty transcript');
     }
     return {
       language: options.language,
@@ -210,13 +192,8 @@ export class OpenAIProvider implements DictationProvider {
     };
   }
 
-  async processTranscript(
-    text: string,
-    context: TextProcessContext,
-  ): Promise<TextProcessResult> {
-    const outputTextStream = createTranscriptOutputTextStream(
-      context.onOutputTextUpdate,
-    );
+  async processTranscript(text: string, context: TextProcessContext): Promise<TextProcessResult> {
+    const outputTextStream = createTranscriptOutputTextStream(context.onOutputTextUpdate);
     const output = await this.textResponse(
       text,
       transcriptProcessingInstructions(context),
@@ -239,13 +216,7 @@ export class OpenAIProvider implements DictationProvider {
                         additionalProperties: false,
                         properties: {
                           category: {
-                            enum: [
-                              'person',
-                              'place',
-                              'organization',
-                              'product',
-                              'technical',
-                            ],
+                            enum: ['person', 'place', 'organization', 'product', 'technical'],
                             type: 'string',
                           },
                           confidence: {
@@ -302,12 +273,8 @@ export class OpenAIProvider implements DictationProvider {
             required: [
               'outputText',
               'intent',
-              ...(context.dictionaryLearningEnabled
-                ? ['dictionaryCandidates']
-                : []),
-              ...(context.preferenceLearningEnabled
-                ? ['preferenceCandidates']
-                : []),
+              ...(context.dictionaryLearningEnabled ? ['dictionaryCandidates'] : []),
+              ...(context.preferenceLearningEnabled ? ['preferenceCandidates'] : []),
             ],
             type: 'object',
           },
@@ -357,20 +324,14 @@ export class OpenAIProvider implements DictationProvider {
         onTextDelta?.(streamEvent.delta);
       });
       if (!output.trim()) {
-        throw new ProviderContractError(
-          'EMPTY_RESULT',
-          'OpenAI returned an empty response',
-        );
+        throw new ProviderContractError('EMPTY_RESULT', 'OpenAI returned an empty response');
       }
       return output;
     }
     return extractOutputText((await response.json()) as OpenAIResponsePayload);
   }
 
-  private async request(
-    pathname: string,
-    init: RequestInit,
-  ): Promise<Response> {
+  private async request(pathname: string, init: RequestInit): Promise<Response> {
     const response = await this.#fetch(`${this.#baseUrl}${pathname}`, {
       ...init,
       headers: {

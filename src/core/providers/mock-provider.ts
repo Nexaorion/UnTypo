@@ -62,10 +62,7 @@ export class MockDictationProvider implements DictationProvider {
     });
   }
 
-  async processTranscript(
-    text: string,
-    context: TextProcessContext,
-  ): Promise<TextProcessResult> {
+  async processTranscript(text: string, context: TextProcessContext): Promise<TextProcessResult> {
     const intent =
       context.forcedIntent ??
       (this.capabilities.intentDetection
@@ -85,23 +82,18 @@ export class MockDictationProvider implements DictationProvider {
     context.onOutputTextUpdate?.(outputText);
 
     return Promise.resolve({
-      ...(context.dictionaryLearningEnabled &&
-      this.#scenario.dictionaryCandidates
+      ...(context.dictionaryLearningEnabled && this.#scenario.dictionaryCandidates
         ? { dictionaryCandidates: this.#scenario.dictionaryCandidates }
         : {}),
       intent,
       outputText,
-      ...(context.preferenceLearningEnabled &&
-      this.#scenario.preferenceCandidates
+      ...(context.preferenceLearningEnabled && this.#scenario.preferenceCandidates
         ? { preferenceCandidates: this.#scenario.preferenceCandidates }
         : {}),
     });
   }
 
-  async process(
-    audio: AudioPayload,
-    options: ProcessOptions,
-  ): Promise<ProcessResult> {
+  async process(audio: AudioPayload, options: ProcessOptions): Promise<ProcessResult> {
     const transcript = await this.transcribe(audio);
     const processed = await this.processTranscript(transcript.text, {
       defaultTargetLanguage: options.defaultTargetLanguage,
@@ -113,21 +105,15 @@ export class MockDictationProvider implements DictationProvider {
         ? { explicitTargetLanguage: options.explicitTargetLanguage }
         : {}),
       ...(options.forcedIntent ? { forcedIntent: options.forcedIntent } : {}),
-      ...(options.learnedPreferences
-        ? { learnedPreferences: options.learnedPreferences }
-        : {}),
+      ...(options.learnedPreferences ? { learnedPreferences: options.learnedPreferences } : {}),
       locale: options.language,
-      ...(options.onOutputTextUpdate
-        ? { onOutputTextUpdate: options.onOutputTextUpdate }
-        : {}),
+      ...(options.onOutputTextUpdate ? { onOutputTextUpdate: options.onOutputTextUpdate } : {}),
       signal: options.signal,
       ...(options.preferenceLearningEnabled !== undefined
         ? { preferenceLearningEnabled: options.preferenceLearningEnabled }
         : {}),
       ...(options.tone ? { tone: options.tone } : {}),
-      ...(options.windowContext
-        ? { windowContext: options.windowContext }
-        : {}),
+      ...(options.windowContext ? { windowContext: options.windowContext } : {}),
       ...(options.writingStyle ? { writingStyle: options.writingStyle } : {}),
     });
 

@@ -31,9 +31,7 @@ describe('ElectronClipboardAdapter', () => {
     const html = new Blob(['<b>plain</b>']);
     const bookmark = { title: 'Test', url: 'https://example.com' };
     const getType = vi.fn((type: string) =>
-      Promise.resolve(
-        type === 'text/plain' ? plain : type === 'text/html' ? html : bookmark,
-      ),
+      Promise.resolve(type === 'text/plain' ? plain : type === 'text/html' ? html : bookmark),
     );
     const clipboardItems = [
       {
@@ -60,9 +58,7 @@ describe('ElectronClipboardAdapter', () => {
   });
 
   it('skips clipboard items that have no MIME types', async () => {
-    electronMocks.clipboard.read.mockResolvedValue([
-      { types: [], getType: vi.fn() },
-    ]);
+    electronMocks.clipboard.read.mockResolvedValue([{ types: [], getType: vi.fn() }]);
     const adapter = new ElectronClipboardAdapter();
 
     await expect(adapter.readSnapshot()).resolves.toEqual([]);
@@ -86,8 +82,6 @@ describe('ElectronClipboardAdapter', () => {
     await adapter.writeText('generated text');
 
     await expect(adapter.isCurrentText('generated text')).resolves.toBe(true);
-    expect(electronMocks.clipboard.writeText).toHaveBeenCalledWith(
-      'generated text',
-    );
+    expect(electronMocks.clipboard.writeText).toHaveBeenCalledWith('generated text');
   });
 });

@@ -5,9 +5,7 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 const accelerator = 'Ctrl+Alt+Shift+F23';
 
-export const focusSelectionFixture = async (
-  window: BrowserWindow,
-): Promise<void> => {
+export const focusSelectionFixture = async (window: BrowserWindow): Promise<void> => {
   if (
     !globalShortcut.register(accelerator, () => {
       window.show();

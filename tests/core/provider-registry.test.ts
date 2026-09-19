@@ -32,9 +32,7 @@ describe('ProviderRegistry', () => {
     const registry = new ProviderRegistry();
     registry.register(new MockDictationProvider());
 
-    expect(() => registry.register(new MockDictationProvider())).toThrow(
-      'already registered',
-    );
+    expect(() => registry.register(new MockDictationProvider())).toThrow('already registered');
   });
 
   it('keeps speech and text profiles in independent registries', () => {

@@ -2,8 +2,7 @@ type RequestBody = Readonly<Record<string, unknown>>;
 
 const normalizedModel = (model: string): string => model.trim().toLowerCase();
 
-const endpointHostname = (baseUrl: string): string =>
-  new URL(baseUrl).hostname.toLowerCase();
+const endpointHostname = (baseUrl: string): string => new URL(baseUrl).hostname.toLowerCase();
 
 const isOpenRouter = (hostname: string): boolean =>
   hostname === 'openrouter.ai' || hostname.endsWith('.openrouter.ai');
@@ -12,18 +11,14 @@ const isDeepSeek = (hostname: string, model: string): boolean =>
   hostname === 'api.deepseek.com' || model.includes('deepseek');
 
 const isBailianEndpoint = (hostname: string): boolean =>
-  hostname === 'dashscope.aliyuncs.com' ||
-  hostname.endsWith('.maas.aliyuncs.com');
+  hostname === 'dashscope.aliyuncs.com' || hostname.endsWith('.maas.aliyuncs.com');
 
 const isClaude = (model: string): boolean => model.includes('claude');
 
 const isOpenAIReasoningModel = (model: string): boolean =>
   /^(?:gpt-5(?:[.-]|$)|o\d(?:[.-]|$))/u.test(model);
 
-export const chatCompletionsNoThinking = (
-  baseUrl: string,
-  model: string,
-): RequestBody => {
+export const chatCompletionsNoThinking = (baseUrl: string, model: string): RequestBody => {
   const hostname = endpointHostname(baseUrl);
   const normalized = normalizedModel(model);
   if (isOpenRouter(hostname)) return { reasoning: { effort: 'none' } };
@@ -36,10 +31,7 @@ export const chatCompletionsNoThinking = (
   return {};
 };
 
-export const responsesNoThinking = (
-  baseUrl: string,
-  model: string,
-): RequestBody => {
+export const responsesNoThinking = (baseUrl: string, model: string): RequestBody => {
   const hostname = endpointHostname(baseUrl);
   const normalized = normalizedModel(model);
   if (

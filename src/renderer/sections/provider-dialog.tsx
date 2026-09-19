@@ -61,14 +61,11 @@ const ProviderDialogFlow = ({
   const { isPending, run } = useAction();
   const [draft, setDraft] = useState(initialForm);
   const [errors, setErrors] = useState<ProviderFormErrors>({});
-  const [step, setStep] = useState<'details' | 'picker'>(
-    editing ? 'details' : 'picker',
-  );
+  const [step, setStep] = useState<'details' | 'picker'>(editing ? 'details' : 'picker');
   const presets = getProviderPresets(draft.kind);
   const selectedPreset = getProviderPreset(draft.presetId);
   const isAliyun = draft.providerId === 'aliyun-bailian-speech';
-  const isCustomText =
-    draft.kind === 'text' && draft.presetId === 'custom-text';
+  const isCustomText = draft.kind === 'text' && draft.presetId === 'custom-text';
 
   const errorText = (code?: ProviderFormErrorCode): string | undefined => {
     if (!code) return undefined;
@@ -102,9 +99,7 @@ const ProviderDialogFlow = ({
       <>
         <DialogTitle id={titleId}>
           {t(
-            draft.kind === 'text'
-              ? 'provider.chooseTextProvider'
-              : 'provider.chooseSpeechProvider',
+            draft.kind === 'text' ? 'provider.chooseTextProvider' : 'provider.chooseSpeechProvider',
           )}
         </DialogTitle>
         <DialogContent data-testid="provider-picker" dividers>
@@ -128,12 +123,7 @@ const ProviderDialogFlow = ({
                   data-testid={`provider-preset-${preset.id}`}
                   key={preset.id}
                   onClick={() => {
-                    const selected = selectProviderPreset(
-                      draft,
-                      preset,
-                      existingIds,
-                      false,
-                    );
+                    const selected = selectProviderPreset(draft, preset, existingIds, false);
                     setDraft(
                       preset.id.startsWith('custom-')
                         ? { ...selected, name: t(preset.labelKey) }
@@ -165,8 +155,7 @@ const ProviderDialogFlow = ({
                       borderColor: 'text.secondary',
                     },
                     '&:focus-visible': {
-                      boxShadow: (currentTheme) =>
-                        `0 0 0 3px ${currentTheme.palette.action.focus}`,
+                      boxShadow: (currentTheme) => `0 0 0 3px ${currentTheme.palette.action.focus}`,
                     },
                   }}
                 >
@@ -225,11 +214,7 @@ const ProviderDialogFlow = ({
               {editing ? t('provider.edit') : t('provider.configure')}
             </Typography>
             {selectedPreset ? (
-              <Typography
-                color="text.secondary"
-                sx={{ display: 'block' }}
-                variant="caption"
-              >
+              <Typography color="text.secondary" sx={{ display: 'block' }} variant="caption">
                 {t(selectedPreset.labelKey)}
               </Typography>
             ) : null}
@@ -256,9 +241,7 @@ const ProviderDialogFlow = ({
                     selectTextEndpointType(
                       draft,
                       event.target.value as
-                        | 'anthropic-text'
-                        | 'openai-compatible-text'
-                        | 'openai-responses-text',
+                        'anthropic-text' | 'openai-compatible-text' | 'openai-responses-text',
                     ),
                   )
                 }
@@ -278,9 +261,7 @@ const ProviderDialogFlow = ({
 
             {isAliyun ? (
               <Alert severity="info">
-                <Typography variant="body2">
-                  {t('provider.aliyunHint')}
-                </Typography>
+                <Typography variant="body2">{t('provider.aliyunHint')}</Typography>
                 <Typography color="text.secondary" variant="caption">
                   {t('provider.aliyunWorkspaceHint')}
                 </Typography>
@@ -293,9 +274,7 @@ const ProviderDialogFlow = ({
                 error={errors.name !== undefined}
                 helperText={errorText(errors.name)}
                 label={t('provider.name')}
-                onChange={(event) =>
-                  setDraft({ ...draft, name: event.target.value })
-                }
+                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                 slotProps={{ htmlInput: { maxLength: 200 } }}
                 value={draft.name}
               />
@@ -304,9 +283,7 @@ const ProviderDialogFlow = ({
                 error={errors.model !== undefined}
                 helperText={errorText(errors.model)}
                 label={t('provider.model')}
-                onChange={(event) =>
-                  setDraft({ ...draft, model: event.target.value })
-                }
+                onChange={(event) => setDraft({ ...draft, model: event.target.value })}
                 slotProps={{
                   htmlInput: {
                     'data-testid': 'provider-model-input',
@@ -335,9 +312,7 @@ const ProviderDialogFlow = ({
                 (draft.hasStoredApiKey ? t('provider.apiKeyKeep') : undefined)
               }
               label={t('provider.apiKey')}
-              onChange={(event) =>
-                setDraft({ ...draft, apiKey: event.target.value })
-              }
+              onChange={(event) => setDraft({ ...draft, apiKey: event.target.value })}
               type="password"
               value={draft.apiKey}
             />
@@ -349,9 +324,7 @@ const ProviderDialogFlow = ({
                 (isAliyun ? t('provider.aliyunWorkspaceHint') : undefined)
               }
               label={t('provider.baseUrl')}
-              onChange={(event) =>
-                setDraft({ ...draft, baseUrl: event.target.value })
-              }
+              onChange={(event) => setDraft({ ...draft, baseUrl: event.target.value })}
               placeholder="https://api.example.com/v1"
               value={draft.baseUrl}
             />
@@ -372,11 +345,7 @@ const ProviderDialogFlow = ({
           <Button color="inherit" onClick={onClose} variant="text">
             {t('action.cancel')}
           </Button>
-          <Button
-            disabled={isPending('save')}
-            type="submit"
-            variant="contained"
-          >
+          <Button disabled={isPending('save')} type="submit" variant="contained">
             {t('action.save')}
           </Button>
         </DialogActions>

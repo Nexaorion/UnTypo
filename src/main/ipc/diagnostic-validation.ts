@@ -6,10 +6,7 @@ import type {
 const issueIdPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
-const assertRecord = (
-  value: unknown,
-  label: string,
-): Record<string, unknown> => {
+const assertRecord = (value: unknown, label: string): Record<string, unknown> => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error(`Invalid ${label}`);
   }
@@ -38,15 +35,9 @@ export const parseDiagnosticIssueIds = (value: unknown): readonly string[] => {
   return [...new Set(value as string[])];
 };
 
-export const parseDiagnosticExportRequest = (
-  value: unknown,
-): ClientDiagnosticExportRequest => {
+export const parseDiagnosticExportRequest = (value: unknown): ClientDiagnosticExportRequest => {
   const record = assertRecord(value, 'diagnostic export request');
-  assertOnlyKeys(
-    record,
-    ['includeAudio', 'issueIds'],
-    'Diagnostic export request',
-  );
+  assertOnlyKeys(record, ['includeAudio', 'issueIds'], 'Diagnostic export request');
   if (typeof record.includeAudio !== 'boolean') {
     throw new Error('Invalid diagnostic audio preference');
   }
@@ -56,25 +47,15 @@ export const parseDiagnosticExportRequest = (
   };
 };
 
-const optionalBoundedNumber = (
-  value: unknown,
-  maximum: number,
-): number | undefined => {
+const optionalBoundedNumber = (value: unknown, maximum: number): number | undefined => {
   if (value === undefined) return undefined;
-  if (
-    !Number.isInteger(value) ||
-    (value as number) < 0 ||
-    (value as number) > maximum
-  ) {
+  if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > maximum) {
     throw new Error('Invalid renderer issue location');
   }
   return value as number;
 };
 
-const optionalBoundedString = (
-  value: unknown,
-  maximumLength: number,
-): string | undefined => {
+const optionalBoundedString = (value: unknown, maximumLength: number): string | undefined => {
   if (value === undefined) return undefined;
   if (typeof value !== 'string' || value.length > maximumLength) {
     throw new Error('Invalid renderer issue detail');
@@ -82,15 +63,9 @@ const optionalBoundedString = (
   return value;
 };
 
-export const parseRendererIssue = (
-  value: unknown,
-): ClientRendererIssueInput => {
+export const parseRendererIssue = (value: unknown): ClientRendererIssueInput => {
   const record = assertRecord(value, 'renderer issue');
-  assertOnlyKeys(
-    record,
-    ['column', 'line', 'message', 'source', 'stack'],
-    'Renderer issue',
-  );
+  assertOnlyKeys(record, ['column', 'line', 'message', 'source', 'stack'], 'Renderer issue');
   if (
     typeof record.message !== 'string' ||
     !record.message.trim() ||

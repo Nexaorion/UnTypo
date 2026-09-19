@@ -6,11 +6,9 @@ const electronMocks = vi.hoisted(() => {
   const handlers = new Map<string, (...arguments_: unknown[]) => unknown>();
   const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
   const ipcMain = {
-    handle: vi.fn(
-      (channel: string, handler: (...arguments_: unknown[]) => unknown) => {
-        handlers.set(channel, handler);
-      },
-    ),
+    handle: vi.fn((channel: string, handler: (...arguments_: unknown[]) => unknown) => {
+      handlers.set(channel, handler);
+    }),
     removeHandler: vi.fn((channel: string) => {
       handlers.delete(channel);
     }),
@@ -27,10 +25,7 @@ vi.mock('electron', () => ({
 
 vi.mock('../../src/main/security', () => ({ assertTrustedSender }));
 
-import {
-  ClientIpcController,
-  type ClientBackendPort,
-} from '../../src/main/ipc/client-controller';
+import { ClientIpcController, type ClientBackendPort } from '../../src/main/ipc/client-controller';
 
 const createBackend = (): ClientBackendPort => ({
   acceptWritingPreference: vi.fn(),
@@ -88,9 +83,7 @@ describe('ClientIpcController', () => {
     await handler?.({}, 'Copied history record');
 
     expect(assertTrustedSender).toHaveBeenCalledOnce();
-    expect(electronMocks.clipboard.writeText).toHaveBeenCalledWith(
-      'Copied history record',
-    );
+    expect(electronMocks.clipboard.writeText).toHaveBeenCalledWith('Copied history record');
     controller.destroy();
   });
 
@@ -99,34 +92,17 @@ describe('ClientIpcController', () => {
     const controller = new ClientIpcController(backend);
 
     electronMocks.handlers.get(IPC_CHANNELS.addDictionaryEntry)?.({}, 'UnTypo');
-    electronMocks.handlers.get(IPC_CHANNELS.removeDictionaryEntry)?.(
-      {},
-      'UnTypo',
-    );
-    electronMocks.handlers.get(IPC_CHANNELS.setDictionaryLearningEnabled)?.(
-      {},
-      false,
-    );
+    electronMocks.handlers.get(IPC_CHANNELS.removeDictionaryEntry)?.({}, 'UnTypo');
+    electronMocks.handlers.get(IPC_CHANNELS.setDictionaryLearningEnabled)?.({}, false);
     electronMocks.handlers.get(IPC_CHANNELS.setApplicationWritingStyle)?.(
       {},
       { application: 'office', style: 'formal' },
     );
-    electronMocks.handlers.get(
-      IPC_CHANNELS.setPersonalizationLearningEnabled,
-    )?.({}, true);
+    electronMocks.handlers.get(IPC_CHANNELS.setPersonalizationLearningEnabled)?.({}, true);
     const preferenceId = '1234567890abcdef12345678';
-    electronMocks.handlers.get(IPC_CHANNELS.acceptWritingPreference)?.(
-      {},
-      preferenceId,
-    );
-    electronMocks.handlers.get(IPC_CHANNELS.rejectWritingPreference)?.(
-      {},
-      preferenceId,
-    );
-    electronMocks.handlers.get(IPC_CHANNELS.removeWritingPreference)?.(
-      {},
-      preferenceId,
-    );
+    electronMocks.handlers.get(IPC_CHANNELS.acceptWritingPreference)?.({}, preferenceId);
+    electronMocks.handlers.get(IPC_CHANNELS.rejectWritingPreference)?.({}, preferenceId);
+    electronMocks.handlers.get(IPC_CHANNELS.removeWritingPreference)?.({}, preferenceId);
     electronMocks.handlers.get(IPC_CHANNELS.clearPersonalizationMemory)?.({});
 
     expect(backend.addDictionaryEntry).toHaveBeenCalledWith('UnTypo');
@@ -136,9 +112,7 @@ describe('ClientIpcController', () => {
       application: 'office',
       style: 'formal',
     });
-    expect(backend.setPersonalizationLearningEnabled).toHaveBeenCalledWith(
-      true,
-    );
+    expect(backend.setPersonalizationLearningEnabled).toHaveBeenCalledWith(true);
     expect(backend.acceptWritingPreference).toHaveBeenCalledWith(preferenceId);
     expect(backend.rejectWritingPreference).toHaveBeenCalledWith(preferenceId);
     expect(backend.removeWritingPreference).toHaveBeenCalledWith(preferenceId);
@@ -163,14 +137,8 @@ describe('ClientIpcController', () => {
     const controller = new ClientIpcController(backend);
     const event = {};
 
-    await electronMocks.handlers.get(IPC_CHANNELS.applyBackup)?.(
-      event,
-      'untypo/backup.untypo',
-    );
-    await electronMocks.handlers.get(IPC_CHANNELS.deleteBackup)?.(
-      event,
-      'untypo/backup.untypo',
-    );
+    await electronMocks.handlers.get(IPC_CHANNELS.applyBackup)?.(event, 'untypo/backup.untypo');
+    await electronMocks.handlers.get(IPC_CHANNELS.deleteBackup)?.(event, 'untypo/backup.untypo');
     await electronMocks.handlers.get(IPC_CHANNELS.createBackup)?.(event);
 
     expect(backend.applyBackup).toHaveBeenCalledWith('untypo/backup.untypo');
@@ -183,9 +151,7 @@ describe('ClientIpcController', () => {
   it('forwards the sender when toggling hotkey capture', async () => {
     const backend = createBackend();
     const controller = new ClientIpcController(backend);
-    const handler = electronMocks.handlers.get(
-      IPC_CHANNELS.setHotkeyCaptureActive,
-    );
+    const handler = electronMocks.handlers.get(IPC_CHANNELS.setHotkeyCaptureActive);
     const sender = { id: 7 };
 
     await handler?.({ sender }, true);
@@ -197,9 +163,7 @@ describe('ClientIpcController', () => {
 
   it('removes exactly the channels it registered on destroy', () => {
     const controller = new ClientIpcController(createBackend());
-    const registered = electronMocks.ipcMain.handle.mock.calls
-      .map(([channel]) => channel)
-      .sort();
+    const registered = electronMocks.ipcMain.handle.mock.calls.map(([channel]) => channel).sort();
 
     controller.destroy();
 
@@ -213,9 +177,7 @@ describe('ClientIpcController', () => {
   it('covers every renderer-invokable client channel', () => {
     new ClientIpcController(createBackend()).destroy();
 
-    const registered = new Set(
-      electronMocks.ipcMain.handle.mock.calls.map(([channel]) => channel),
-    );
+    const registered = new Set(electronMocks.ipcMain.handle.mock.calls.map(([channel]) => channel));
     const mainToRendererOnly = new Set([
       IPC_CHANNELS.hotkeyCaptureEvent,
       IPC_CHANNELS.ping,

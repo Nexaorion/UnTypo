@@ -1,10 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  nativeHelperFileName,
-  nativeIpcPath,
-} from '../../src/main/native/client';
+import { nativeHelperFileName, nativeIpcPath } from '../../src/main/native/client';
 
 describe('native helper paths', () => {
   it('uses an .exe helper name only on Windows', () => {
@@ -13,12 +10,8 @@ describe('native helper paths', () => {
   });
 
   it('uses a named pipe on Windows and a unix socket on macOS', () => {
-    expect(nativeIpcPath(12, 'abc', 'win32')).toBe(
-      '\\\\.\\pipe\\untypo-12-abc',
-    );
-    expect(nativeIpcPath(12, 'abc', 'darwin')).toBe(
-      path.join(os.tmpdir(), 'untypo-12-abc.sock'),
-    );
+    expect(nativeIpcPath(12, 'abc', 'win32')).toBe('\\\\.\\pipe\\untypo-12-abc');
+    expect(nativeIpcPath(12, 'abc', 'darwin')).toBe(path.join(os.tmpdir(), 'untypo-12-abc.sock'));
   });
 
   it('keeps Darwin socket paths within sockaddr_un limits', () => {

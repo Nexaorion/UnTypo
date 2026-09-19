@@ -1,9 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AudioPayload } from '../../core/providers/contracts.js';
-import type {
-  RecorderStartMetadata,
-  RecorderStopMetadata,
-} from '../../shared/recorder-ipc.js';
+import type { RecorderStartMetadata, RecorderStopMetadata } from '../../shared/recorder-ipc.js';
 import { MINIMUM_VOICE_ACTIVITY_DURATION_MS } from '../../shared/recorder-ipc.js';
 import { InMemoryAudioBuffer } from './audio-buffer.js';
 
@@ -40,8 +37,7 @@ export class RecordingSessionManager {
   }
 
   begin(target: TargetSnapshot): string {
-    if (this.#state !== 'idle')
-      throw new Error('A recording is already active');
+    if (this.#state !== 'idle') throw new Error('A recording is already active');
     this.#sessionId = randomUUID();
     this.#target = { ...target };
     this.#buffer = new InMemoryAudioBuffer(this.#maximumBytes);
@@ -68,20 +64,14 @@ export class RecordingSessionManager {
   }
 
   requestStop(): string {
-    if (
-      !this.#sessionId ||
-      (this.#state !== 'starting' && this.#state !== 'recording')
-    ) {
+    if (!this.#sessionId || (this.#state !== 'starting' && this.#state !== 'recording')) {
       throw new Error('No recording is active');
     }
     this.#state = 'stopping';
     return this.#sessionId;
   }
 
-  complete(
-    sessionId: string,
-    stopped: RecorderStopMetadata,
-  ): CompletedRecording {
+  complete(sessionId: string, stopped: RecorderStopMetadata): CompletedRecording {
     this.assertSession(sessionId);
     if (this.#state !== 'stopping' || !this.#buffer || !this.#target) {
       throw new Error('Recorder stopped in an invalid state');
@@ -96,8 +86,7 @@ export class RecordingSessionManager {
       stopped.speechDurationMs < 0 ||
       stopped.speechDurationMs > stopped.durationMs ||
       typeof stopped.voiceDetected !== 'boolean' ||
-      stopped.voiceDetected !==
-        stopped.speechDurationMs >= MINIMUM_VOICE_ACTIVITY_DURATION_MS
+      stopped.voiceDetected !== stopped.speechDurationMs >= MINIMUM_VOICE_ACTIVITY_DURATION_MS
     ) {
       throw new Error('Recorder sent invalid stop metadata');
     }

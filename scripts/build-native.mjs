@@ -55,12 +55,7 @@ if (process.platform === 'darwin') {
   const programFilesX86 = process.env['ProgramFiles(x86)'];
   if (!programFilesX86) throw new Error('Program Files (x86) is unavailable');
 
-  const vswhere = path.join(
-    programFilesX86,
-    'Microsoft Visual Studio',
-    'Installer',
-    'vswhere.exe',
-  );
+  const vswhere = path.join(programFilesX86, 'Microsoft Visual Studio', 'Installer', 'vswhere.exe');
 
   const msbuildOutput = await capture(vswhere, [
     '-latest',

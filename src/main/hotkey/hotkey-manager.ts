@@ -6,10 +6,7 @@ import {
   NativeHotkeyRegistrationError,
 } from '../native/client.js';
 import { RendererHotkeyCapture } from '../native/hotkey-capture.js';
-import {
-  parseHotkeyAccelerator,
-  toElectronAccelerator,
-} from '../native/hotkey.js';
+import { parseHotkeyAccelerator, toElectronAccelerator } from '../native/hotkey.js';
 import { NativeHotkeyAction } from '../native/protocol.js';
 import type { ConfigurationService } from '../storage/configuration.js';
 
@@ -84,8 +81,7 @@ export class HotkeyManager {
       if (sender) this.#capture.start(sender);
       return;
     }
-    const previous = (await this.#configuration.load()).dictation
-      .hotkeyAccelerator;
+    const previous = (await this.#configuration.load()).dictation.hotkeyAccelerator;
     const accelerator = this.#pendingAccelerator ?? previous;
     this.#capture.stop();
     this.#captureActive = false;

@@ -41,17 +41,13 @@ export interface SyncServiceOptions {
 const emptySyncConfig = (): StoredSyncConfig => ({ enabled: false });
 
 const describeError = (error: unknown): string =>
-  error instanceof Error && error.message.length > 0
-    ? error.message
-    : 'Cloud sync failed';
+  error instanceof Error && error.message.length > 0 ? error.message : 'Cloud sync failed';
 
 const toLogEntry = (entry: StoredSyncLogEntry): ClientSyncLogEntry => ({
   at: entry.at,
   status: entry.status,
   ...(entry.error ? { error: entry.error } : {}),
-  ...(typeof entry.recordsMerged === 'number'
-    ? { recordsMerged: entry.recordsMerged }
-    : {}),
+  ...(typeof entry.recordsMerged === 'number' ? { recordsMerged: entry.recordsMerged } : {}),
 });
 
 export class SyncService {
@@ -83,9 +79,7 @@ export class SyncService {
     return this.toSnapshot(config.sync);
   }
 
-  async updateConfig(
-    update: ClientSyncConfigUpdate,
-  ): Promise<ClientSyncSnapshot> {
+  async updateConfig(update: ClientSyncConfigUpdate): Promise<ClientSyncSnapshot> {
     const next = await this.#configuration.update((config) => {
       const current = structuredClone(config.sync ?? emptySyncConfig());
       const nextSync: StoredSyncConfig = {
@@ -104,20 +98,14 @@ export class SyncService {
               ? {}
               : { forcePathStyle: current.s3.forcePathStyle }
             : { forcePathStyle: update.s3.forcePathStyle }),
-          ...(current.s3?.accessKeyId
-            ? { accessKeyId: current.s3.accessKeyId }
-            : {}),
-          ...(current.s3?.secretAccessKey
-            ? { secretAccessKey: current.s3.secretAccessKey }
-            : {}),
+          ...(current.s3?.accessKeyId ? { accessKeyId: current.s3.accessKeyId } : {}),
+          ...(current.s3?.secretAccessKey ? { secretAccessKey: current.s3.secretAccessKey } : {}),
         };
         if (update.s3.accessKeyId !== undefined) {
           if (update.s3.accessKeyId.trim().length === 0) {
             delete nextSync.s3.accessKeyId;
           } else {
-            nextSync.s3.accessKeyId = this.#configuration.protectSecret(
-              update.s3.accessKeyId,
-            );
+            nextSync.s3.accessKeyId = this.#configuration.protectSecret(update.s3.accessKeyId);
           }
         }
         if (update.s3.secretAccessKey !== undefined) {
@@ -132,30 +120,22 @@ export class SyncService {
       }
       if (update.webdav) {
         nextSync.webdav = {
-          basePath:
-            update.webdav.basePath ??
-            current.webdav?.basePath ??
-            DEFAULT_WEBDAV_BASE_PATH,
+          basePath: update.webdav.basePath ?? current.webdav?.basePath ?? DEFAULT_WEBDAV_BASE_PATH,
           url: update.webdav.url ?? current.webdav?.url ?? '',
           username: update.webdav.username ?? current.webdav?.username ?? '',
-          ...(current.webdav?.password
-            ? { password: current.webdav.password }
-            : {}),
+          ...(current.webdav?.password ? { password: current.webdav.password } : {}),
         };
         if (update.webdav.password !== undefined) {
           if (update.webdav.password.trim().length === 0) {
             delete nextSync.webdav.password;
           } else {
-            nextSync.webdav.password = this.#configuration.protectSecret(
-              update.webdav.password,
-            );
+            nextSync.webdav.password = this.#configuration.protectSecret(update.webdav.password);
           }
         }
       }
       if (update.generateBackupCode) {
         nextSync.backupCodeMode = 'generated';
-        nextSync.encryptedBackupCode =
-          this.#configuration.protectSecret(generateBackupCode());
+        nextSync.encryptedBackupCode = this.#configuration.protectSecret(generateBackupCode());
       } else if (update.backupCode !== undefined) {
         nextSync.backupCodeMode = 'custom';
         nextSync.encryptedBackupCode = this.#configuration.protectSecret(
@@ -200,10 +180,7 @@ export class SyncService {
       const at = Date.now();
       const deviceName = normalizeBackupDeviceName(hostname());
       const packed = await this.packCurrentState(backupCode, at, deviceName);
-      const remotePath = joinRemotePath(
-        directory,
-        createBackupFileName(at, deviceName),
-      );
+      const remotePath = joinRemotePath(directory, createBackupFileName(at, deviceName));
       await provider.upload(remotePath, packed);
       await this.recordResult({ at, status: 'success' });
       return { success: true, uploadedAt: at };
@@ -227,12 +204,11 @@ export class SyncService {
       const payload = await unpackSyncFile(packed, backupCode);
       const remote = parseSyncPayload(payload);
       const config = await this.#configuration.load();
-      const [profile, dictionaryLearning, personalizationLearning] =
-        await Promise.all([
-          this.#configuration.getProfile(),
-          this.#configuration.getDictionaryLearningState(),
-          this.#configuration.getPersonalizationState(),
-        ]);
+      const [profile, dictionaryLearning, personalizationLearning] = await Promise.all([
+        this.#configuration.getProfile(),
+        this.#configuration.getDictionaryLearningState(),
+        this.#configuration.getPersonalizationState(),
+      ]);
       const merged = mergeSyncState(
         {
           dictionary: config.dictionary,
@@ -255,12 +231,8 @@ export class SyncService {
         },
       }));
       await this.#configuration.setProfile(merged.profile);
-      await this.#configuration.replaceDictionaryLearningState(
-        merged.dictionaryLearning,
-      );
-      await this.#configuration.replacePersonalizationLearningState(
-        merged.personalizationLearning,
-      );
+      await this.#configuration.replaceDictionaryLearningState(merged.dictionaryLearning);
+      await this.#configuration.replacePersonalizationLearningState(merged.personalizationLearning);
       const recordsMerged = this.#history.importMissing(merged.history);
       const at = Date.now();
       await this.recordResult({
@@ -292,12 +264,11 @@ export class SyncService {
     deviceName: string,
   ): Promise<Buffer> {
     const config = await this.#configuration.load();
-    const [profile, dictionaryLearning, personalizationLearning] =
-      await Promise.all([
-        this.#configuration.getProfile(),
-        this.#configuration.getDictionaryLearningState(),
-        this.#configuration.getPersonalizationState(),
-      ]);
+    const [profile, dictionaryLearning, personalizationLearning] = await Promise.all([
+      this.#configuration.getProfile(),
+      this.#configuration.getDictionaryLearningState(),
+      this.#configuration.getPersonalizationState(),
+    ]);
     return await packSyncFile(
       {
         deviceName,
@@ -357,9 +328,7 @@ export class SyncService {
         throw new Error('S3 storage is incomplete');
       }
       return {
-        directory: normalizeRemoteDirectory(
-          settings.prefix || DEFAULT_S3_PREFIX,
-        ),
+        directory: normalizeRemoteDirectory(settings.prefix || DEFAULT_S3_PREFIX),
         provider: new S3StorageProvider({
           accessKeyId: this.#configuration.revealSecret(settings.accessKeyId),
           bucket: settings.bucket,
@@ -367,9 +336,7 @@ export class SyncService {
           forcePathStyle: settings.forcePathStyle === true,
           prefix: settings.prefix || DEFAULT_S3_PREFIX,
           region: settings.region,
-          secretAccessKey: this.#configuration.revealSecret(
-            settings.secretAccessKey,
-          ),
+          secretAccessKey: this.#configuration.revealSecret(settings.secretAccessKey),
         }),
       };
     }
@@ -378,9 +345,7 @@ export class SyncService {
       throw new Error('WebDAV storage is incomplete');
     }
     return {
-      directory: normalizeRemoteDirectory(
-        settings.basePath || DEFAULT_WEBDAV_BASE_PATH,
-      ),
+      directory: normalizeRemoteDirectory(settings.basePath || DEFAULT_WEBDAV_BASE_PATH),
       provider: new WebDavStorageProvider({
         basePath: settings.basePath || DEFAULT_WEBDAV_BASE_PATH,
         password: this.#configuration.revealSecret(settings.password),
@@ -393,10 +358,7 @@ export class SyncService {
   private async recordResult(entry: StoredSyncLogEntry): Promise<void> {
     await this.#configuration.update((config) => {
       const current = structuredClone(config.sync ?? emptySyncConfig());
-      const recentResults = [entry, ...(current.recentResults ?? [])].slice(
-        0,
-        SYNC_HISTORY_LIMIT,
-      );
+      const recentResults = [entry, ...(current.recentResults ?? [])].slice(0, SYNC_HISTORY_LIMIT);
       const nextSync: StoredSyncConfig = {
         ...current,
         lastSyncAt: entry.at,
@@ -416,9 +378,7 @@ export class SyncService {
       customBackupCode: sync?.backupCodeMode === 'custom',
       enabled: sync?.enabled === true,
       recentResults,
-      ...(sync?.lastSyncAt === undefined
-        ? {}
-        : { lastSyncAt: sync.lastSyncAt }),
+      ...(sync?.lastSyncAt === undefined ? {} : { lastSyncAt: sync.lastSyncAt }),
       ...(sync?.lastSyncError ? { lastSyncError: sync.lastSyncError } : {}),
       ...(sync?.lastSyncStatus ? { lastSyncStatus: sync.lastSyncStatus } : {}),
       ...(sync?.providerId ? { providerId: sync.providerId } : {}),

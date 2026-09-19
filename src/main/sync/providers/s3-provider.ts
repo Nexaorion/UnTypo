@@ -26,8 +26,7 @@ const streamToBuffer = async (body: unknown): Promise<Buffer> => {
   if (
     typeof body === 'object' &&
     'transformToByteArray' in body &&
-    typeof (body as { transformToByteArray?: unknown }).transformToByteArray ===
-      'function'
+    typeof (body as { transformToByteArray?: unknown }).transformToByteArray === 'function'
   ) {
     const bytes = await (
       body as { transformToByteArray: () => Promise<Uint8Array> }
@@ -86,9 +85,7 @@ export class S3StorageProvider implements SyncStorageProvider {
     return streamToBuffer(result.Body);
   }
 
-  async list(
-    remoteDirectory: string,
-  ): Promise<readonly RemoteSyncObjectInfo[]> {
+  async list(remoteDirectory: string): Promise<readonly RemoteSyncObjectInfo[]> {
     const prefix = this.resolveDirectory(remoteDirectory);
     const listed: RemoteSyncObjectInfo[] = [];
     let continuationToken: string | undefined;
@@ -112,9 +109,7 @@ export class S3StorageProvider implements SyncStorageProvider {
           size: object.Size ?? 0,
         });
       }
-      continuationToken = result.IsTruncated
-        ? result.NextContinuationToken
-        : undefined;
+      continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
     } while (continuationToken);
     return listed.sort((left, right) => right.lastModified - left.lastModified);
   }
@@ -130,9 +125,7 @@ export class S3StorageProvider implements SyncStorageProvider {
 
   private resolveDirectory(remoteDirectory: string): string {
     const directory = normalizeRemoteDirectory(remoteDirectory);
-    const combined = directory
-      ? joinRemotePath(this.#prefix, directory)
-      : this.#prefix;
+    const combined = directory ? joinRemotePath(this.#prefix, directory) : this.#prefix;
     return combined ? `${combined}/` : '';
   }
 

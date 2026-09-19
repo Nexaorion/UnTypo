@@ -1,11 +1,5 @@
 import path from 'node:path';
-import {
-  Menu,
-  Tray,
-  app,
-  nativeImage,
-  type MenuItemConstructorOptions,
-} from 'electron';
+import { Menu, Tray, app, nativeImage, type MenuItemConstructorOptions } from 'electron';
 
 type TrayLocale = 'en-US' | 'zh-CN';
 
@@ -50,9 +44,7 @@ export class TrayController {
 
   applyLocale(locale: TrayLocale): void {
     this.#locale = locale;
-    this.#tray?.setToolTip(
-      locale === 'zh-CN' ? 'UnTypo 听写' : 'UnTypo Dictation',
-    );
+    this.#tray?.setToolTip(locale === 'zh-CN' ? 'UnTypo 听写' : 'UnTypo Dictation');
     this.refreshMenu();
   }
 

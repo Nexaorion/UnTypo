@@ -9,12 +9,7 @@ const container = document.getElementById('root');
 if (!container) throw new Error('Selection root is missing');
 createRoot(container).render(
   <StrictMode>
-    <ThemeProvider
-      defaultMode="system"
-      disableTransitionOnChange
-      noSsr
-      theme={theme}
-    >
+    <ThemeProvider defaultMode="system" disableTransitionOnChange noSsr theme={theme}>
       <CssBaseline enableColorScheme />
       <SelectionApp />
     </ThemeProvider>

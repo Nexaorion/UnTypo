@@ -4,10 +4,7 @@ import type {
   ProcessResult,
   TextGenerationProvider,
 } from '../../core/providers/contracts.js';
-import type {
-  SelectionError,
-  SelectionState,
-} from '../../shared/selection-ipc.js';
+import type { SelectionError, SelectionState } from '../../shared/selection-ipc.js';
 import type { NativeSelection } from '../native/protocol.js';
 
 export interface SelectionContext {
@@ -37,10 +34,7 @@ export class SelectionSession {
   #abort?: AbortController;
   #state: SelectionState;
 
-  constructor(
-    locale: SupportedLanguage,
-    publish: (state: SelectionState) => void,
-  ) {
+  constructor(locale: SupportedLanguage, publish: (state: SelectionState) => void) {
     this.#publish = publish;
     this.#state = {
       sessionId: randomUUID(),
@@ -124,18 +118,13 @@ export class SelectionSession {
         },
       });
       if (this.#abort !== abort) return;
-      if (
-        abort.signal.aborted ||
-        !result.outputText.trim() ||
-        result.outputText.length > 100_000
-      ) {
+      if (abort.signal.aborted || !result.outputText.trim() || result.outputText.length > 100_000) {
         this.fail('processing');
       } else {
         this.update({
           phase: 'ready',
           output: result.outputText,
-          intent:
-            result.intent === 'translation' ? 'translation' : 'instruction',
+          intent: result.intent === 'translation' ? 'translation' : 'instruction',
         });
       }
     } catch {

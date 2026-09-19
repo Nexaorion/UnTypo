@@ -9,9 +9,7 @@ export const BACKUP_CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 const alphabetSet = new Set(BACKUP_CODE_ALPHABET);
 
-export const generateBackupCode = (
-  length = SYNC_BACKUP_CODE_GENERATED_LENGTH,
-): string => {
+export const generateBackupCode = (length = SYNC_BACKUP_CODE_GENERATED_LENGTH): string => {
   if (
     !Number.isInteger(length) ||
     length < SYNC_BACKUP_CODE_MIN_LENGTH ||

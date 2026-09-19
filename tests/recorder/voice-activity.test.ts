@@ -26,12 +26,7 @@ describe('VoiceActivityDetector', () => {
 
     for (let index = 0; index < 5; index += 1) {
       detector.observe(silent, spectrum(false), sampleRateHz, frameDurationMs);
-      detector.observe(
-        backgroundNoise,
-        spectrum(false),
-        sampleRateHz,
-        frameDurationMs,
-      );
+      detector.observe(backgroundNoise, spectrum(false), sampleRateHz, frameDurationMs);
     }
 
     expect(detector.snapshot()).toEqual({
@@ -44,12 +39,7 @@ describe('VoiceActivityDetector', () => {
     const detector = new VoiceActivityDetector();
 
     for (let index = 0; index < 2; index += 1) {
-      detector.observe(
-        samplesAtLevel(0.02),
-        spectrum(true),
-        sampleRateHz,
-        frameDurationMs,
-      );
+      detector.observe(samplesAtLevel(0.02), spectrum(true), sampleRateHz, frameDurationMs);
     }
 
     expect(detector.snapshot()).toEqual({
@@ -60,12 +50,7 @@ describe('VoiceActivityDetector', () => {
 
   it('requires a sustained voice segment instead of a single click-like frame', () => {
     const detector = new VoiceActivityDetector();
-    detector.observe(
-      samplesAtLevel(0.05),
-      spectrum(true),
-      sampleRateHz,
-      frameDurationMs,
-    );
+    detector.observe(samplesAtLevel(0.05), spectrum(true), sampleRateHz, frameDurationMs);
 
     expect(detector.snapshot()).toEqual({
       speechDurationMs: 80,

@@ -177,12 +177,10 @@ const Capsule = () => {
       className="capsule"
       data-status={status.type}
       onPointerEnter={() =>
-        (terminal || confirmMode || dictionaryMode) &&
-        window.capsule.setInteractive(true)
+        (terminal || confirmMode || dictionaryMode) && window.capsule.setInteractive(true)
       }
       onPointerLeave={() =>
-        (terminal || confirmMode || dictionaryMode) &&
-        window.capsule.setInteractive(false)
+        (terminal || confirmMode || dictionaryMode) && window.capsule.setInteractive(false)
       }
       role="status"
     >
@@ -206,11 +204,7 @@ const Capsule = () => {
       </div>
 
       {dictionaryMode ? (
-        <DictionarySuggestion
-          key={status.term}
-          status={status}
-          viewModel={viewModel}
-        />
+        <DictionarySuggestion key={status.term} status={status} viewModel={viewModel} />
       ) : confirmMode ? (
         <div className="capsule-actions">
           <button onClick={() => window.capsule.confirm()} type="button">

@@ -81,9 +81,7 @@ export const encodeNativeFrame = (
   if (payload.byteLength > NATIVE_MAXIMUM_PAYLOAD_BYTES) {
     throw new Error('Native helper payload is too large');
   }
-  const frame = Buffer.allocUnsafe(
-    NATIVE_FRAME_HEADER_BYTES + payload.byteLength,
-  );
+  const frame = Buffer.allocUnsafe(NATIVE_FRAME_HEADER_BYTES + payload.byteLength);
   frame.writeUInt32LE(NATIVE_PROTOCOL_MAGIC, 0);
   frame.writeUInt16LE(NATIVE_PROTOCOL_VERSION, 4);
   frame.writeUInt16LE(type, 6);
@@ -92,9 +90,7 @@ export const encodeNativeFrame = (
   return frame;
 };
 
-export const encodeHotkeyConfiguration = (
-  configuration: NativeHotkeyConfiguration,
-): Buffer => {
+export const encodeHotkeyConfiguration = (configuration: NativeHotkeyConfiguration): Buffer => {
   if (
     !Number.isInteger(configuration.virtualKey) ||
     configuration.virtualKey < 1 ||
@@ -171,10 +167,7 @@ export class NativeFrameDecoder {
       const version = this.#buffer.readUInt16LE(4);
       const type = this.#buffer.readUInt16LE(6);
       const payloadBytes = this.#buffer.readUInt32LE(8);
-      if (
-        magic !== NATIVE_PROTOCOL_MAGIC ||
-        version !== NATIVE_PROTOCOL_VERSION
-      ) {
+      if (magic !== NATIVE_PROTOCOL_MAGIC || version !== NATIVE_PROTOCOL_VERSION) {
         throw new Error('Native helper protocol header is invalid');
       }
       if (payloadBytes > NATIVE_MAXIMUM_PAYLOAD_BYTES) {

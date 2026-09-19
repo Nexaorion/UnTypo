@@ -42,8 +42,7 @@ afterEach(async () => {
   await rm(temporaryDirectory, { force: true, recursive: true });
 });
 
-const platformDefaultHotkey =
-  process.platform === 'darwin' ? 'Ctrl+Shift+D' : 'Ctrl+Alt+Space';
+const platformDefaultHotkey = process.platform === 'darwin' ? 'Ctrl+Shift+D' : 'Ctrl+Alt+Space';
 
 describe('ConfigurationService', () => {
   it('returns the bilingual Windows defaults before the first write', async () => {
@@ -124,15 +123,9 @@ describe('ConfigurationService', () => {
       },
       updates: { autoCheck: true, autoDownload: true },
     });
-    await expect(readFile(configPath, 'utf8')).resolves.toContain(
-      '"autoDownload": true',
-    );
-    await expect(readFile(configPath, 'utf8')).resolves.toContain(
-      '"showErrorDialogs": false',
-    );
-    await expect(readFile(configPath, 'utf8')).resolves.toContain(
-      '"version": 5',
-    );
+    await expect(readFile(configPath, 'utf8')).resolves.toContain('"autoDownload": true');
+    await expect(readFile(configPath, 'utf8')).resolves.toContain('"showErrorDialogs": false');
+    await expect(readFile(configPath, 'utf8')).resolves.toContain('"version": 5');
   });
 
   it('rejects migrated terms that exceed the limit after normalization', async () => {
@@ -177,18 +170,13 @@ describe('ConfigurationService', () => {
 
     await expect(service.load()).resolves.toMatchObject({
       dictation: {
-        hotkeyAccelerator:
-          process.platform === 'darwin' ? 'Ctrl+Shift+D' : 'Ctrl+Alt+Space',
+        hotkeyAccelerator: process.platform === 'darwin' ? 'Ctrl+Shift+D' : 'Ctrl+Alt+Space',
       },
     });
     await expect(readFile(configPath, 'utf8')).resolves.toContain(
-      `"hotkeyAccelerator": "${
-        process.platform === 'darwin' ? 'Ctrl+Shift+D' : 'Ctrl+Alt+Space'
-      }"`,
+      `"hotkeyAccelerator": "${process.platform === 'darwin' ? 'Ctrl+Shift+D' : 'Ctrl+Alt+Space'}"`,
     );
-    await expect(readFile(configPath, 'utf8')).resolves.not.toContain(
-      '"hotkeyMode"',
-    );
+    await expect(readFile(configPath, 'utf8')).resolves.not.toContain('"hotkeyMode"');
   });
 
   it('replaces the Windows default hotkey on macOS', async () => {
@@ -256,9 +244,7 @@ describe('ConfigurationService', () => {
         hotkeyAccelerator: 'Ctrl+Alt+K',
       },
     });
-    await expect(readFile(configPath, 'utf8')).resolves.not.toContain(
-      '"hotkeyMode"',
-    );
+    await expect(readFile(configPath, 'utf8')).resolves.not.toContain('"hotkeyMode"');
   });
 
   it('migrates a v4 configuration to v5 without requiring sync settings', async () => {
@@ -294,9 +280,7 @@ describe('ConfigurationService', () => {
     );
 
     await expect(service.load()).resolves.toMatchObject({ version: 5 });
-    await expect(readFile(configPath, 'utf8')).resolves.toContain(
-      '"version": 5',
-    );
+    await expect(readFile(configPath, 'utf8')).resolves.toContain('"version": 5');
   });
 
   it('normalizes the global dictionary', async () => {
@@ -316,9 +300,7 @@ describe('ConfigurationService', () => {
   });
 
   it('persists an explicit microphone without changing automatic defaults', async () => {
-    expect((await service.load()).dictation).not.toHaveProperty(
-      'microphoneDeviceId',
-    );
+    expect((await service.load()).dictation).not.toHaveProperty('microphoneDeviceId');
 
     await service.update((config) => ({
       ...config,
@@ -397,9 +379,7 @@ describe('ConfigurationService', () => {
       providers: Array<{ secrets: { apiKey: unknown } }>;
     };
 
-    expect(after.providers[0]?.secrets.apiKey).toEqual(
-      before.providers[0]?.secrets.apiKey,
-    );
+    expect(after.providers[0]?.secrets.apiKey).toEqual(before.providers[0]?.secrets.apiKey);
     await expect(service.getProvider('primary-text')).resolves.toMatchObject({
       secrets: { apiKey: 'anthropic-secret' },
       values: { model: 'claude-opus-4-1' },
@@ -438,9 +418,7 @@ describe('ConfigurationService', () => {
       },
     });
 
-    await expect(
-      service.getProvider('bailian-realtime'),
-    ).resolves.toMatchObject({
+    await expect(service.getProvider('bailian-realtime')).resolves.toMatchObject({
       values: {
         model: 'qwen-audio-3.0-asr-flash-streaming',
         realtimeSpeechEnabled: true,
@@ -554,9 +532,7 @@ describe('ConfigurationService', () => {
       'utf8',
     );
 
-    await expect(service.load()).rejects.toThrow(
-      'Active speech provider profile is invalid',
-    );
+    await expect(service.load()).rejects.toThrow('Active speech provider profile is invalid');
   });
 
   it('migrates a combined v1 OpenAI profile into text and speech profiles', async () => {
@@ -706,10 +682,7 @@ describe('ConfigurationService', () => {
 
     const migrated = await service.load();
     expect(migrated.providers).toHaveLength(2);
-    expect(migrated.providers.map(({ id }) => id)).toEqual([
-      'legacy-valid',
-      'legacy-valid-text',
-    ]);
+    expect(migrated.providers.map(({ id }) => id)).toEqual(['legacy-valid', 'legacy-valid-text']);
     expect(migrated.dictation).toMatchObject({
       activeSpeechProviderProfileId: 'legacy-valid',
       activeTextProviderProfileId: 'legacy-valid-text',

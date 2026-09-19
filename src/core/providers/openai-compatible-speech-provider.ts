@@ -16,8 +16,7 @@ import {
   type ProviderConnectionConfiguration,
 } from './provider-http.js';
 
-export type OpenAICompatibleSpeechProviderConfiguration =
-  ProviderConnectionConfiguration;
+export type OpenAICompatibleSpeechProviderConfiguration = ProviderConnectionConfiguration;
 
 interface OpenAITranscriptionPayload {
   text?: string;
@@ -41,9 +40,7 @@ const maximumUploadBytes = 25 * 1024 * 1024;
 const maximumPromptUtf8Bytes = 200;
 const promptPrefix = 'Preserve these terms exactly: ';
 
-const dictionaryPrompt = (
-  dictionary: readonly string[],
-): string | undefined => {
+const dictionaryPrompt = (dictionary: readonly string[]): string | undefined => {
   const encoder = new TextEncoder();
   let prompt = promptPrefix;
   for (const term of new Set(dictionary.map((entry) => entry.trim()))) {
@@ -83,10 +80,7 @@ export class OpenAICompatibleSpeechProvider implements SpeechRecognitionProvider
     this.#fetch = fetchImplementation;
   }
 
-  async transcribe(
-    audio: AudioPayload,
-    options: TranscribeOptions,
-  ): Promise<TranscriptResult> {
+  async transcribe(audio: AudioPayload, options: TranscribeOptions): Promise<TranscriptResult> {
     if (audio.bytes.byteLength > maximumUploadBytes) {
       throw new ProviderContractError(
         'INVALID_OPTIONS',
@@ -104,15 +98,12 @@ export class OpenAICompatibleSpeechProvider implements SpeechRecognitionProvider
     const prompt = dictionaryPrompt(options.dictionary);
     if (prompt) form.append('prompt', prompt);
 
-    const response = await this.#fetch(
-      providerUrl(this.#baseUrl, '/audio/transcriptions'),
-      {
-        body: form,
-        headers: { Authorization: `Bearer ${this.#apiKey}` },
-        method: 'POST',
-        signal: options.signal,
-      },
-    );
+    const response = await this.#fetch(providerUrl(this.#baseUrl, '/audio/transcriptions'), {
+      body: form,
+      headers: { Authorization: `Bearer ${this.#apiKey}` },
+      method: 'POST',
+      signal: options.signal,
+    });
     const payload = (await readProviderJson(
       response,
       'OpenAI-compatible speech provider',

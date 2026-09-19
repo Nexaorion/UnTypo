@@ -34,10 +34,7 @@ const options: ProcessOptions = {
 };
 
 const loadFixtures = async (): Promise<ContractFixture[]> => {
-  const source = await readFile(
-    'tests/fixtures/provider/v1/contract-cases.json',
-    'utf8',
-  );
+  const source = await readFile('tests/fixtures/provider/v1/contract-cases.json', 'utf8');
   return JSON.parse(source) as ContractFixture[];
 };
 
@@ -47,9 +44,7 @@ describe('provider contract v3', () => {
   });
 
   it('accepts the bundled mock provider', () => {
-    expect(() =>
-      assertProviderContract(new MockDictationProvider()),
-    ).not.toThrow();
+    expect(() => assertProviderContract(new MockDictationProvider())).not.toThrow();
   });
 
   it('runs all provider fixtures through the default pipeline', async () => {
@@ -57,10 +52,7 @@ describe('provider contract v3', () => {
 
     for (const fixture of fixtures) {
       const provider = new MockDictationProvider(fixture);
-      const result = await new DictationPipeline(provider, provider).process(
-        audio,
-        options,
-      );
+      const result = await new DictationPipeline(provider, provider).process(audio, options);
 
       expect(result, fixture.name).toMatchObject({
         intent: fixture.intent,
@@ -77,13 +69,10 @@ describe('provider contract v3', () => {
       translatedText: { 'en-US': 'Hello' },
     });
 
-    const result = await new DictationPipeline(provider, provider).process(
-      audio,
-      {
-        ...options,
-        preferIntegratedProcess: true,
-      },
-    );
+    const result = await new DictationPipeline(provider, provider).process(audio, {
+      ...options,
+      preferIntegratedProcess: true,
+    });
 
     expect(result).toMatchObject({
       intent: 'translation',

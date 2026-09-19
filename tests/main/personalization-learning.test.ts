@@ -22,10 +22,7 @@ let service: WritingPreferenceLearningService;
 beforeEach(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), 'untypo-personalization-'));
   configPath = path.join(directory, 'config.json');
-  configuration = new ConfigurationService(
-    configPath,
-    new MemorySecretProtector(),
-  );
+  configuration = new ConfigurationService(configPath, new MemorySecretProtector());
   now = Date.UTC(2026, 7, 29);
   service = new WritingPreferenceLearningService(configuration, () => now);
   await configuration.setPersonalizationLearningEnabled(true);
@@ -51,8 +48,7 @@ describe('WritingPreferenceLearningService', () => {
       occurrences: 2,
       value: 'polite',
     });
-    if (!suggestion)
-      throw new Error('Expected a writing preference suggestion');
+    if (!suggestion) throw new Error('Expected a writing preference suggestion');
 
     await service.accept(suggestion.id);
 
@@ -68,8 +64,7 @@ describe('WritingPreferenceLearningService', () => {
     now += 1_000;
     await service.observe([politeTone], 'office');
     const suggestion = (await service.snapshot()).suggestions[0];
-    if (!suggestion)
-      throw new Error('Expected a writing preference suggestion');
+    if (!suggestion) throw new Error('Expected a writing preference suggestion');
     await service.reject(suggestion.id);
 
     now += 29 * 24 * 60 * 60 * 1_000;
@@ -92,13 +87,9 @@ describe('WritingPreferenceLearningService', () => {
     now += 1_000;
     await service.observe([politeTone], 'chat-app');
     const suggestion = (await service.snapshot()).suggestions[0];
-    if (!suggestion)
-      throw new Error('Expected a writing preference suggestion');
+    if (!suggestion) throw new Error('Expected a writing preference suggestion');
     await service.accept(suggestion.id);
-    await service.observe(
-      [{ confidence: 0.9, kind: 'expression', value: '诶' }],
-      'chat-app',
-    );
+    await service.observe([{ confidence: 0.9, kind: 'expression', value: '诶' }], 'chat-app');
 
     await configuration.setPersonalizationLearningEnabled(false);
 
@@ -106,9 +97,10 @@ describe('WritingPreferenceLearningService', () => {
       preferences: [{ value: 'polite' }],
       suggestions: [],
     });
-    await expect(
-      configuration.getPersonalizationState(),
-    ).resolves.toMatchObject({ candidates: [], rejections: [] });
+    await expect(configuration.getPersonalizationState()).resolves.toMatchObject({
+      candidates: [],
+      rejections: [],
+    });
 
     await service.clear();
     await expect(service.snapshot()).resolves.toEqual({

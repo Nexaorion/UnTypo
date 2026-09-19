@@ -10,33 +10,22 @@ import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import type {
-  ClientHistoryModelCall,
-  ClientHistoryRecord,
-} from '../../shared/ipc.js';
+import type { ClientHistoryModelCall, ClientHistoryRecord } from '../../shared/ipc.js';
 import { useI18n } from '../i18n/context.js';
 import { formatBytes, formatDuration } from '../logic/history.js';
 import { tokens } from '../theme.js';
 
 const Metric = ({ label, value }: { label: string; value: string }) => (
-  <Paper
-    variant="outlined"
-    sx={{ flex: '1 1 132px', minWidth: 0, px: 1.75, py: 1.4 }}
-  >
+  <Paper variant="outlined" sx={{ flex: '1 1 132px', minWidth: 0, px: 1.75, py: 1.4 }}>
     <Typography color="text.secondary" variant="caption">
       {label}
     </Typography>
-    <Typography sx={{ fontSize: 17, fontWeight: 750, mt: 0.25 }}>
-      {value}
-    </Typography>
+    <Typography sx={{ fontSize: 17, fontWeight: 750, mt: 0.25 }}>{value}</Typography>
   </Paper>
 );
 
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
-  <Stack
-    direction="row"
-    sx={{ gap: 2, justifyContent: 'space-between', minWidth: 0 }}
-  >
+  <Stack direction="row" sx={{ gap: 2, justifyContent: 'space-between', minWidth: 0 }}>
     <Typography color="text.secondary" variant="caption">
       {label}
     </Typography>
@@ -77,13 +66,7 @@ const TextBlock = ({ label, value }: { label: string; value: string }) => (
   </Stack>
 );
 
-const ModelCallCard = ({
-  call,
-  index,
-}: {
-  call: ClientHistoryModelCall;
-  index: number;
-}) => {
+const ModelCallCard = ({ call, index }: { call: ClientHistoryModelCall; index: number }) => {
   const { t } = useI18n();
   const isSpeech = call.kind === 'speech-recognition';
   const provider = call.providerName ?? call.providerType ?? call.providerId;
@@ -101,18 +84,14 @@ const ModelCallCard = ({
         >
           <Stack direction="row" sx={{ alignItems: 'center', gap: 1 }}>
             <Chip
-              label={
-                isSpeech ? t('history.trace.speech') : t('history.trace.text')
-              }
+              label={isSpeech ? t('history.trace.speech') : t('history.trace.text')}
               size="small"
               variant="outlined"
             />
             <Chip
               color={call.status === 'success' ? 'success' : 'error'}
               label={
-                call.status === 'success'
-                  ? t('history.trace.success')
-                  : t('history.trace.failed')
+                call.status === 'success' ? t('history.trace.success') : t('history.trace.failed')
               }
               size="small"
             />
@@ -120,28 +99,19 @@ const ModelCallCard = ({
           <Stack direction="row" sx={{ alignItems: 'baseline', gap: 1.25 }}>
             {call.firstOutputMs === undefined ? null : (
               <Typography color="text.secondary" variant="caption">
-                {t('history.trace.firstOutput')}{' '}
-                {formatDuration(call.firstOutputMs)}
+                {t('history.trace.firstOutput')} {formatDuration(call.firstOutputMs)}
               </Typography>
             )}
-            <Typography sx={{ fontWeight: 760 }}>
-              {formatDuration(call.durationMs)}
-            </Typography>
+            <Typography sx={{ fontWeight: 760 }}>{formatDuration(call.durationMs)}</Typography>
           </Stack>
         </Stack>
 
         <Stack sx={{ gap: 0.5 }}>
           <DetailRow label={t('history.trace.provider')} value={provider} />
           {call.modelName ? (
-            <DetailRow
-              label={t('history.trace.model')}
-              value={call.modelName}
-            />
+            <DetailRow label={t('history.trace.model')} value={call.modelName} />
           ) : null}
-          <DetailRow
-            label={t('history.trace.profileId')}
-            value={call.providerId}
-          />
+          <DetailRow label={t('history.trace.profileId')} value={call.providerId} />
         </Stack>
 
         <Divider />
@@ -155,10 +125,7 @@ const ModelCallCard = ({
               label={t('history.trace.audioDuration')}
               value={formatDuration(call.input.audioDurationMs)}
             />
-            <DetailRow
-              label={t('history.trace.audioFormat')}
-              value={call.input.mimeType}
-            />
+            <DetailRow label={t('history.trace.audioFormat')} value={call.input.mimeType} />
             <DetailRow
               label={t('history.trace.payloadSize')}
               value={formatBytes(call.input.payloadSizeBytes)}
@@ -167,14 +134,8 @@ const ModelCallCard = ({
               label={t('history.trace.sampleRate')}
               value={`${call.input.sampleRateHz} Hz`}
             />
-            <DetailRow
-              label={t('history.trace.channels')}
-              value={String(call.input.channels)}
-            />
-            <DetailRow
-              label={t('history.trace.language')}
-              value={call.input.language}
-            />
+            <DetailRow label={t('history.trace.channels')} value={String(call.input.channels)} />
+            <DetailRow label={t('history.trace.language')} value={call.input.language} />
             <DetailRow
               label={t('history.trace.dictionaryTerms')}
               value={String(call.input.dictionaryTermCount)}
@@ -185,15 +146,9 @@ const ModelCallCard = ({
             <Typography sx={{ fontWeight: 700 }} variant="subtitle2">
               {t('history.trace.input')}
             </Typography>
-            <TextBlock
-              label={t('history.trace.inputText')}
-              value={call.input.text}
-            />
+            <TextBlock label={t('history.trace.inputText')} value={call.input.text} />
             <Stack sx={{ gap: 0.5 }}>
-              <DetailRow
-                label={t('history.trace.language')}
-                value={call.input.locale}
-              />
+              <DetailRow label={t('history.trace.language')} value={call.input.locale} />
               <DetailRow
                 label={t('history.trace.defaultTarget')}
                 value={call.input.defaultTargetLanguage}
@@ -235,24 +190,16 @@ const ModelCallCard = ({
                 />
               ) : null}
               {call.input.tone ? (
-                <DetailRow
-                  label={t('history.trace.tone')}
-                  value={call.input.tone}
-                />
+                <DetailRow label={t('history.trace.tone')} value={call.input.tone} />
               ) : null}
             </Stack>
           </Stack>
         )}
 
         {call.outputText ? (
-          <TextBlock
-            label={t('history.trace.output')}
-            value={call.outputText}
-          />
+          <TextBlock label={t('history.trace.output')} value={call.outputText} />
         ) : null}
-        {call.error ? (
-          <TextBlock label={t('history.trace.error')} value={call.error} />
-        ) : null}
+        {call.error ? <TextBlock label={t('history.trace.error')} value={call.error} /> : null}
       </Stack>
     </Paper>
   );
@@ -285,11 +232,7 @@ export const ModelCallDetailsDialog = ({
               {t('history.trace.title')}
             </Typography>
             {trace ? (
-              <Typography
-                color="text.secondary"
-                sx={{ display: 'block' }}
-                variant="caption"
-              >
+              <Typography color="text.secondary" sx={{ display: 'block' }} variant="caption">
                 {t('history.trace.operationId', { id: trace.operationId })}
               </Typography>
             ) : null}
@@ -298,10 +241,7 @@ export const ModelCallDetailsDialog = ({
       </DialogTitle>
       <DialogContent dividers>
         {!trace ? (
-          <Typography
-            color="text.secondary"
-            sx={{ py: 4, textAlign: 'center' }}
-          >
+          <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
             {t('history.trace.unavailable')}
           </Typography>
         ) : (
@@ -336,9 +276,7 @@ export const ModelCallDetailsDialog = ({
             </Typography>
 
             {trace.modelCalls.length === 0 ? (
-              <Typography color="text.secondary">
-                {t('history.trace.noCalls')}
-              </Typography>
+              <Typography color="text.secondary">{t('history.trace.noCalls')}</Typography>
             ) : (
               <Stack sx={{ gap: 1.5 }}>
                 {trace.modelCalls.map((call, index) => (

@@ -1,7 +1,4 @@
-import type {
-  DictationIntent,
-  SupportedLanguage,
-} from '../core/providers/contracts.js';
+import type { DictationIntent, SupportedLanguage } from '../core/providers/contracts.js';
 
 export const CAPSULE_CHANNELS = {
   close: 'capsule:close',
@@ -17,15 +14,9 @@ export const CAPSULE_CHANNELS = {
 } as const;
 
 export type CapsuleErrorReason =
-  | 'configuration'
-  | 'empty'
-  | 'microphone'
-  | 'no-speech'
-  | 'provider'
-  | 'unknown';
+  'configuration' | 'empty' | 'microphone' | 'no-speech' | 'provider' | 'unknown';
 
-export type DictionarySuggestionError =
-  'duplicate' | 'empty' | 'full' | 'too-long' | 'unavailable';
+export type DictionarySuggestionError = 'duplicate' | 'empty' | 'full' | 'too-long' | 'unavailable';
 
 export type CapsuleStatus =
   | {

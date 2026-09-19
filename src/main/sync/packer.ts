@@ -1,9 +1,4 @@
-import {
-  createCipheriv,
-  createDecipheriv,
-  pbkdf2,
-  randomBytes,
-} from 'node:crypto';
+import { createCipheriv, createDecipheriv, pbkdf2, randomBytes } from 'node:crypto';
 import { promisify } from 'node:util';
 import { parseBackupCode } from './backup-code.js';
 
@@ -44,20 +39,10 @@ export interface UntypoSyncPayload {
 }
 
 export class UntypoFileError extends Error {
-  readonly code:
-    | 'CORRUPT'
-    | 'INVALID_HEADER'
-    | 'INVALID_MAGIC'
-    | 'INVALID_PASSWORD'
-    | 'TOO_LARGE';
+  readonly code: 'CORRUPT' | 'INVALID_HEADER' | 'INVALID_MAGIC' | 'INVALID_PASSWORD' | 'TOO_LARGE';
 
   constructor(
-    code:
-      | 'CORRUPT'
-      | 'INVALID_HEADER'
-      | 'INVALID_MAGIC'
-      | 'INVALID_PASSWORD'
-      | 'TOO_LARGE',
+    code: 'CORRUPT' | 'INVALID_HEADER' | 'INVALID_MAGIC' | 'INVALID_PASSWORD' | 'TOO_LARGE',
     message: string,
   ) {
     super(message);
@@ -78,13 +63,7 @@ const encodeLengthPrefixed = (value: Buffer): Buffer => {
 const pbkdf2Async = promisify(pbkdf2);
 
 const deriveKey = async (backupCode: string, salt: Buffer): Promise<Buffer> =>
-  pbkdf2Async(
-    backupCode,
-    salt,
-    PBKDF2_ITERATIONS,
-    PBKDF2_KEY_LENGTH,
-    PBKDF2_DIGEST,
-  );
+  pbkdf2Async(backupCode, salt, PBKDF2_ITERATIONS, PBKDF2_KEY_LENGTH, PBKDF2_DIGEST);
 
 const decodeBase64Exact = (value: string, expectedLength: number): Buffer => {
   const decoded = Buffer.from(value, 'base64');
@@ -106,8 +85,7 @@ const parseHeader = (value: unknown): UntypoFileHeader => {
     typeof value.appVersion !== 'string' ||
     value.appVersion.length === 0 ||
     value.appVersion.length > 64 ||
-    (value.contentType !== 'full-backup' &&
-      value.contentType !== 'incremental') ||
+    (value.contentType !== 'full-backup' && value.contentType !== 'incremental') ||
     typeof value.salt !== 'string' ||
     typeof value.iv !== 'string' ||
     typeof value.authTag !== 'string'
@@ -187,11 +165,7 @@ const packEncryptedPayload = async (
     version: UNTYPO_FILE_VERSION,
   };
   const encodedHeader = Buffer.from(JSON.stringify(header), 'utf8');
-  return Buffer.concat([
-    UNTYPO_FILE_MAGIC,
-    encodeLengthPrefixed(encodedHeader),
-    encrypted,
-  ]);
+  return Buffer.concat([UNTYPO_FILE_MAGIC, encodeLengthPrefixed(encodedHeader), encrypted]);
 };
 
 export const packSyncFile = (
@@ -227,18 +201,12 @@ const unpackEncryptedPayload = async (
   const headerLength = buffer.readUInt32LE(UNTYPO_FILE_MAGIC.length);
   const headerStart = UNTYPO_FILE_MAGIC.length + HEADER_LENGTH_BYTES;
   const headerEnd = headerStart + headerLength;
-  if (
-    headerLength === 0 ||
-    headerLength > MAXIMUM_HEADER_LENGTH ||
-    headerEnd > buffer.length
-  ) {
+  if (headerLength === 0 || headerLength > MAXIMUM_HEADER_LENGTH || headerEnd > buffer.length) {
     throw new UntypoFileError('INVALID_HEADER', 'File header is invalid');
   }
   let parsedHeader: unknown;
   try {
-    parsedHeader = JSON.parse(
-      buffer.subarray(headerStart, headerEnd).toString('utf8'),
-    );
+    parsedHeader = JSON.parse(buffer.subarray(headerStart, headerEnd).toString('utf8'));
   } catch {
     throw new UntypoFileError('INVALID_HEADER', 'File header is invalid');
   }
@@ -252,10 +220,7 @@ const unpackEncryptedPayload = async (
   decipher.setAuthTag(authTag);
   let decrypted: Buffer;
   try {
-    decrypted = Buffer.concat([
-      decipher.update(buffer.subarray(headerEnd)),
-      decipher.final(),
-    ]);
+    decrypted = Buffer.concat([decipher.update(buffer.subarray(headerEnd)), decipher.final()]);
   } catch {
     throw new UntypoFileError(
       'INVALID_PASSWORD',

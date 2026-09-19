@@ -17,9 +17,7 @@ import { createStoredConfig } from './fixtures.js';
 const savedAccelerator = 'Ctrl+Alt+Space';
 const alternateAccelerator = 'Alt+F12';
 
-const createManager = (overrides?: {
-  onAction?: (action: NativeHotkeyAction) => void;
-}) => {
+const createManager = (overrides?: { onAction?: (action: NativeHotkeyAction) => void }) => {
   const load = vi.fn(() => createStoredConfig());
   const configuration = { load } as unknown as ConfigurationService;
   const diagnostics = {
@@ -96,9 +94,7 @@ describe('HotkeyManager', () => {
     await manager.setCaptureActive(true);
     await manager.setCaptureActive(false);
 
-    expect(configureHotkey).toHaveBeenCalledWith(
-      parseHotkeyAccelerator(savedAccelerator),
-    );
+    expect(configureHotkey).toHaveBeenCalledWith(parseHotkeyAccelerator(savedAccelerator));
   });
 
   it('rolls back to the saved accelerator when resuming fails', async () => {
@@ -109,9 +105,7 @@ describe('HotkeyManager', () => {
     await manager.setCaptureActive(true);
     await manager.apply(alternateAccelerator);
 
-    await expect(manager.setCaptureActive(false)).rejects.toThrow(
-      'unavailable',
-    );
+    await expect(manager.setCaptureActive(false)).rejects.toThrow('unavailable');
 
     expect(configureHotkey).toHaveBeenCalledTimes(2);
     expect(diagnostics.recordIssue).toHaveBeenCalledWith(

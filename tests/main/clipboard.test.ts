@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ClipboardInjectionService } from '../../src/main/dictation/clipboard';
-import {
-  NativePasteStatus,
-  type NativeTargetSnapshot,
-} from '../../src/main/native/protocol';
+import { NativePasteStatus, type NativeTargetSnapshot } from '../../src/main/native/protocol';
 
 const target: NativeTargetSnapshot = {
   editable: true,

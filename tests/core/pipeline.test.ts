@@ -64,14 +64,11 @@ describe('DictationPipeline', () => {
     });
     const processTranscript = vi.spyOn(provider, 'processTranscript');
 
-    const result = await new DictationPipeline(provider, provider).process(
-      audio,
-      {
-        ...options,
-        explicitTargetLanguage: 'en-US',
-        writingStyle: 'concise',
-      },
-    );
+    const result = await new DictationPipeline(provider, provider).process(audio, {
+      ...options,
+      explicitTargetLanguage: 'en-US',
+      writingStyle: 'concise',
+    });
 
     expect(result).toMatchObject({
       intent: 'translation',
@@ -135,9 +132,7 @@ describe('DictationPipeline', () => {
     };
     const provider = new MockDictationProvider({
       dictionaryCandidates: [dictionaryCandidate],
-      preferenceCandidates: [
-        { confidence: 0.95, kind: 'tone', value: 'polite' },
-      ],
+      preferenceCandidates: [{ confidence: 0.95, kind: 'tone', value: 'polite' }],
       transcript: 'Use UnTypo',
     });
 
@@ -150,9 +145,7 @@ describe('DictationPipeline', () => {
     ).resolves.toMatchObject({
       dictionaryCandidates: [dictionaryCandidate],
       outputText: 'Use UnTypo',
-      preferenceCandidates: [
-        { confidence: 0.95, kind: 'tone', value: 'polite' },
-      ],
+      preferenceCandidates: [{ confidence: 0.95, kind: 'tone', value: 'polite' }],
     });
   });
 
@@ -229,9 +222,7 @@ describe('DictationPipeline', () => {
       transcript: '  raw speech result  ',
     });
 
-    await expect(
-      new DictationPipeline(speech).process(audio, options),
-    ).resolves.toMatchObject({
+    await expect(new DictationPipeline(speech).process(audio, options)).resolves.toMatchObject({
       intent: 'transcription',
       outputText: 'raw speech result',
       rawTranscript: 'raw speech result',
@@ -270,10 +261,7 @@ describe('DictationPipeline', () => {
     vi.spyOn(failedSpeech, 'transcribe').mockRejectedValueOnce(speechFailure);
 
     await expect(
-      new DictationPipeline(failedSpeech, new MockDictationProvider()).process(
-        audio,
-        options,
-      ),
+      new DictationPipeline(failedSpeech, new MockDictationProvider()).process(audio, options),
     ).rejects.toBe(speechFailure);
 
     await expect(
@@ -292,9 +280,9 @@ describe('DictationPipeline', () => {
       outputText: '   ',
     });
 
-    await expect(
-      new DictationPipeline(speech, text).process(audio, options),
-    ).rejects.toMatchObject({ code: 'EMPTY_RESULT' });
+    await expect(new DictationPipeline(speech, text).process(audio, options)).rejects.toMatchObject(
+      { code: 'EMPTY_RESULT' },
+    );
   });
 
   it('keeps an abort during text processing hard', async () => {
@@ -319,19 +307,14 @@ describe('DictationPipeline', () => {
     const speech = new MockDictationProvider({ transcript: 'raw transcript' });
     vi.spyOn(speech, 'transcribe').mockImplementationOnce(() => {
       controller.abort();
-      return Promise.reject(
-        new DOMException('This operation was aborted', 'AbortError'),
-      );
+      return Promise.reject(new DOMException('This operation was aborted', 'AbortError'));
     });
 
     await expect(
-      new DictationPipeline(speech, new MockDictationProvider()).process(
-        audio,
-        {
-          ...options,
-          signal: controller.signal,
-        },
-      ),
+      new DictationPipeline(speech, new MockDictationProvider()).process(audio, {
+        ...options,
+        signal: controller.signal,
+      }),
     ).rejects.toMatchObject({ code: 'ABORTED' });
   });
 

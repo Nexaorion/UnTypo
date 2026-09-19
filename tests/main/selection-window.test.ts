@@ -52,9 +52,8 @@ const mock = vi.hoisted(() => {
       return window;
     }),
     ipcMain: {
-      handle: vi.fn(
-        (channel: string, handler: (...args: unknown[]) => unknown) =>
-          handlers.set(channel, handler),
+      handle: vi.fn((channel: string, handler: (...args: unknown[]) => unknown) =>
+        handlers.set(channel, handler),
       ),
       removeHandler: vi.fn(),
     },
@@ -88,13 +87,9 @@ const target = {
 const setup = async (editable = true) => {
   const native = {
     captureTarget: vi.fn().mockResolvedValue(target),
-    captureSelection: vi
-      .fn()
-      .mockResolvedValue({ editable, text: 'Source text' }),
+    captureSelection: vi.fn().mockResolvedValue({ editable, text: 'Source text' }),
     clearSelection: vi.fn().mockResolvedValue(undefined),
-    replaceSelection: vi
-      .fn()
-      .mockResolvedValue(NativePasteStatus.TargetChanged),
+    replaceSelection: vi.fn().mockResolvedValue(NativePasteStatus.TargetChanged),
   };
   const provider = new OpenAICompatibleTextProvider({
     apiKey: 'test',
@@ -130,9 +125,7 @@ beforeEach(() => {
 describe('selection window IPC and delivery', () => {
   it('retains the source for a follow-up spoken request from its popup', async () => {
     const { controller, native, sessionId } = await setup();
-    expect(
-      await controller.prepareVoice({ ...target, windowHandle: '71' }),
-    ).toBe(true);
+    expect(await controller.prepareVoice({ ...target, windowHandle: '71' })).toBe(true);
     expect(native.captureSelection).toHaveBeenCalledOnce();
     expect(mock.window.hide).toHaveBeenCalledOnce();
     await controller.processVoice('Rewrite for Twitter');

@@ -17,9 +17,7 @@ const MINIMUM_CONFIDENCE = 0.85;
 const REMINDER_THRESHOLD = 0.99;
 const MAX_OCCURRENCES = 100;
 const RECENT_WINDOW_MILLISECONDS = 7 * 24 * 60 * 60 * 1_000;
-const CATEGORY_PRIORITY: Readonly<
-  Record<DictionaryCandidate['category'], number>
-> = {
+const CATEGORY_PRIORITY: Readonly<Record<DictionaryCandidate['category'], number>> = {
   organization: 0.035,
   person: 0.04,
   place: 0.025,
@@ -60,9 +58,7 @@ const trimState = (
   now: number,
 ): DictionaryLearningPrivateState => ({
   candidates: state.candidates
-    .filter(
-      ({ lastSeenAt }) => lastSeenAt >= now - CANDIDATE_RETENTION_MILLISECONDS,
-    )
+    .filter(({ lastSeenAt }) => lastSeenAt >= now - CANDIDATE_RETENTION_MILLISECONDS)
     .toSorted((left, right) => right.lastSeenAt - left.lastSeenAt)
     .slice(0, DICTIONARY_LIMITS.candidates),
   rejections: state.rejections
@@ -72,10 +68,7 @@ const trimState = (
 });
 
 const reminderScore = (entry: StoredDictionaryCandidate): number => {
-  const frequencyScore = Math.min(
-    0.14,
-    Math.log2(Math.max(1, entry.occurrences)) * 0.05,
-  );
+  const frequencyScore = Math.min(0.14, Math.log2(Math.max(1, entry.occurrences)) * 0.05);
   const observationSpan = entry.lastSeenAt - entry.firstSeenAt;
   const recencyScore =
     entry.occurrences < 2
@@ -97,10 +90,7 @@ export class DictionaryLearningService {
   readonly #configuration: ConfigurationService;
   readonly #now: () => number;
 
-  constructor(
-    configuration: ConfigurationService,
-    now: () => number = Date.now,
-  ) {
+  constructor(configuration: ConfigurationService, now: () => number = Date.now) {
     this.#configuration = configuration;
     this.#now = now;
   }
@@ -111,72 +101,54 @@ export class DictionaryLearningService {
     const observed = currentCandidates(candidates);
     if (observed.length === 0) return undefined;
     const now = this.#now();
-    const observedKeys = new Set(
-      observed.map(({ term }) => dictionaryTermKey(term)),
-    );
-    const next = await this.#configuration.updateDictionaryLearningState(
-      (stored, config) => {
-        const state = trimState(stored, now);
-        if (config.dictionary.length >= DICTIONARY_LIMITS.entries) {
-          return { candidates: [], rejections: state.rejections };
-        }
-        const dictionaryKeys = new Set(
-          config.dictionary.map(({ term }) => dictionaryTermKey(term)),
-        );
-        const rejectionFingerprints = new Set(
-          state.rejections.map(({ fingerprint: value }) => value),
-        );
-        const byKey = new Map(
-          state.candidates.map((entry) => [
-            dictionaryTermKey(entry.candidate.term),
-            entry,
-          ]),
-        );
+    const observedKeys = new Set(observed.map(({ term }) => dictionaryTermKey(term)));
+    const next = await this.#configuration.updateDictionaryLearningState((stored, config) => {
+      const state = trimState(stored, now);
+      if (config.dictionary.length >= DICTIONARY_LIMITS.entries) {
+        return { candidates: [], rejections: state.rejections };
+      }
+      const dictionaryKeys = new Set(config.dictionary.map(({ term }) => dictionaryTermKey(term)));
+      const rejectionFingerprints = new Set(
+        state.rejections.map(({ fingerprint: value }) => value),
+      );
+      const byKey = new Map(
+        state.candidates.map((entry) => [dictionaryTermKey(entry.candidate.term), entry]),
+      );
 
-        for (const candidate of observed) {
-          const key = dictionaryTermKey(candidate.term);
-          if (
-            dictionaryKeys.has(key) ||
-            rejectionFingerprints.has(fingerprint(candidate.term))
-          ) {
-            byKey.delete(key);
-            continue;
-          }
-          const previous = byKey.get(key);
-          const entry: StoredDictionaryCandidate = previous
-            ? {
-                candidate: {
-                  ...candidate,
-                  confidence: Math.max(
-                    previous.candidate.confidence,
-                    candidate.confidence,
-                  ),
-                },
-                firstSeenAt: previous.firstSeenAt,
-                lastSeenAt: now,
-                occurrences: Math.min(
-                  MAX_OCCURRENCES,
-                  previous.occurrences + 1,
-                ),
-              }
-            : {
-                candidate,
-                firstSeenAt: now,
-                lastSeenAt: now,
-                occurrences: 1,
-              };
-          byKey.set(key, entry);
+      for (const candidate of observed) {
+        const key = dictionaryTermKey(candidate.term);
+        if (dictionaryKeys.has(key) || rejectionFingerprints.has(fingerprint(candidate.term))) {
+          byKey.delete(key);
+          continue;
         }
+        const previous = byKey.get(key);
+        const entry: StoredDictionaryCandidate = previous
+          ? {
+              candidate: {
+                ...candidate,
+                confidence: Math.max(previous.candidate.confidence, candidate.confidence),
+              },
+              firstSeenAt: previous.firstSeenAt,
+              lastSeenAt: now,
+              occurrences: Math.min(MAX_OCCURRENCES, previous.occurrences + 1),
+            }
+          : {
+              candidate,
+              firstSeenAt: now,
+              lastSeenAt: now,
+              occurrences: 1,
+            };
+        byKey.set(key, entry);
+      }
 
-        return trimState(
-          {
-            candidates: [...byKey.values()],
-            rejections: state.rejections,
-          },
-          now,
-        );
-      },
-    );
+      return trimState(
+        {
+          candidates: [...byKey.values()],
+          rejections: state.rejections,
+        },
+        now,
+      );
+    });
 
     return next.candidates
       .filter(
@@ -213,9 +185,7 @@ export class DictionaryLearningService {
           (entry) => dictionaryTermKey(entry.candidate.term) !== key,
         ),
         rejections: [
-          ...state.rejections.filter(
-            (entry) => entry.fingerprint !== rejectedFingerprint,
-          ),
+          ...state.rejections.filter((entry) => entry.fingerprint !== rejectedFingerprint),
           {
             fingerprint: rejectedFingerprint,
             until: now + REJECTION_COOLDOWN_MILLISECONDS,
@@ -236,9 +206,7 @@ export class DictionaryLearningService {
       candidates: stored.candidates.filter(
         (entry) => !keys.has(dictionaryTermKey(entry.candidate.term)),
       ),
-      rejections: stored.rejections.filter(
-        (entry) => !fingerprints.has(entry.fingerprint),
-      ),
+      rejections: stored.rejections.filter((entry) => !fingerprints.has(entry.fingerprint)),
     }));
   }
 }

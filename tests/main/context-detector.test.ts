@@ -34,26 +34,24 @@ describe('ContextDetector', () => {
   });
 
   it('recognizes macOS process names without an .exe suffix', () => {
-    expect(
-      detector.detectApplicationContext({ processName: 'Google Chrome' }),
-    ).toEqual({ kind: 'browser' });
-    expect(
-      detector.detectApplicationContext({ processName: 'Safari' }),
-    ).toEqual({ kind: 'browser' });
+    expect(detector.detectApplicationContext({ processName: 'Google Chrome' })).toEqual({
+      kind: 'browser',
+    });
+    expect(detector.detectApplicationContext({ processName: 'Safari' })).toEqual({
+      kind: 'browser',
+    });
     expect(
       detector.detectApplicationContext({
         processName: 'Visual Studio Code',
       }),
     ).toEqual({ kind: 'ide' });
-    expect(
-      detector.detectApplicationContext({ processName: 'TextEdit' }),
-    ).toEqual({ kind: 'office' });
+    expect(detector.detectApplicationContext({ processName: 'TextEdit' })).toEqual({
+      kind: 'office',
+    });
   });
 
   it('forces transcription only for AI tools', () => {
-    expect(
-      detector.shouldForceTranscription({ kind: 'ai-tool', name: 'Codex' }),
-    ).toBe(true);
+    expect(detector.shouldForceTranscription({ kind: 'ai-tool', name: 'Codex' })).toBe(true);
     expect(detector.shouldForceTranscription({ kind: 'browser' })).toBe(false);
   });
 });
