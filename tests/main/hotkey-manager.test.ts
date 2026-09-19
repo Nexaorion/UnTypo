@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const globalShortcut = vi.hoisted(() => ({
   register: vi.fn(() => true),
@@ -56,8 +56,13 @@ const createManager = (overrides?: {
 
 describe('HotkeyManager', () => {
   beforeEach(() => {
+    vi.stubGlobal('process', { ...process, platform: 'win32' });
     globalShortcut.register.mockClear();
     globalShortcut.unregister.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('configures the native hotkey for a valid accelerator', async () => {

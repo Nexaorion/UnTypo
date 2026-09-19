@@ -1,6 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('electron', () => ({ systemPreferences: {} }));
+const systemPreferences = vi.hoisted(() => ({
+  getMediaAccessStatus: vi.fn(() => 'granted'),
+  isTrustedAccessibilityClient: vi.fn(() => true),
+}));
+
+vi.mock('electron', () => ({ systemPreferences }));
 
 import { buildClientSnapshot } from '../../src/main/runtime/client-snapshot.js';
 import type { ClientSnapshot } from '../../src/shared/ipc.js';
@@ -54,6 +59,17 @@ const createSnapshot = async (
 };
 
 describe('buildClientSnapshot', () => {
+  beforeEach(() => {
+    systemPreferences.getMediaAccessStatus.mockReset();
+    systemPreferences.getMediaAccessStatus.mockReturnValue('granted');
+    systemPreferences.isTrustedAccessibilityClient.mockReset();
+    systemPreferences.isTrustedAccessibilityClient.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('assembles the client snapshot from all backing services', async () => {
     const snapshot = await createSnapshot();
 
@@ -85,6 +101,25 @@ describe('buildClientSnapshot', () => {
       snapshot.settings.dictation.activeTextProviderProfileId,
     ).toBeUndefined();
     expect(snapshot.permissions).toBeUndefined();
+  });
+
+  it('includes current permission statuses on macOS', async () => {
+    vi.stubGlobal('process', { ...process, platform: 'darwin' });
+    systemPreferences.getMediaAccessStatus.mockReturnValue('not-determined');
+    systemPreferences.isTrustedAccessibilityClient.mockReturnValue(false);
+
+    const snapshot = await createSnapshot();
+
+    expect(snapshot.permissions).toEqual({
+      accessibility: 'denied',
+      microphone: 'not-determined',
+    });
+    expect(systemPreferences.getMediaAccessStatus).toHaveBeenCalledWith(
+      'microphone',
+    );
+    expect(systemPreferences.isTrustedAccessibilityClient).toHaveBeenCalledWith(
+      false,
+    );
   });
 
   it('fails when the configuration cannot be loaded', async () => {
