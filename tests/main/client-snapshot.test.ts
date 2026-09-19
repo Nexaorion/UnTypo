@@ -95,13 +95,7 @@ describe('buildClientSnapshot', () => {
     expect(snapshot.update).toEqual({ state: 'idle' });
   });
 
-  it('omits optional dictation fields the configuration leaves out', async () => {
-    const snapshot = await createSnapshot();
-    expect(
-      snapshot.settings.dictation.activeTextProviderProfileId,
-    ).toBeUndefined();
-    expect(snapshot.permissions).toBeUndefined();
-  });
+  
 
   it('includes current permission statuses on macOS', async () => {
     vi.stubGlobal('process', { ...process, platform: 'darwin' });

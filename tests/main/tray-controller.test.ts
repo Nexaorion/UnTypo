@@ -16,7 +16,7 @@ const electronMocks = vi.hoisted(() => {
   };
   return {
     Menu: menuTemplate,
-    app: { isPackaged: false, quit: vi.fn() },
+    app: { isPackaged: false, quit: vi.fn(), getAppPath: vi.fn(() => '/app') },
     nativeImage: {
       createFromPath: vi.fn(() => ({
         isEmpty: () => false,
