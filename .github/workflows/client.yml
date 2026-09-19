@@ -483,7 +483,21 @@ jobs:
           set -euo pipefail
           dmg="release/UnTypo-${RELEASE_VERSION}-mac-arm64.dmg"
           zip="release/UnTypo-${RELEASE_VERSION}-mac-arm64.zip"
-          uploads=("$dmg" "$zip")
+          metadata="release/latest-mac.yml"
+          zip_blockmap="$zip.blockmap"
+          for artifact in "$dmg" "$zip" "$zip_blockmap" "$metadata"; do
+            if [[ ! -f "$artifact" ]]; then
+              echo "Required macOS release artifact is missing: $artifact" >&2
+              exit 1
+            fi
+          done
+          if ! grep -Fq "url: UnTypo-${RELEASE_VERSION}-mac-arm64.zip" "$metadata" || \
+            ! grep -Fq "path: UnTypo-${RELEASE_VERSION}-mac-arm64.zip" "$metadata"; then
+            echo "latest-mac.yml does not reference the expected arm64 ZIP" >&2
+            cat "$metadata" >&2
+            exit 1
+          fi
+          uploads=("$dmg" "$zip" "$metadata")
           for extra in "$dmg.blockmap" "$zip.blockmap"; do
             [[ -f "$extra" ]] && uploads+=("$extra")
           done
@@ -520,6 +534,8 @@ jobs:
           required=(
             "UnTypo-${RELEASE_VERSION}-mac-arm64.dmg"
             "UnTypo-${RELEASE_VERSION}-mac-arm64.zip"
+            "UnTypo-${RELEASE_VERSION}-mac-arm64.zip.blockmap"
+            latest-mac.yml
             SHA256SUMS.txt
           )
           missing=()
@@ -535,6 +551,36 @@ jobs:
           gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS.txt --dir "$checksum_dir"
           grep -F "UnTypo-${RELEASE_VERSION}-mac-arm64.dmg" "$checksum_dir/SHA256SUMS.txt"
           grep -F "UnTypo-${RELEASE_VERSION}-mac-arm64.zip" "$checksum_dir/SHA256SUMS.txt"
+          metadata_dir="$RUNNER_TEMP/macos-update-metadata-verify"
+          mkdir -p "$metadata_dir"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern latest-mac.yml \
+            --pattern "UnTypo-${RELEASE_VERSION}-mac-arm64.zip" \
+            --dir "$metadata_dir"
+          python3 - "$metadata_dir/latest-mac.yml" "$metadata_dir/UnTypo-${RELEASE_VERSION}-mac-arm64.zip" <<'PY'
+          import base64
+          import hashlib
+          import pathlib
+          import re
+          import sys
+
+          metadata_path = pathlib.Path(sys.argv[1])
+          zip_path = pathlib.Path(sys.argv[2])
+          text = metadata_path.read_text(encoding="utf-8")
+          expected_name = zip_path.name
+          entry = re.search(
+              rf"(?m)^\s*-?\s*url:\s*{re.escape(expected_name)}\s*$"
+              rf"\s*^\s*sha512:\s*(\S+)\s*$"
+              rf"\s*^\s*size:\s*(\d+)\s*$",
+              text,
+          )
+          path = re.search(r"(?m)^path:\s*(\S+)\s*$", text)
+          if entry is None or path is None or path.group(1) != expected_name:
+              raise SystemExit("Published latest-mac.yml does not reference the expected arm64 ZIP")
+          digest = base64.b64encode(hashlib.sha512(zip_path.read_bytes()).digest()).decode("ascii")
+          if entry.group(1) != digest or int(entry.group(2)) != zip_path.stat().st_size:
+              raise SystemExit("Published latest-mac.yml does not match the published arm64 ZIP")
+          PY
 
       - name: Remove temporary signing assets
         if: always()

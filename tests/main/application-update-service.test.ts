@@ -110,6 +110,55 @@ describe('ApplicationUpdateService', () => {
     service.stop();
   });
 
+  it('checks the macOS Hazel endpoint before using signed updater metadata', async () => {
+    updater.checkForUpdates.mockResolvedValue({
+      isUpdateAvailable: true,
+      updateInfo: { version: '0.2.0' },
+    });
+    const fetchImplementation = vi.fn(() => Promise.resolve(releaseResponse('0.2.0')));
+    const service = new ApplicationUpdateService({
+      diagnostics: { log: vi.fn() } as never,
+      fetchImplementation,
+      isPackaged: true,
+      onChanged: vi.fn(),
+      platform: 'darwin',
+      updater: updater as unknown as AppUpdater,
+      version: '0.1.8',
+    });
+    service.start({ autoCheck: false, autoDownload: false });
+
+    await expect(service.checkForUpdates()).resolves.toMatchObject({
+      availableVersion: '0.2.0',
+      status: 'available',
+    });
+    expect(fetchImplementation).toHaveBeenCalledWith(
+      'https://update.untypo.org/update/darwin_arm64/0.1.8',
+      expect.objectContaining({ redirect: 'follow' }),
+    );
+    await service.downloadUpdate();
+    expect(updater.checkForUpdates).toHaveBeenCalledOnce();
+    service.stop();
+  });
+
+  it('stays disabled on unsupported packaged platforms', async () => {
+    const fetchImplementation = vi.fn();
+    const service = new ApplicationUpdateService({
+      diagnostics: { log: vi.fn() } as never,
+      fetchImplementation,
+      isPackaged: true,
+      onChanged: vi.fn(),
+      platform: 'linux',
+      updater: updater as unknown as AppUpdater,
+      version: '0.1.8',
+    });
+    service.start({ autoCheck: false, autoDownload: false });
+
+    await expect(service.checkForUpdates()).resolves.toMatchObject({ status: 'disabled' });
+    expect(fetchImplementation).not.toHaveBeenCalled();
+    expect(updater.checkForUpdates).not.toHaveBeenCalled();
+    service.stop();
+  });
+
   it('keeps the discovery timeout active while the Hazel response body stalls', async () => {
     vi.useFakeTimers();
     const onChanged = vi.fn();

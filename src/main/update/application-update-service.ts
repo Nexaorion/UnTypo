@@ -37,6 +37,11 @@ interface ParsedVersion {
   prerelease: readonly string[];
 }
 
+const updatePlatform = (platform: NodeJS.Platform): 'darwin_arm64' | 'win32' | undefined => {
+  if (platform === 'darwin') return 'darwin_arm64';
+  return platform === 'win32' ? platform : undefined;
+};
+
 const parseVersion = (value: string): ParsedVersion | undefined => {
   const match = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/u.exec(
     value.trim(),
@@ -117,6 +122,7 @@ export class ApplicationUpdateService {
   readonly #fetch: typeof fetch;
   readonly #now: () => number;
   readonly #onChanged: (snapshot: ClientUpdateSnapshot) => void;
+  readonly #platform?: 'darwin_arm64' | 'win32';
   readonly #supported: boolean;
   readonly #updater: AppUpdater;
   readonly #version: string;
@@ -134,8 +140,8 @@ export class ApplicationUpdateService {
     this.#onChanged = options.onChanged;
     this.#updater = options.updater ?? autoUpdater;
     this.#version = options.version ?? app.getVersion();
-    this.#supported =
-      (options.isPackaged ?? app.isPackaged) && (options.platform ?? process.platform) === 'win32';
+    this.#platform = updatePlatform(options.platform ?? process.platform);
+    this.#supported = (options.isPackaged ?? app.isPackaged) && this.#platform !== undefined;
     this.#state = {
       currentVersion: this.#version,
       status: this.#supported ? 'idle' : 'disabled',
@@ -251,7 +257,7 @@ export class ApplicationUpdateService {
       timeout.unref?.();
       try {
         const response = await this.#fetch(
-          `${HAZEL_BASE_URL}/update/win32/${encodeURIComponent(this.#version)}`,
+          `${HAZEL_BASE_URL}/update/${this.#platform}/${encodeURIComponent(this.#version)}`,
           {
             headers: { accept: 'application/json' },
             redirect: 'follow',
