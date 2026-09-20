@@ -5,9 +5,10 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-0.2.2%20early-f4f4f5?style=flat-square&labelColor=18181b" alt="0.2.2 early">
+  <img src="https://img.shields.io/badge/status-0.2.3%20early-f4f4f5?style=flat-square&labelColor=18181b" alt="0.2.3 early">
   <img src="https://img.shields.io/badge/platform-Windows%20x64%20%7C%20macOS%20arm64-f4f4f5?style=flat-square&labelColor=18181b" alt="Windows x64 and macOS arm64">
   <img src="https://img.shields.io/badge/desktop-Electron%20%2B%20TypeScript-f4f4f5?style=flat-square&labelColor=18181b" alt="Electron and TypeScript">
+  <img src="https://img.shields.io/badge/license-Apache%202.0-f4f4f5?style=flat-square&labelColor=18181b" alt="Apache 2.0">
 </p>
 
 UnTypo 是一个仍在早期开发中的听写工具，支持 Windows x64 和 macOS Apple Silicon。它把语音转成文字，再按口述内容完成润色、翻译或指令生成。
@@ -36,4 +37,5 @@ UnTypo 是一个仍在早期开发中的听写工具，支持 Windows x64 和 ma
 - UnTypo 不提供账号、同步或中转服务器；配置、词典和历史记录都保存在当前电脑上；
 - 历史记录使用本地 SQLite 数据库；
 - API Key 和个人资料经系统安全加密后才会存储到本地，我们当中的任何人都不能直接读取它们；
+- 崩溃报告默认关闭；只有在设置里手动打开后，才会把脱敏后的错误信息发到 Sentry；
 - **录音、转写文本、词典提示，以及提交处理的文本内容和指令会发送到你配置的模型服务提供商**，因为 UnTypo 的服务需要由这些供应商处理。

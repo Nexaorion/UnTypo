@@ -1,9 +1,10 @@
 {
   "name": "untypo",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Open-source AI dictation client",
   "author": "Nexaorion Inc.",
+  "license": "Apache-2.0",
   "main": "dist/main/index.js",
   "scripts": {
     "clean": "node scripts/clean.mjs",
