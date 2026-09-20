@@ -302,7 +302,8 @@ export const messages = {
       '在软件发生预期外的错误时，自动收集错误日志上下文和可能包含的录音附件。',
     'problems.clear': '清空记录',
     'problems.clearConfirm': '清空全部问题记录？',
-    'problems.clearDescription': '这会永久删除本机收集的错误日志和可能存在的录音附件。此操作不可逆。',
+    'problems.clearDescription':
+      '这会永久删除本机收集的错误日志和可能存在的录音附件。此操作不可逆。',
     'problems.clearSuccess': '问题记录已清空',
     'problems.issueCount': '共 {count} 个问题，其中 {pending} 个尚未处理',
     'problems.issueList': '问题记录',
@@ -319,8 +320,7 @@ export const messages = {
     'problems.showErrorDialogs': '出现错误时弹窗提示',
     'problems.showErrorDialogsHint': '出现新错误时打开详情弹窗；关闭后仍可在此查看已收集的问题。',
     'problems.telemetry': '匿名崩溃报告',
-    'problems.telemetryHint':
-      '开启后，错误信息将会匿名发送到 Sentry 来帮助我们改进稳定性。',
+    'problems.telemetryHint': '开启后，错误信息将会匿名发送到 Sentry 来帮助我们改进稳定性。',
     'problems.title': '问题与反馈',
     'settings.defaultTargetLanguage': '默认目标语言',
     'settings.dictationLanguage': '口述语言',
