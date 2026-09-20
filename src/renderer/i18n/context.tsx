@@ -1,15 +1,9 @@
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
+import { useCallback, useContext, useMemo, type ReactNode } from 'react';
 import type { SupportedLanguage } from '../../core/providers/types.js';
-import { messages, type MessageKey } from './messages.js';
+import { messages } from './messages.js';
+import { I18nContext, type I18nValue, type Translate } from './runtime.js';
 
-export type Translate = (key: MessageKey, vars?: Readonly<Record<string, string>>) => string;
-
-interface I18nValue {
-  locale: SupportedLanguage;
-  t: Translate;
-}
-
-const I18nContext = createContext<I18nValue | null>(null);
+export type { Translate };
 
 const interpolate = (template: string, vars?: Readonly<Record<string, string>>) =>
   vars ? template.replace(/\{(\w+)\}/gu, (match, name: string) => vars[name] ?? match) : template;
