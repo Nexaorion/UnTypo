@@ -3,7 +3,7 @@
   "version": "0.2.2",
   "private": true,
   "description": "Open-source AI dictation client",
-  "author": "UnTypo contributors",
+  "author": "Nexaorion Inc.",
   "main": "dist/main/index.js",
   "scripts": {
     "clean": "node scripts/clean.mjs",
@@ -59,6 +59,7 @@
     "@lobehub/icons-static-svg": "1.94.0",
     "@mui/icons-material": "9.4.0",
     "@mui/material": "9.4.0",
+    "@sentry/electron": "^7.19.0",
     "better-sqlite3": "13.0.3",
     "electron-updater": "^6.8.9",
     "webdav": "5.10.0"
