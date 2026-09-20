@@ -8,10 +8,7 @@ vi.mock('electron', () => ({
 
 vi.mock('electron-updater', () => ({ autoUpdater: {} }));
 
-import {
-  ApplicationUpdateService,
-  isNewerVersion,
-} from '../../src/main/update/auto-updater';
+import { ApplicationUpdateService, isNewerVersion } from '../../src/main/update/auto-updater';
 
 class FakeUpdater extends EventEmitter {
   allowDowngrade = true;

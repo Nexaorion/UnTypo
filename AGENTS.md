@@ -10,21 +10,21 @@ For a settings control, switch, or action that looks functional but is ineffecti
 
 ## Directory ownership
 
-| Path                            | Responsibility                                                                                                                              |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/core/providers/`           | Electron-independent speech/text provider contracts, pipelines, registries, and implementations.                                            |
-| `src/shared/`                   | Cross-process types, IPC channels, and recording/diagnostics contracts.                                                                     |
-| `src/main/`                     | Electron lifecycle, windows, trusted IPC, configuration/history, encrypted secrets, the native helper, dictation coordination, and updates. |
-| `src/main/core-services/`       | Core runtime services (permissions, hotkeys, tray, menu, window management) extracted from desktop-runtime.                                 |
-| `src/main/lifecycle/`           | Application bootstrap, shutdown, and error handling orchestration.                                                                          |
-| `src/main/storage/`             | Data access layer: repositories (config, history, dictionary), cache manager, and encryption services.                                      |
-| `src/main/ipc/`                 | IPC controllers, middleware (auth, validation, rate-limit), and route registry.                                                             |
-| `src/main/utils/`               | Shared utilities: structured logger, performance monitor, error codes.                                                                      |
-| `src/preload/`                  | Minimal, typed APIs exposed only through `contextBridge`.                                                                                   |
-| `src/renderer/`                 | Main-window React + MUI UI, i18n, state, and pure UI logic.                                                                                 |
-| `src/status-overlay/`, `src/recorder/` | Renderer code for the floating status overlay and recording windows.                                                                               |
-| `native/helper/`                | Native hotkey, target-window, and paste behavior (Win32 and macOS).                                                                         |
-| `tests/`                        | Vitest regression tests mirroring `core`, `main`, `preload`, `renderer`, `recorder`, and `status-overlay`.                                         |
+| Path                                   | Responsibility                                                                                                                              |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/core/providers/`                  | Electron-independent speech/text provider contracts, pipelines, registries, and implementations.                                            |
+| `src/shared/`                          | Cross-process types, IPC channels, and recording/diagnostics contracts.                                                                     |
+| `src/main/`                            | Electron lifecycle, windows, trusted IPC, configuration/history, encrypted secrets, the native helper, dictation coordination, and updates. |
+| `src/main/core-services/`              | Core runtime services (permissions, hotkeys, tray, menu, window management) extracted from desktop-runtime.                                 |
+| `src/main/lifecycle/`                  | Application bootstrap, shutdown, and error handling orchestration.                                                                          |
+| `src/main/storage/`                    | Data access layer: repositories (config, history, dictionary), cache manager, and encryption services.                                      |
+| `src/main/ipc/`                        | IPC controllers, middleware (auth, validation, rate-limit), and route registry.                                                             |
+| `src/main/utils/`                      | Shared utilities: structured logger, performance monitor, error codes.                                                                      |
+| `src/preload/`                         | Minimal, typed APIs exposed only through `contextBridge`.                                                                                   |
+| `src/renderer/`                        | Main-window React + MUI UI, i18n, state, and pure UI logic.                                                                                 |
+| `src/status-overlay/`, `src/recorder/` | Renderer code for the floating status overlay and recording windows.                                                                        |
+| `native/helper/`                       | Native hotkey, target-window, and paste behavior (Win32 and macOS).                                                                         |
+| `tests/`                               | Vitest regression tests mirroring `core`, `main`, `preload`, `renderer`, `recorder`, and `status-overlay`.                                  |
 
 Follow the neighboring source convention of using `.js` output extensions in relative imports. Production code in `src/renderer/`, `src/status-overlay/`, and `src/recorder/` must not import Electron or Node directly; communicate through the appropriate preload API.
 

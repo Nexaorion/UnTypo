@@ -2,10 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  ConfigurationService,
-  type StoredClientConfig,
-} from '../../src/main/storage/config-store';
+import { ConfigurationService, type StoredClientConfig } from '../../src/main/storage/config-store';
 import { MemorySecretProtector } from '../../src/main/storage/keychain-types';
 import type { DictionaryEntry } from '../../src/shared/dictionary';
 import type * as NodeFsPromises from 'node:fs/promises';

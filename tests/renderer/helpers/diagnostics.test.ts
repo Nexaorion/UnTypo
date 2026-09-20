@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { ClientDiagnosticIssue } from '../../../src/shared/diagnostics';
-import { diagnosticKindKey, latestDiagnosticIssue } from '../../../src/renderer/helpers/diagnostics';
+import {
+  diagnosticKindKey,
+  latestDiagnosticIssue,
+} from '../../../src/renderer/helpers/diagnostics';
 
 const issue = (id: string, occurredAt: number): ClientDiagnosticIssue => ({
   audioAvailable: false,

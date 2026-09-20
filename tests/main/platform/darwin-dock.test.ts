@@ -18,7 +18,10 @@ vi.mock('electron', () => ({
   app: electronMocks.app,
 }));
 
-import { hideMainWindowOnClose, keepDarwinDockVisible } from '../../../src/main/platform/darwin-dock';
+import {
+  hideMainWindowOnClose,
+  keepDarwinDockVisible,
+} from '../../../src/main/platform/darwin-dock';
 
 describe('keepDarwinDockVisible', () => {
   beforeEach(() => {

@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { SupportedLanguage, UserProfileContext } from '../../core/providers/types.js';
-import type { ClientProviderValues, ModelProviderId, ModelProviderKind } from '../../shared/client-ipc.js';
+import type {
+  ClientProviderValues,
+  ModelProviderId,
+  ModelProviderKind,
+} from '../../shared/client-ipc.js';
 import type { SyncProviderId, SyncStatus } from '../../shared/sync.js';
 import {
   DEFAULT_APPLICATION_WRITING_STYLES,

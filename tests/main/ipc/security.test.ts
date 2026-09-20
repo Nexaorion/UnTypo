@@ -36,7 +36,10 @@ describe('isTrustedRendererUrl', () => {
 
 describe('capsule Content-Security-Policy', () => {
   it('allows Vite and Emotion to inject the capsule runtime styles', () => {
-    const capsuleHtml = readFileSync(new URL('../../../status-overlay.html', import.meta.url), 'utf8');
+    const capsuleHtml = readFileSync(
+      new URL('../../../status-overlay.html', import.meta.url),
+      'utf8',
+    );
 
     expect(capsuleHtml).toContain("script-src 'self';");
     expect(capsuleHtml).toContain("style-src 'self' 'unsafe-inline';");
