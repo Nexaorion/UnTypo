@@ -61,6 +61,7 @@ import { ConfigurationService, DictionaryEntryError } from '../storage/configura
 import type { ProviderProfile } from '../storage/configuration.js';
 import { ElectronSecretProtector } from '../storage/electron-secret-protector.js';
 import { HistoryRepository, HistoryService } from '../storage/history.js';
+import { applyTelemetryEnabled } from '../telemetry/sentry-service.js';
 import { SyncService } from '../sync/sync-service.js';
 import { ApplicationUpdateService } from '../update/application-update-service.js';
 import { SelectionWindowController } from '../selection/selection-window.js';
@@ -164,6 +165,7 @@ export class DesktopRuntime implements ClientBackendPort {
     if (this.#started) throw new Error('Desktop runtime is already active');
     const config = await this.#configuration.load();
     this.#diagnostics.setEnabled(config.diagnostics.automaticCollection);
+    applyTelemetryEnabled(config.telemetry.enabled);
     this.#diagnostics.log({
       message: 'Desktop runtime startup requested',
       scope: 'app.runtime',
@@ -372,6 +374,7 @@ export class DesktopRuntime implements ClientBackendPort {
       throw error;
     }
     this.#diagnostics.setEnabled(next.diagnostics.automaticCollection);
+    applyTelemetryEnabled(next.telemetry.enabled);
     if (!process.argv.includes('--smoke-test')) {
       setLaunchAtLogin(next.general.launchAtLogin);
     }
@@ -385,6 +388,7 @@ export class DesktopRuntime implements ClientBackendPort {
         dictationFields: Object.keys(update.dictation ?? {}),
         generalFields: Object.keys(update.general ?? {}),
         historyFields: Object.keys(update.history ?? {}),
+        telemetryFields: Object.keys(update.telemetry ?? {}),
         updateFields: Object.keys(update.updates ?? {}),
       },
       message: 'Application settings updated',

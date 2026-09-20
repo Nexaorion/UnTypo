@@ -131,6 +131,9 @@ export interface ClientSettingsSnapshot {
     enabled: boolean;
     retentionDays: number;
   };
+  telemetry: {
+    enabled: boolean;
+  };
   updates: {
     autoCheck: boolean;
     autoDownload: boolean;
@@ -159,6 +162,9 @@ export interface ClientSettingsUpdate {
   history?: {
     enabled?: boolean;
     retentionDays?: number;
+  };
+  telemetry?: {
+    enabled?: boolean;
   };
   updates?: {
     autoCheck?: boolean;

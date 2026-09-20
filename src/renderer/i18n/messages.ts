@@ -299,10 +299,10 @@ export const messages = {
     'problems.acknowledged': '已处理',
     'problems.automaticCollection': '自动收集错误日志',
     'problems.automaticCollectionHint':
-      '在本机记录经过脱敏的应用与服务错误；关闭后不再新增错误记录。',
+      '在软件发生预期外的错误时，自动收集错误日志上下文和可能包含的录音附件。',
     'problems.clear': '清空记录',
     'problems.clearConfirm': '清空全部问题记录？',
-    'problems.clearDescription': '这会永久删除本机收集的问题、关联日志和录音附件，且无法恢复。',
+    'problems.clearDescription': '这会永久删除本机收集的错误日志和可能存在的录音附件。此操作不可逆。',
     'problems.clearSuccess': '问题记录已清空',
     'problems.issueCount': '共 {count} 个问题，其中 {pending} 个尚未处理',
     'problems.issueList': '问题记录',
@@ -316,9 +316,11 @@ export const messages = {
     'problems.paginationNext': '前往下一页',
     'problems.paginationPrevious': '前往上一页',
     'problems.preferences': '错误处理',
-    'problems.privacy': '日志仅保存在本机 14 天，默认不包含密钥、请求正文、转写文本或录音。',
     'problems.showErrorDialogs': '出现错误时弹窗提示',
     'problems.showErrorDialogsHint': '出现新错误时打开详情弹窗；关闭后仍可在此查看已收集的问题。',
+    'problems.telemetry': '匿名崩溃报告',
+    'problems.telemetryHint':
+      '开启后，错误信息将会匿名发送到 Sentry 来帮助我们改进稳定性。',
     'problems.title': '问题与反馈',
     'settings.defaultTargetLanguage': '默认目标语言',
     'settings.dictationLanguage': '口述语言',
@@ -771,11 +773,11 @@ export const messages = {
     'problems.acknowledged': 'Handled',
     'problems.automaticCollection': 'Automatically collect error logs',
     'problems.automaticCollectionHint':
-      'Store redacted app and service errors on this device; turning this off stops new issue records.',
+      'When an unexpected error occurs in the software, automatically collect the error log context and any potentially attached recordings.',
     'problems.clear': 'Clear records',
     'problems.clearConfirm': 'Clear all issue records?',
     'problems.clearDescription':
-      'This permanently deletes collected issues, related logs, and recording attachments from this device. It cannot be undone.',
+      'This will permanently delete the error logs collected on this device and any attached recordings that may exist. This action is irreversible.',
     'problems.clearSuccess': 'Issue records cleared',
     'problems.issueCount': '{count} issue(s), including {pending} that have not been handled',
     'problems.issueList': 'Issue history',
@@ -789,11 +791,12 @@ export const messages = {
     'problems.paginationNext': 'Go to next page',
     'problems.paginationPrevious': 'Go to previous page',
     'problems.preferences': 'Error handling',
-    'problems.privacy':
-      'Logs stay on this device for 14 days and exclude keys, request bodies, transcription text, and audio by default.',
     'problems.showErrorDialogs': 'Show a dialog when an error occurs',
     'problems.showErrorDialogsHint':
       'Open issue details when a new error occurs; when off, collected issues remain available here.',
+    'problems.telemetry': 'Anonymous crash reporting',
+    'problems.telemetryHint':
+      'After activation, error messages will be sent anonymously to Sentry to help us improve stability.',
     'problems.title': 'Issues & feedback',
     'settings.defaultTargetLanguage': 'Default target language',
     'settings.dictationLanguage': 'Dictation language',

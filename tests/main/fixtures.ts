@@ -40,6 +40,7 @@ export const createStoredConfig = (
     learningEnabled: true,
   },
   providers: [],
+  telemetry: { enabled: false },
   updates: { autoCheck: false, autoDownload: false },
   ...overrides,
 });

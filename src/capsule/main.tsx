@@ -4,9 +4,12 @@ import ErrorRoundedIcon from '@mui/icons-material/ErrorRounded';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import { StrictMode, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { init as initSentryRenderer } from '@sentry/electron/renderer';
 import type { CapsuleStatus } from '../shared/capsule-ipc';
 import './styles.css';
 import { capsuleViewModel } from './view-model';
+
+initSentryRenderer();
 
 const waveformShape = [0.45, 0.72, 1, 0.64, 0.86, 0.56, 0.36] as const;
 

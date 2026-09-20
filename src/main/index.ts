@@ -10,7 +10,13 @@ import { handleAppScheme, registerAppScheme } from './protocol.js';
 import { runRendererSmokeTest } from './renderer-smoke.js';
 import { DesktopRuntime } from './runtime/desktop-runtime.js';
 import { assertTrustedSender } from './security.js';
+import {
+  captureTelemetryException,
+  flushSentryTelemetry,
+  initSentryTelemetryBeforeReady,
+} from './telemetry/sentry-service.js';
 
+initSentryTelemetryBeforeReady();
 registerAppScheme();
 app.enableSandbox();
 app.setName('UnTypo');
@@ -24,6 +30,7 @@ let removeDiagnosticsListener: (() => void) | undefined;
 let runtime: DesktopRuntime | undefined;
 
 process.on('uncaughtExceptionMonitor', (error) => {
+  captureTelemetryException(error);
   diagnostics?.recordIssue({
     error,
     kind: 'internal',
@@ -32,6 +39,7 @@ process.on('uncaughtExceptionMonitor', (error) => {
 });
 
 process.on('unhandledRejection', (reason) => {
+  captureTelemetryException(reason);
   diagnostics?.recordIssue({
     error: reason,
     kind: 'internal',
@@ -47,6 +55,11 @@ app.on('render-process-gone', (_event, webContents, details) => {
     : url.includes('capsule.html')
       ? 'capsule'
       : 'main';
+  captureTelemetryException(new Error(`Renderer process terminated: ${details.reason}`), {
+    'exit.code': String(details.exitCode),
+    'exit.reason': details.reason,
+    surface,
+  });
   diagnostics?.recordIssue({
     context: { exitCode: details.exitCode, reason: details.reason, surface },
     error: new Error(`Renderer process terminated: ${details.reason}`),
@@ -57,6 +70,12 @@ app.on('render-process-gone', (_event, webContents, details) => {
 
 app.on('child-process-gone', (_event, details) => {
   if (isQuitting || details.reason === 'clean-exit') return;
+  captureTelemetryException(new Error(`${details.type} process terminated: ${details.reason}`), {
+    'exit.code': String(details.exitCode),
+    'exit.reason': details.reason,
+    'process.name': details.name ?? '',
+    'process.type': details.type,
+  });
   diagnostics?.recordIssue({
     context: {
       exitCode: details.exitCode,
@@ -256,6 +275,7 @@ const startPrimaryInstance = (): void => {
     .catch((error: unknown) => {
       settleMainIpcReady(error);
       clientIpc?.destroy();
+      captureTelemetryException(error);
       diagnostics?.recordIssue({
         error,
         kind: 'internal',
@@ -275,17 +295,20 @@ const startPrimaryInstance = (): void => {
     removeDiagnosticsListener?.();
     removeDiagnosticsListener = undefined;
     const stopping = runtime ? runtime.stop().catch(console.error) : Promise.resolve();
-    void stopping.catch(console.error).finally(() => {
-      if (installUpdate) {
-        try {
-          runtime?.quitAndInstallUpdate();
-          return;
-        } catch (error) {
-          console.error(error);
+    void stopping
+      .catch(console.error)
+      .finally(() => flushSentryTelemetry().catch(() => undefined))
+      .then(() => {
+        if (installUpdate) {
+          try {
+            runtime?.quitAndInstallUpdate();
+            return;
+          } catch (error) {
+            console.error(error);
+          }
         }
-      }
-      app.exit(0);
-    });
+        app.exit(0);
+      });
   });
 };
 

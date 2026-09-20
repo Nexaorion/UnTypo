@@ -74,6 +74,7 @@ export const buildClientSnapshot = async (
       },
       general: config.general,
       history: config.history,
+      telemetry: config.telemetry,
       updates: config.updates,
     },
     sync: await sync.snapshot(),

@@ -87,9 +87,16 @@ export const ProblemsSection = ({ store }: { store: ClientStore }) => {
             }
             testId="show-error-dialogs-switch"
           />
-          <Typography color="text.secondary" variant="caption">
-            {t('problems.privacy')}
-          </Typography>
+          <SwitchField
+            checked={store.snapshot?.settings.telemetry.enabled ?? false}
+            description={t('problems.telemetryHint')}
+            disabled={isPending('telemetry')}
+            label={t('problems.telemetry')}
+            onCheckedChange={(checked) =>
+              void run('telemetry', () => store.updateSettings({ telemetry: { enabled: checked } }))
+            }
+            testId="telemetry-switch"
+          />
         </Stack>
       </Card>
 

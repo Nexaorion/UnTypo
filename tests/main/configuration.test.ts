@@ -60,6 +60,7 @@ describe('ConfigurationService', () => {
         language: 'zh-CN',
       },
       history: { enabled: true, retentionDays: 30 },
+      telemetry: { enabled: false },
       personalization: {
         applicationStyles: {
           'ai-tool': 'prompt',
@@ -125,7 +126,17 @@ describe('ConfigurationService', () => {
     });
     await expect(readFile(configPath, 'utf8')).resolves.toContain('"autoDownload": true');
     await expect(readFile(configPath, 'utf8')).resolves.toContain('"showErrorDialogs": false');
+    await expect(readFile(configPath, 'utf8')).resolves.toContain('"telemetry"');
     await expect(readFile(configPath, 'utf8')).resolves.toContain('"version": 5');
+  });
+
+  it('persists the telemetry choice and defaults to disabled', async () => {
+    await expect(service.load()).resolves.toMatchObject({ telemetry: { enabled: false } });
+
+    await service.update((config) => ({ ...config, telemetry: { enabled: true } }));
+
+    await expect(service.load()).resolves.toMatchObject({ telemetry: { enabled: true } });
+    await expect(readFile(configPath, 'utf8')).resolves.toContain('"enabled": true');
   });
 
   it('rejects migrated terms that exceed the limit after normalization', async () => {

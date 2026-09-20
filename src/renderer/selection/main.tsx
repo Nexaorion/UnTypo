@@ -2,8 +2,11 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { init as initSentryRenderer } from '@sentry/electron/renderer';
 import { theme } from '../theme.js';
 import { SelectionApp } from './selection-app.js';
+
+initSentryRenderer();
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Selection root is missing');

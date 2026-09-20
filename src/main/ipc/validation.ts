@@ -56,7 +56,7 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
   if (!isRecord(value)) throw new Error('Invalid settings update');
   assertOnlyKeys(
     value,
-    ['diagnostics', 'dictation', 'general', 'history', 'updates'],
+    ['diagnostics', 'dictation', 'general', 'history', 'telemetry', 'updates'],
     'Settings update',
   );
   const result: ClientSettingsUpdate = {};
@@ -216,6 +216,19 @@ export const parseSettingsUpdate = (value: unknown): ClientSettingsUpdate => {
       history.retentionDays = retentionDays;
     }
     result.history = history;
+  }
+
+  if (value.telemetry !== undefined) {
+    if (!isRecord(value.telemetry)) throw new Error('Invalid telemetry settings');
+    assertOnlyKeys(value.telemetry, ['enabled'], 'Telemetry settings');
+    const telemetry: NonNullable<ClientSettingsUpdate['telemetry']> = {};
+    if (value.telemetry.enabled !== undefined) {
+      if (typeof value.telemetry.enabled !== 'boolean') {
+        throw new Error('Invalid telemetry enabled setting');
+      }
+      telemetry.enabled = value.telemetry.enabled;
+    }
+    result.telemetry = telemetry;
   }
 
   if (value.updates !== undefined) {

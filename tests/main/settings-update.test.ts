@@ -16,6 +16,16 @@ describe('mergeSettingsUpdate', () => {
     expect(next.dictation.hotkeyAccelerator).toBe('Ctrl+Alt+Space');
   });
 
+  it('merges the telemetry switch without touching other groups', () => {
+    const next = mergeSettingsUpdate(createStoredConfig(), {
+      telemetry: { enabled: true },
+    });
+
+    expect(next.telemetry).toEqual({ enabled: true });
+    expect(next.diagnostics.automaticCollection).toBe(false);
+    expect(next.updates).toEqual({ autoCheck: false, autoDownload: false });
+  });
+
   it('keeps optional provider ids only when explicitly provided', () => {
     const base = createStoredConfig({
       dictation: {

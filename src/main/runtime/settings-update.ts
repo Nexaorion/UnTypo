@@ -40,6 +40,7 @@ export const mergeSettingsUpdate = (
     dictation,
     general: { ...config.general, ...update.general },
     history: { ...config.history, ...update.history },
+    telemetry: { ...config.telemetry, ...update.telemetry },
     updates: { ...config.updates, ...update.updates },
   };
 };

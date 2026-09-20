@@ -118,6 +118,9 @@ export interface StoredClientConfig {
   };
   providers: readonly StoredProviderProfile[];
   sync?: StoredSyncConfig;
+  telemetry: {
+    enabled: boolean;
+  };
   updates: UpdatePolicy;
 }
 
@@ -259,6 +262,7 @@ const defaultConfig = (): StoredClientConfig => ({
     learningEnabled: false,
   },
   providers: [],
+  telemetry: { enabled: false },
   updates: {
     autoCheck: true,
     autoDownload: true,
@@ -338,6 +342,17 @@ const parseHistory = (value: unknown): HistoryPolicy => {
     enabled: value.enabled,
     retentionDays: value.retentionDays,
   };
+};
+
+const parseTelemetry = (value: unknown): StoredClientConfig['telemetry'] => {
+  if (value === undefined) {
+    return { enabled: false };
+  }
+  if (!isRecord(value) || typeof value.enabled !== 'boolean') {
+    throw new Error('Invalid telemetry settings');
+  }
+  assertOnlyKeys(value, ['enabled'], 'Telemetry settings');
+  return { enabled: value.enabled };
 };
 
 const parseUpdates = (value: unknown): UpdatePolicy => {
@@ -721,7 +736,7 @@ const parseCommonData = (
   value: Record<string, unknown>,
 ): Pick<
   StoredClientConfig,
-  'diagnostics' | 'encryptedProfile' | 'general' | 'history' | 'updates'
+  'diagnostics' | 'encryptedProfile' | 'general' | 'history' | 'telemetry' | 'updates'
 > => {
   const encryptedProfile = parseEncryptedProfile(value);
   return {
@@ -729,6 +744,7 @@ const parseCommonData = (
     diagnostics: parseDiagnostics(value.diagnostics),
     general: parseGeneral(value.general),
     history: parseHistory(value.history),
+    telemetry: parseTelemetry(value.telemetry),
     updates: parseUpdates(value.updates),
   };
 };
@@ -1202,6 +1218,7 @@ const parseConfig = (source: string): ParsedConfig => {
       config,
       migrated:
         value.diagnostics === undefined ||
+        value.telemetry === undefined ||
         value.updates === undefined ||
         (isRecord(value.dictation) &&
           (isMigratedDefaultHotkey(value.dictation.hotkeyAccelerator) ||

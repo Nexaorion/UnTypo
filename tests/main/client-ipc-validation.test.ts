@@ -56,6 +56,7 @@ describe('client IPC validation', () => {
         },
         general: { locale: 'en-US' },
         history: { enabled: false, retentionDays: 0 },
+        telemetry: { enabled: true },
         updates: { autoCheck: false, autoDownload: true },
       }),
     ).toMatchObject({
@@ -71,6 +72,7 @@ describe('client IPC validation', () => {
       },
       general: { locale: 'en-US' },
       history: { enabled: false, retentionDays: 0 },
+      telemetry: { enabled: true },
       updates: { autoCheck: false, autoDownload: true },
     });
     expect(parseHistoryQuery({ limit: 50, offset: 10 })).toEqual({
@@ -140,6 +142,12 @@ describe('client IPC validation', () => {
         diagnostics: { showErrorDialogs: 'yes' },
       }),
     ).toThrow('Invalid diagnostic dialog setting');
+    expect(() => parseSettingsUpdate({ telemetry: { enabled: 'yes' } })).toThrow(
+      'Invalid telemetry enabled setting',
+    );
+    expect(() => parseSettingsUpdate({ telemetry: { enabled: true, optOut: true } })).toThrow(
+      'unsupported field',
+    );
   });
 
   it('accepts text for the trusted clipboard bridge', () => {

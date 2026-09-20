@@ -2,6 +2,7 @@ import type { RecorderStartMetadata, RecorderStopMetadata } from '../shared/reco
 import type { ProviderAudioFormat } from '../core/providers/contracts.js';
 import type { MicrophoneDeviceInfo, MicrophoneSelection } from '../shared/microphone.js';
 import { resolveMicrophoneSelection } from '../shared/microphone.js';
+import { init as initSentryRenderer } from '@sentry/electron/renderer';
 import { isMissingMicrophoneError, recorderAudioConstraints } from './device-selection.js';
 import { VoiceActivityDetector } from './voice-activity.js';
 import {
@@ -10,6 +11,8 @@ import {
   encodePcm16Wav,
   encodePcm16WavChunks,
 } from './wav.js';
+
+initSentryRenderer();
 
 interface ActiveRecorder {
   chunks: Blob[];
