@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { TextProcessContext, TextProcessResult } from '../../src/core/providers/contracts';
+import type { TextProcessContext, TextProcessResult } from '../../src/core/providers/types';
 import { OpenAICompatibleTextProvider } from '../../src/core/providers/openai-compatible-text-provider';
 import { SelectionSession, parseSelectionAction } from '../../src/main/selection/session';
 import { selectionBounds } from '../../src/main/selection/placement';

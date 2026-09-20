@@ -2,9 +2,9 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { DictationIntent, SupportedLanguage } from '../../core/providers/contracts.js';
-import type { HistoryPolicy } from './configuration.js';
-import type { ClientHistoryProcessingTrace } from '../../shared/ipc.js';
+import type { DictationIntent, SupportedLanguage } from '../../core/providers/types.js';
+import type { HistoryPolicy } from './config-store.js';
+import type { ClientHistoryProcessingTrace } from '../../shared/client-ipc.js';
 
 export interface HistoryRecord {
   audioDurationMs?: number;

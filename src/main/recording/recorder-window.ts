@@ -8,7 +8,7 @@ import {
 } from 'electron';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import type { ProviderAudioFormat } from '../../core/providers/contracts.js';
+import type { ProviderAudioFormat } from '../../core/providers/types.js';
 import type { MicrophoneSelection } from '../../shared/microphone.js';
 import {
   RECORDER_CHANNELS,

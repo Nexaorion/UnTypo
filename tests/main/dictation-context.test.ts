@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { buildUserProfileContext } from '../../src/main/dictation/dictation-context.js';
 import type { DictationContext } from '../../src/main/dictation/coordinator.js';
-import type { ConfigurationService } from '../../src/main/storage/configuration.js';
-import type { WritingPreferenceLearningService } from '../../src/main/personalization/learning.js';
+import type { ConfigurationService } from '../../src/main/storage/config-store.js';
+import type { WritingPreferenceLearningService } from '../../src/main/personalization/style-learner.js';
 import type { ProviderActivationService } from '../../src/main/providers/provider-activation.js';
 import { createStoredConfig, createStoredProvider } from './fixtures.js';
 

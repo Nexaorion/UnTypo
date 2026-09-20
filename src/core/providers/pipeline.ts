@@ -11,7 +11,7 @@ import {
   type SpeechRecognitionProvider,
   type TextGenerationProvider,
   type TranscriptResult,
-} from './contracts.js';
+} from './types.js';
 
 const throwIfAborted = (signal?: AbortSignal): void => {
   if (signal?.aborted) {

@@ -12,7 +12,7 @@ export default defineConfig({
     outDir: 'dist/renderer',
     rollupOptions: {
       input: {
-        capsule: path.resolve(rootDirectory, 'capsule.html'),
+        capsule: path.resolve(rootDirectory, 'status-overlay.html'),
         main: path.resolve(rootDirectory, 'index.html'),
         recorder: path.resolve(rootDirectory, 'recorder.html'),
         selection: path.resolve(rootDirectory, 'selection.html'),

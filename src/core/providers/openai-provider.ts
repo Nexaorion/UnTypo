@@ -8,14 +8,14 @@ import {
   type TextProcessResult,
   type TranscriptResult,
   type TranscribeOptions,
-} from './contracts.js';
+} from './types.js';
 import {
   createTranscriptOutputTextStream,
   parseTranscriptProcessing,
   transcriptProcessingInstructions,
-} from './text-provider-utils.js';
-import { isProviderEventStream, readProviderEventStream } from './provider-http.js';
-import { responsesNoThinking } from './text-reasoning-policy.js';
+} from './prompt-builder.js';
+import { isProviderEventStream, readProviderEventStream } from './http-utils.js';
+import { responsesNoThinking } from './reasoning-suppress.js';
 
 export interface OpenAIProviderConfiguration {
   allowInsecurePrivateEndpoint?: boolean;

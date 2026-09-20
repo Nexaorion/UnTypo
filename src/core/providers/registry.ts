@@ -5,7 +5,7 @@ import {
   type ProviderIdentity,
   type SpeechRecognitionProvider,
   type TextGenerationProvider,
-} from './contracts.js';
+} from './types.js';
 
 type ContractAssertion<T extends ProviderIdentity> = (provider: T) => void;
 

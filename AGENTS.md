@@ -22,11 +22,11 @@ For a settings control, switch, or action that looks functional but is ineffecti
 | `src/main/utils/`               | Shared utilities: structured logger, performance monitor, error codes.                                                                      |
 | `src/preload/`                  | Minimal, typed APIs exposed only through `contextBridge`.                                                                                   |
 | `src/renderer/`                 | Main-window React + MUI UI, i18n, state, and pure UI logic.                                                                                 |
-| `src/capsule/`, `src/recorder/` | Renderer code for the floating capsule and recording windows.                                                                               |
+| `src/status-overlay/`, `src/recorder/` | Renderer code for the floating status overlay and recording windows.                                                                               |
 | `native/helper/`                | Native hotkey, target-window, and paste behavior (Win32 and macOS).                                                                         |
-| `tests/`                        | Vitest regression tests mirroring `core`, `main`, `preload`, `renderer`, `recorder`, and `capsule`.                                         |
+| `tests/`                        | Vitest regression tests mirroring `core`, `main`, `preload`, `renderer`, `recorder`, and `status-overlay`.                                         |
 
-Follow the neighboring source convention of using `.js` output extensions in relative imports. Production code in `src/renderer/`, `src/capsule/`, and `src/recorder/` must not import Electron or Node directly; communicate through the appropriate preload API.
+Follow the neighboring source convention of using `.js` output extensions in relative imports. Production code in `src/renderer/`, `src/status-overlay/`, and `src/recorder/` must not import Electron or Node directly; communicate through the appropriate preload API.
 
 ## Architecture principles
 
@@ -62,8 +62,8 @@ Follow the neighboring source convention of using `.js` output extensions in rel
 
 - Keep TypeScript strict: accept boundary input as `unknown` and narrow it, use `import type`, and avoid `any`, unsafe assertions, and unhandled promises. Deliberate fire-and-forget work must be explicit with `void` and handle rejection at the appropriate boundary.
 - Add comments only for non-obvious constraints or rationale, using one short sentence. Do not add decorative comments, comments that restate code, TODO/FIXME placeholders, redundant JSDoc, or consecutive multi-line comments.
-- Reuse the established React patterns in `theme.ts`, `ui/`, `state/client.ts`, `logic/`, and `i18n/messages.ts`. Add visible strings to both locales and connect UI to real state and actions rather than static placeholders.
-- Provider contract v3 separates speech recognition from text processing. When changing provider capabilities, inputs/outputs, or processing prompts, review `contracts.ts`, `pipeline.ts`, `registry.ts`, the implementation, fixtures, and tests together. Do not assume a fixed prompt or static schema.
+- Reuse the established React patterns in `theme.ts`, `ui/`, `store/client.ts`, `helpers/`, and `i18n/messages.ts`. Add visible strings to both locales and connect UI to real state and actions rather than static placeholders.
+- Provider contract v3 separates speech recognition from text processing. When changing provider capabilities, inputs/outputs, or processing prompts, review `types.ts`, `pipeline.ts`, `registry.ts`, the implementation, fixtures, and tests together. Do not assume a fixed prompt or static schema.
 - Automatic dictionary learning must stay local, controllable, low-interruption, and adaptive. Score confidence, category, frequency, recency, and rejection cooldown rather than hard-coding a rule such as "prompt after two occurrences".
 - When changing settings, verify the returned snapshot, the runtime side effect, and failure rollback. Hotkeys, microphone selection, provider activation, updates, and launch-at-login cannot be changed only in persisted JSON.
 
@@ -122,18 +122,18 @@ Follow the neighboring source convention of using `.js` output extensions in rel
 - Make layouts responsive in both width and height. Use MUI responsive values where possible, retain the existing `<700px` navigation-rail collapse and `max-height: 680px` compact layouts, and prevent horizontal overflow in pages and dialogs.
 - Maintain accessible interaction: retain the global `:focus-visible` treatment and reduced-motion support, use native MUI controls, provide translated labels for icon-only actions, and give dialogs a real title and accessible relationship. Color alone must not communicate status or state.
 - Put visible copy, accessible names, and interpolation strings in both `zh-CN` and `en-US` entries of `i18n/messages.ts`. Read them through `useI18n()`, preserve interpolation variables across locales, and use the active locale for dates and numbers.
-- The capsule is an independent, transparent CSS surface rather than a MUI renderer. Keep its paired light/dark `--capsule-*` tokens, 4px transparent inset, focus-visible behavior, and reduced-motion rules. Do not add an oversized CSS shadow that can be clipped by the transparent BrowserWindow boundary.
-- Validate meaningful UI changes in Electron. `npm.cmd run smoke` exercises desktop interactions plus a `375×812` responsive pass that checks dialog bounds and horizontal overflow; it does not replace checking the opposite system color scheme or a short-height Home layout. Visual-only browser loads or static screenshots are insufficient for renderer, capsule, or recorder claims.
+- The status overlay is an independent, transparent CSS surface rather than a MUI renderer. Keep its paired light/dark `--capsule-*` tokens, 4px transparent inset, focus-visible behavior, and reduced-motion rules. Do not add an oversized CSS shadow that can be clipped by the transparent BrowserWindow boundary.
+- Validate meaningful UI changes in Electron. `npm.cmd run smoke` exercises desktop interactions plus a `375×812` responsive pass that checks dialog bounds and horizontal overflow; it does not replace checking the opposite system color scheme or a short-height Home layout. Visual-only browser loads or static screenshots are insufficient for renderer, status-overlay, or recorder claims.
 
 ## Electron, IPC, and privacy
 
 - Keep `app.enableSandbox()` enabled. Every BrowserWindow must keep `contextIsolation: true`, `nodeIntegration: false`, and `sandbox: true`, and deny popups and arbitrary navigation. Production renderers may only come from `app://renderer`; the trusted development origin is `http://127.0.0.1:3000`.
-- Define new IPC through a narrow typed contract in `src/shared/`, an explicit preload wrapper, and a main-process handler that calls `assertTrustedSender` and parses every untrusted argument. Event IPC for the capsule and recorder must also validate its `webContents.id`, session, and payload. Update handler cleanup and the channel-alignment coverage in `tests/preload/channels.test.ts`.
+- Define new IPC through a narrow typed contract in `src/shared/`, an explicit preload wrapper, and a main-process handler that calls `assertTrustedSender` and parses every untrusted argument. Event IPC for the status overlay and recorder must also validate its `webContents.id`, session, and payload. Update handler cleanup and the channel-alignment coverage in `tests/preload/channels.test.ts`.
 - Register all IPC handlers through `IpcRegistry.register()` with zod schema validation. The registry applies authentication and validation middleware automatically.
-- Never expose API keys, tokens, audio, or transcripts through renderer snapshots, preload APIs, logs, test snapshots, or diagnostic archives. Persist credentials only in the main process with `ElectronSecretProtector`/`safeStorage`; renderers receive only configured-secret summaries.
+- Never expose API keys, tokens, audio, or transcripts through renderer snapshots, preload APIs, logs, test snapshots, or diagnostic archives. Persist credentials only in the main process with `ElectronSecretProtector`/`safeStorage` (in `src/main/storage/keychain.ts`); renderers receive only configured-secret summaries.
 - Diagnostics are redacted by default. Include audio attachments only when the user explicitly chooses to export them, and preserve the exclusions for text, request bodies, and secrets.
-- The capsule, recorder, and main window rely on their preload bridges. A direct browser load of `capsule.html` or `recorder.html` is not valid Electron behavior verification.
-- Renderers must not directly use Node, Electron, the file system, SQLite, or provider network calls. Write configuration through `ConfigurationService` and history through its repository service. Extending persisted data requires matching schema/migration, defaults, parsing, snapshots, IPC validation, and regression tests.
+- The status overlay, recorder, and main window rely on their preload bridges. A direct browser load of `status-overlay.html` or `recorder.html` is not valid Electron behavior verification.
+- Renderers must not directly use Node, Electron, the file system, SQLite, or provider network calls. Write configuration through `ConfigurationService` (in `src/main/storage/config-store.ts`) and history through its repository service. Extending persisted data requires matching schema/migration, defaults, parsing, snapshots, IPC validation, and regression tests.
 - Do not casually change the development address or port. `127.0.0.1:3000` constrains Vite, trusted-origin checks, recording permissions, all three HTML CSPs, and security tests; update every affected location together.
 
 ## Performance optimization guidelines
@@ -296,7 +296,7 @@ Inspect the current workflow's branch, tag, and release-asset logic before chang
 ## Related documentation
 
 - **Backend refactor plan**: See `/data/UnTypo-Refactor-Plan.md` for detailed refactoring strategy, dependency choices, and migration roadmap.
-- **Provider contracts**: Read `src/core/providers/contracts.ts` for speech/text provider interface definitions.
-- **IPC channels**: Read `src/shared/ipc.ts` for complete IPC contract definitions.
+- **Provider contracts**: Read `src/core/providers/types.ts` for speech/text provider interface definitions.
+- **IPC channels**: Read `src/shared/client-ipc.ts` for complete IPC contract definitions.
 - **Theme system**: Read `src/renderer/theme.ts` for design tokens and color palette.
 - **Testing**: Read `tests/README.md` (if exists) for testing patterns and fixtures.

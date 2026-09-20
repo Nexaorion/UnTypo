@@ -1,11 +1,11 @@
 import { BrowserWindow, clipboard, ipcMain, screen, type IpcMainInvokeEvent } from 'electron';
 import path from 'node:path';
-import type { ProcessResult } from '../../core/providers/contracts.js';
+import type { ProcessResult } from '../../core/providers/types.js';
 import { SELECTION_CHANNELS } from '../../shared/selection-ipc.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
 import type { NativeHelperClient } from '../native/client.js';
 import { NativePasteStatus, type NativeTargetSnapshot } from '../native/protocol.js';
-import { assertTrustedSender } from '../security.js';
+import { assertTrustedSender } from '../ipc/security.js';
 import { selectionBounds } from './placement.js';
 import { parseSelectionAction, SelectionSession, type SelectionContext } from './session.js';
 

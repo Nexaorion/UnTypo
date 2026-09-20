@@ -1,4 +1,4 @@
-import type { ProviderAudioFormat } from '../core/providers/contracts.js';
+import type { ProviderAudioFormat } from '../core/providers/types.js';
 import type { MicrophoneDeviceInfo, MicrophoneSelection } from './microphone.js';
 
 export const RECORDER_CHANNELS = {

@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppShell, type AppPage } from './app-shell.js';
 import { I18nProvider, useI18n } from './i18n/context.js';
-import { defaultHotkeyAccelerator } from './logic/hotkey.js';
-import { DictionarySection } from './sections/dictionary.js';
-import { DiagnosticsDialog } from './sections/diagnostics-dialog.js';
-import { HistorySection } from './sections/history.js';
-import { HomeSection } from './sections/home.js';
-import { SettingsDialog, type SettingsTab } from './sections/settings-dialog.js';
-import { UpdateDialog } from './sections/update-dialog.js';
-import { useClientStore, type ClientStore } from './state/client.js';
+import { defaultHotkeyAccelerator } from './helpers/hotkey.js';
+import { DictionarySection } from './pages/dictionary.js';
+import { DiagnosticsDialog } from './pages/diagnostics-dialog.js';
+import { HistorySection } from './pages/history.js';
+import { HomeSection } from './pages/home.js';
+import { SettingsDialog, type SettingsTab } from './pages/settings-shell.js';
+import { UpdateDialog } from './pages/update-dialog.js';
+import { useClientStore, type ClientStore } from './store/client.js';
 import { ToastProvider } from './ui/toast.js';
 
 const Shell = ({ store }: { store: ClientStore }) => {

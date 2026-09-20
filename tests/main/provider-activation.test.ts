@@ -6,7 +6,7 @@ import { ProviderActivationService } from '../../src/main/providers/provider-act
 import type {
   ConfigurationService,
   ProviderProfile,
-} from '../../src/main/storage/configuration.js';
+} from '../../src/main/storage/config-store.js';
 import type { DiagnosticCollector } from '../../src/main/diagnostics/collector.js';
 import { createStoredConfig } from './fixtures.js';
 

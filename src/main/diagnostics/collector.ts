@@ -13,7 +13,7 @@ import {
 import { appendFile } from 'node:fs/promises';
 import { arch, platform, release } from 'node:os';
 import path from 'node:path';
-import type { AudioPayload } from '../../core/providers/contracts.js';
+import type { AudioPayload } from '../../core/providers/types.js';
 import type {
   ClientDiagnosticExportRequest,
   ClientDiagnosticIssue,

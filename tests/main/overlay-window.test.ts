@@ -1,0 +1,347 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CAPSULE_CHANNELS } from '../../src/shared/overlay-ipc';
+
+const electronMocks = vi.hoisted(() => {
+  const handlers = new Map<string, (...arguments_: unknown[]) => void>();
+  const windows: Array<Record<string, unknown>> = [];
+  const clipboard = { writeText: vi.fn().mockResolvedValue(undefined) };
+  const ipcMain = {
+    on: vi.fn((channel: string, handler: (...arguments_: unknown[]) => void) => {
+      handlers.set(channel, handler);
+    }),
+    removeListener: vi.fn(),
+  };
+  const loadURL = vi.fn(() => Promise.resolve());
+  const screen = {
+    getCursorScreenPoint: vi.fn(() => ({ x: 100, y: 100 })),
+    getDisplayNearestPoint: vi.fn(() => ({
+      workArea: { height: 1080, width: 1920, x: 0, y: 0 },
+    })),
+  };
+  const BrowserWindow = vi.fn(function BrowserWindowMock() {
+    let destroyed = false;
+    let visible = false;
+    let closedHandler: (() => void) | undefined;
+    const window = {
+      destroy: vi.fn(() => {
+        if (destroyed) return;
+        destroyed = true;
+        closedHandler?.();
+      }),
+      isDestroyed: vi.fn(() => destroyed),
+      isVisible: vi.fn(() => visible),
+      focus: vi.fn(),
+      loadURL,
+      once: vi.fn((event: string, handler: () => void) => {
+        if (event === 'closed') closedHandler = handler;
+      }),
+      setAlwaysOnTop: vi.fn(),
+      setFocusable: vi.fn(),
+      setIgnoreMouseEvents: vi.fn(),
+      setPosition: vi.fn(),
+      setSize: vi.fn(),
+      setVisibleOnAllWorkspaces: vi.fn(),
+      showInactive: vi.fn(() => {
+        visible = true;
+      }),
+      webContents: {
+        id: 77,
+        on: vi.fn(),
+        send: vi.fn(),
+        setWindowOpenHandler: vi.fn(),
+      },
+    };
+    windows.push(window);
+    return window;
+  });
+  return {
+    BrowserWindow,
+    clipboard,
+    handlers,
+    ipcMain,
+    loadURL,
+    screen,
+    windows,
+  };
+});
+
+vi.mock('electron', () => ({
+  BrowserWindow: electronMocks.BrowserWindow,
+  clipboard: electronMocks.clipboard,
+  ipcMain: electronMocks.ipcMain,
+  screen: electronMocks.screen,
+}));
+
+import { CapsuleWindowController } from '../../src/main/status-overlay/overlay-window';
+
+const event = { sender: { id: 77 } };
+const confirmResult = {
+  intent: 'instruction' as const,
+  outputText: 'Generated text',
+  rawTranscript: 'Original request',
+};
+
+describe('CapsuleWindowController', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    electronMocks.BrowserWindow.mockClear();
+    electronMocks.clipboard.writeText.mockClear();
+    electronMocks.handlers.clear();
+    electronMocks.ipcMain.on.mockClear();
+    electronMocks.ipcMain.removeListener.mockClear();
+    electronMocks.loadURL.mockReset();
+    electronMocks.loadURL.mockResolvedValue(undefined);
+    electronMocks.windows.length = 0;
+  });
+
+  it('reuses one window through recording, processing, and success', async () => {
+    const controller = new CapsuleWindowController();
+
+    await controller.showRecording('zh-CN');
+    const window = electronMocks.windows[0] as {
+      destroy: ReturnType<typeof vi.fn>;
+      setIgnoreMouseEvents: ReturnType<typeof vi.fn>;
+      setSize: ReturnType<typeof vi.fn>;
+      setVisibleOnAllWorkspaces: ReturnType<typeof vi.fn>;
+      webContents: { send: ReturnType<typeof vi.fn> };
+    };
+    electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
+    expect(window.setIgnoreMouseEvents).toHaveBeenCalledWith(true, {
+      forward: true,
+    });
+    controller.updateLevel(0.55);
+    await controller.showProcessing('zh-CN');
+    await controller.showSuccess(
+      { intent: 'transcription', outputText: '转写结果' },
+      'inserted',
+      'zh-CN',
+    );
+
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(1);
+    expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, {
+      skipTransformProcessType: true,
+      visibleOnFullScreen: true,
+    });
+    expect(window.setSize).toHaveBeenNthCalledWith(1, 276, 56, false);
+    expect(window.setSize).toHaveBeenLastCalledWith(540, 68, false);
+    expect(window.webContents.send).toHaveBeenCalledWith(
+      CAPSULE_CHANNELS.update,
+      expect.objectContaining({ level: 0.55, type: 'recording' }),
+    );
+    expect(window.webContents.send).toHaveBeenLastCalledWith(
+      CAPSULE_CHANNELS.update,
+      expect.objectContaining({
+        delivery: 'inserted',
+        outputText: '转写结果',
+        type: 'success',
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(window.destroy).toHaveBeenCalledOnce();
+    controller.destroy();
+  });
+
+  it('reuses the warmed window for a second recording', async () => {
+    const controller = new CapsuleWindowController();
+    await controller.warmup();
+    await controller.showRecording('zh-CN');
+    await controller.showSuccess(
+      { intent: 'transcription', outputText: '第一次' },
+      'inserted',
+      'zh-CN',
+    );
+    await controller.showRecording('zh-CN');
+
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(1);
+    controller.destroy();
+  });
+
+  it('does not auto-close recording or processing states', async () => {
+    const controller = new CapsuleWindowController();
+    await controller.showRecording('en-US');
+    const window = electronMocks.windows[0] as {
+      destroy: ReturnType<typeof vi.fn>;
+    };
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(window.destroy).not.toHaveBeenCalled();
+    await controller.showProcessing('en-US');
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(window.destroy).not.toHaveBeenCalled();
+    controller.destroy();
+  });
+
+  it('shows partial output in an expanded processing capsule', async () => {
+    const controller = new CapsuleWindowController();
+    await controller.showProcessing('zh-CN');
+    const window = electronMocks.windows[0] as {
+      setSize: ReturnType<typeof vi.fn>;
+      webContents: { send: ReturnType<typeof vi.fn> };
+    };
+    electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
+
+    controller.updateProcessing('流式结果');
+
+    expect(window.setSize).toHaveBeenLastCalledWith(540, 68, false);
+    expect(window.webContents.send).toHaveBeenLastCalledWith(
+      CAPSULE_CHANNELS.update,
+      expect.objectContaining({
+        outputText: '流式结果',
+        type: 'processing',
+      }),
+    );
+    controller.destroy();
+  });
+
+  it('only copies terminal success text from the expected renderer', async () => {
+    const controller = new CapsuleWindowController();
+    await controller.showRecording('en-US');
+    electronMocks.handlers.get(CAPSULE_CHANNELS.copy)?.(event);
+    expect(electronMocks.clipboard.writeText).not.toHaveBeenCalled();
+
+    await controller.showSuccess(
+      { intent: 'translation', outputText: 'Copied result' },
+      'copy',
+      'en-US',
+    );
+    electronMocks.handlers.get(CAPSULE_CHANNELS.copy)?.(event);
+
+    expect(electronMocks.clipboard.writeText).toHaveBeenCalledWith('Copied result');
+    controller.destroy();
+  });
+
+  it('rejects a pending confirmation when the capsule closes', async () => {
+    const controller = new CapsuleWindowController();
+    const confirmation = controller.showConfirm(confirmResult, 'en-US');
+
+    controller.close();
+
+    await expect(confirmation).resolves.toBe(false);
+  });
+
+  it('rejects a pending confirmation when its capsule cannot load', async () => {
+    electronMocks.loadURL.mockRejectedValueOnce(new Error('capsule load failed'));
+    const controller = new CapsuleWindowController();
+
+    await expect(controller.showConfirm(confirmResult, 'en-US')).resolves.toBe(false);
+  });
+
+  it('replaces the success window with an editable dictionary suggestion after 1.5 seconds', async () => {
+    const controller = new CapsuleWindowController();
+    await controller.showRecording('zh-CN');
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: '使用 UnTypo' },
+      'inserted',
+      'zh-CN',
+    );
+    const firstWindow = electronMocks.windows[0] as {
+      destroy: ReturnType<typeof vi.fn>;
+    };
+    const validate = vi.fn(() => Promise.resolve(undefined));
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'zh-CN', generation, validate);
+
+    await vi.advanceTimersByTimeAsync(1_499);
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(firstWindow.destroy).toHaveBeenCalledOnce();
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(2);
+
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(event, 'UnTypo Desktop');
+    await Promise.resolve();
+
+    await expect(suggestion).resolves.toBe('accepted');
+    expect(validate).toHaveBeenCalledWith('UnTypo Desktop');
+    controller.destroy();
+  });
+
+  it('keeps a rejected validation visible and resolves an explicit rejection', async () => {
+    const controller = new CapsuleWindowController();
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: 'UnTypo' },
+      'inserted',
+      'en-US',
+    );
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'en-US', generation, () =>
+      Promise.resolve('duplicate'),
+    );
+    await vi.advanceTimersByTimeAsync(1_500);
+    const window = electronMocks.windows[1] as {
+      webContents: { send: ReturnType<typeof vi.fn> };
+    };
+    electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(event, 'UnTypo');
+    await Promise.resolve();
+
+    expect(window.webContents.send).toHaveBeenLastCalledWith(
+      CAPSULE_CHANNELS.update,
+      expect.objectContaining({ error: 'duplicate', submitting: false }),
+    );
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryReject)?.(event);
+    await expect(suggestion).resolves.toBe('rejected');
+    controller.destroy();
+  });
+
+  it('rejects oversized edited terms before calling the validator', async () => {
+    const controller = new CapsuleWindowController();
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: 'UnTypo' },
+      'inserted',
+      'en-US',
+    );
+    const validate = vi.fn(() => Promise.resolve(undefined));
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'en-US', generation, validate);
+    await vi.advanceTimersByTimeAsync(1_500);
+    const window = electronMocks.windows[1] as {
+      webContents: { send: ReturnType<typeof vi.fn> };
+    };
+    electronMocks.handlers.get(CAPSULE_CHANNELS.ready)?.(event);
+
+    electronMocks.handlers.get(CAPSULE_CHANNELS.dictionaryAccept)?.(event, 'x'.repeat(129));
+
+    expect(validate).not.toHaveBeenCalled();
+    expect(window.webContents.send).toHaveBeenLastCalledWith(
+      CAPSULE_CHANNELS.update,
+      expect.objectContaining({ error: 'too-long', submitting: false }),
+    );
+    controller.close();
+    await expect(suggestion).resolves.toBe('dismissed');
+    controller.destroy();
+  });
+
+  it('does not let a stale suggestion replace a new recording capsule', async () => {
+    const controller = new CapsuleWindowController();
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: 'UnTypo' },
+      'inserted',
+      'en-US',
+    );
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'en-US', generation, () =>
+      Promise.resolve(undefined),
+    );
+    await controller.showRecording('en-US');
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    await expect(suggestion).resolves.toBe('dismissed');
+    expect(electronMocks.BrowserWindow).toHaveBeenCalledTimes(1);
+    controller.destroy();
+  });
+
+  it('dismisses a visible suggestion when a new recording starts', async () => {
+    const controller = new CapsuleWindowController();
+    const generation = await controller.showSuccess(
+      { intent: 'transcription', outputText: 'UnTypo' },
+      'inserted',
+      'en-US',
+    );
+    const suggestion = controller.showDictionarySuggestion('UnTypo', 'en-US', generation, () =>
+      Promise.resolve(undefined),
+    );
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    await controller.showRecording('en-US');
+
+    await expect(suggestion).resolves.toBe('dismissed');
+    controller.destroy();
+  });
+});

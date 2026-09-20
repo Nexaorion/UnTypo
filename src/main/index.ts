@@ -2,19 +2,19 @@ import { Menu, app, BrowserWindow, ipcMain, nativeTheme } from 'electron';
 import { userInfo } from 'node:os';
 import path from 'node:path';
 import { DIAGNOSTIC_CHANGED_CHANNEL } from '../shared/diagnostics.js';
-import { IPC_CHANNELS, type PingResponse } from '../shared/ipc.js';
-import { hideMainWindowOnClose, keepDarwinDockVisible } from './darwin-dock.js';
+import { IPC_CHANNELS, type PingResponse } from '../shared/client-ipc.js';
+import { hideMainWindowOnClose, keepDarwinDockVisible } from './platform/darwin-dock.js';
 import { DiagnosticCollector } from './diagnostics/collector.js';
-import { ClientIpcController } from './ipc/client-controller.js';
-import { handleAppScheme, registerAppScheme } from './protocol.js';
-import { runRendererSmokeTest } from './renderer-smoke.js';
-import { DesktopRuntime } from './runtime/desktop-runtime.js';
-import { assertTrustedSender } from './security.js';
+import { ClientIpcController } from './ipc/handler.js';
+import { handleAppScheme, registerAppScheme } from './platform/app-protocol.js';
+import { runRendererSmokeTest } from './testing/renderer-smoke.js';
+import { DesktopRuntime } from './runtime/app-runtime.js';
+import { assertTrustedSender } from './ipc/security.js';
 import {
   captureTelemetryException,
   flushSentryTelemetry,
   initSentryTelemetryBeforeReady,
-} from './telemetry/sentry-service.js';
+} from './telemetry/crash-reporter.js';
 
 initSentryTelemetryBeforeReady();
 registerAppScheme();
@@ -52,8 +52,8 @@ app.on('render-process-gone', (_event, webContents, details) => {
   const url = webContents.getURL();
   const surface = url.includes('recorder.html')
     ? 'recorder'
-    : url.includes('capsule.html')
-      ? 'capsule'
+    : url.includes('status-overlay.html')
+      ? 'status-overlay'
       : 'main';
   captureTelemetryException(new Error(`Renderer process terminated: ${details.reason}`), {
     'exit.code': String(details.exitCode),

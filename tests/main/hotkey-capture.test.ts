@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { IPC_CHANNELS } from '../../src/shared/ipc';
+import { IPC_CHANNELS } from '../../src/shared/client-ipc';
 import {
   captureInputFromAccelerator,
   RendererHotkeyCapture,

@@ -26,7 +26,7 @@ import type {
   ConfigurationService,
   StoredSyncConfig,
   StoredSyncLogEntry,
-} from '../storage/configuration.js';
+} from '../storage/config-store.js';
 import type { HistoryRepository } from '../storage/history.js';
 
 const DEFAULT_S3_PREFIX = 'untypo/';

@@ -3,8 +3,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { recorderAudioConstraints } from '../../src/recorder/device-selection';
-import { ConfigurationService } from '../../src/main/storage/configuration';
-import { MemorySecretProtector } from '../../src/main/storage/secret-protector';
+import { ConfigurationService } from '../../src/main/storage/config-store';
+import { MemorySecretProtector } from '../../src/main/storage/keychain-types';
 import { resolveMicrophoneSelection } from '../../src/shared/microphone';
 
 describe('Microphone device recovery', () => {

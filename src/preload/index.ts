@@ -16,7 +16,7 @@ import type {
   HotkeyCaptureInput,
   PingResponse,
   UntypoApi,
-} from '../shared/ipc.js';
+} from '../shared/client-ipc.js';
 import type {
   ClientSyncConfigUpdate,
   ClientSyncResult,

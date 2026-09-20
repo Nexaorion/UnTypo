@@ -1,0 +1,34 @@
+import { contextBridge, ipcRenderer } from 'electron';
+import type { CapsuleApi, CapsuleStatus } from '../shared/overlay-ipc.js';
+
+const channels = {
+  close: 'capsule:close',
+  confirm: 'capsule:confirm',
+  copy: 'capsule:copy',
+  dictionaryAccept: 'capsule:dictionary-accept',
+  dictionaryFocus: 'capsule:dictionary-focus',
+  dictionaryReject: 'capsule:dictionary-reject',
+  ready: 'capsule:ready',
+  reject: 'capsule:reject',
+  setInteractive: 'capsule:set-interactive',
+  update: 'capsule:update',
+} as const;
+
+const api: CapsuleApi = {
+  close: () => ipcRenderer.send(channels.close),
+  confirm: () => ipcRenderer.send(channels.confirm),
+  copy: () => ipcRenderer.send(channels.copy),
+  dictionaryAccept: (term: string) => ipcRenderer.send(channels.dictionaryAccept, term),
+  dictionaryFocus: () => ipcRenderer.send(channels.dictionaryFocus),
+  dictionaryReject: () => ipcRenderer.send(channels.dictionaryReject),
+  onUpdate: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, status: CapsuleStatus) => listener(status);
+    ipcRenderer.on(channels.update, wrapped);
+    return () => ipcRenderer.removeListener(channels.update, wrapped);
+  },
+  ready: () => ipcRenderer.send(channels.ready),
+  reject: () => ipcRenderer.send(channels.reject),
+  setInteractive: (interactive) => ipcRenderer.send(channels.setInteractive, interactive),
+};
+
+contextBridge.exposeInMainWorld('capsule', api);

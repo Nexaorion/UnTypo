@@ -2,7 +2,7 @@ import { DEFAULT_APPLICATION_WRITING_STYLES } from '../../src/shared/personaliza
 import type {
   StoredClientConfig,
   StoredProviderProfile,
-} from '../../src/main/storage/configuration.js';
+} from '../../src/main/storage/config-store.js';
 
 export const createStoredProvider = (
   id: string,

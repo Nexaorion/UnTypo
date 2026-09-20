@@ -10,7 +10,7 @@ vi.mock('electron', () => ({ globalShortcut }));
 import { HotkeyManager } from '../../src/main/hotkey/hotkey-manager.js';
 import { parseHotkeyAccelerator } from '../../src/main/native/hotkey.js';
 import { NativeHotkeyAction } from '../../src/main/native/protocol.js';
-import type { ConfigurationService } from '../../src/main/storage/configuration.js';
+import type { ConfigurationService } from '../../src/main/storage/config-store.js';
 import type { NativeHelperClient } from '../../src/main/native/client.js';
 import { createStoredConfig } from './fixtures.js';
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AudioPayload } from '../../src/core/providers/contracts';
+import type { AudioPayload } from '../../src/core/providers/types';
 import { OpenAICompatibleSpeechProvider } from '../../src/core/providers/openai-compatible-speech-provider';
 
 const audio: AudioPayload = {

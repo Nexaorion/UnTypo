@@ -8,7 +8,7 @@ import {
   type SpeechRecognitionProvider,
   type TranscriptResult,
   type TranscribeOptions,
-} from './contracts.js';
+} from './types.js';
 import { audioFormatFromMimeType, audioMediaType } from './audio-format.js';
 import {
   providerConfigSchema,
@@ -16,7 +16,7 @@ import {
   readProviderJson,
   resolveProviderConfiguration,
   type ProviderConnectionConfiguration,
-} from './provider-http.js';
+} from './http-utils.js';
 
 export type AliyunBailianSpeechProviderConfiguration = ProviderConnectionConfiguration & {
   realtimeSpeechEnabled?: boolean;

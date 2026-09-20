@@ -1,4 +1,4 @@
-import type { ClientJsonValue } from './ipc.js';
+import type { ClientJsonValue } from './client-ipc.js';
 
 export type ClientDiagnosticIssueKind =
   'configuration' | 'internal' | 'microphone' | 'provider' | 'renderer';

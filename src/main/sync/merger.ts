@@ -1,4 +1,4 @@
-import type { UserProfileContext } from '../../core/providers/contracts.js';
+import type { UserProfileContext } from '../../core/providers/types.js';
 import {
   dictionaryTermKey,
   DICTIONARY_LIMITS,
@@ -14,7 +14,7 @@ import {
   type DictionaryLearningPrivateState,
   type PersonalizationPrivateState,
   type StoredClientConfig,
-} from '../storage/configuration.js';
+} from '../storage/config-store.js';
 import type { HistoryRecord } from '../storage/history.js';
 
 export interface SyncLocalState {

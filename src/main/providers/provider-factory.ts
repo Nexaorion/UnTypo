@@ -8,14 +8,14 @@ import type {
   AudioPayload,
   SpeechRecognitionProvider,
   TextGenerationProvider,
-} from '../../core/providers/contracts.js';
+} from '../../core/providers/types.js';
 import { OpenAICompatibleSpeechProvider } from '../../core/providers/openai-compatible-speech-provider.js';
 import {
   OpenAICompatibleTextProvider,
   type OpenAICompatibleTextProviderConfiguration,
 } from '../../core/providers/openai-compatible-text-provider.js';
 import { OpenAIResponsesTextProvider } from '../../core/providers/openai-responses-text-provider.js';
-import type { ProviderProfile } from '../storage/configuration.js';
+import type { ProviderProfile } from '../storage/config-store.js';
 
 const isString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;

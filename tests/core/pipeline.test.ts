@@ -3,8 +3,8 @@ import {
   type AudioPayload,
   type ProcessOptions,
   type ProviderContractError,
-} from '../../src/core/providers/contracts';
-import { MockDictationProvider } from '../../src/core/providers/mock-provider';
+} from '../../src/core/providers/types';
+import { MockDictationProvider } from '../../src/core/providers/mock';
 import {
   DictationPipeline,
   RecoverablePostProcessingError,

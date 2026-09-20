@@ -5,13 +5,13 @@ import FormLabel from '@mui/material/FormLabel';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { Fragment, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import type { HotkeyCaptureInput } from '../../shared/ipc.js';
+import type { HotkeyCaptureInput } from '../../shared/client-ipc.js';
 import {
   applyHotkeyCaptureInput,
   createHotkeyCaptureSession,
   hotkeyKeycapLabels,
   resetHotkeyCaptureSession,
-} from '../logic/hotkey.js';
+} from '../helpers/hotkey.js';
 import { themeAlpha, themePalette } from '../theme.js';
 
 export const HotkeyField = ({

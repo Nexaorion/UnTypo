@@ -3,7 +3,7 @@ import type {
   SupportedLanguage,
   ProcessResult,
   TextGenerationProvider,
-} from '../../core/providers/contracts.js';
+} from '../../core/providers/types.js';
 import type { SelectionError, SelectionState } from '../../shared/selection-ipc.js';
 import type { NativeSelection } from '../native/protocol.js';
 

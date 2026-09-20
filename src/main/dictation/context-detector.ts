@@ -1,4 +1,4 @@
-import type { TargetApplicationContext } from '../../core/providers/contracts.js';
+import type { TargetApplicationContext } from '../../core/providers/types.js';
 import type { NativeTargetSnapshot } from '../native/protocol.js';
 
 const aiTools: Readonly<Record<string, string>> = {

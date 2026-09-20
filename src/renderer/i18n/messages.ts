@@ -1,4 +1,4 @@
-import type { SupportedLanguage } from '../../core/providers/contracts.js';
+import type { SupportedLanguage } from '../../core/providers/types.js';
 
 export const messages = {
   'zh-CN': {

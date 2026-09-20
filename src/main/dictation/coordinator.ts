@@ -10,15 +10,15 @@ import type {
   RealtimeTranscriptionSession,
   SupportedLanguage,
   TextGenerationCallTrace,
-} from '../../core/providers/contracts.js';
+} from '../../core/providers/types.js';
 import type { DictionaryCandidate } from '../../shared/dictionary.js';
-import { ProviderContractError } from '../../core/providers/contracts.js';
+import { ProviderContractError } from '../../core/providers/types.js';
 import type {
   SpeechProviderRegistry,
   TextProviderRegistry,
 } from '../../core/providers/registry.js';
-import type { CapsuleErrorReason } from '../../shared/capsule-ipc.js';
-import type { ClientHistoryModelCall, ModelProviderId } from '../../shared/ipc.js';
+import type { CapsuleErrorReason } from '../../shared/overlay-ipc.js';
+import type { ClientHistoryModelCall, ModelProviderId } from '../../shared/client-ipc.js';
 import type { MicrophoneSelection } from '../../shared/microphone.js';
 import type {
   ApplicationWritingStyles,
@@ -26,7 +26,7 @@ import type {
   TargetApplicationContext,
   WritingPreferenceCandidate,
 } from '../../shared/personalization.js';
-import type { HistoryPolicy } from '../storage/configuration.js';
+import type { HistoryPolicy } from '../storage/config-store.js';
 import type { NewHistoryRecord } from '../storage/history.js';
 import type { CompletedRecording, TargetSnapshot } from '../recording/session.js';
 import type { NativeHotkeyAction, NativeTargetSnapshot } from '../native/protocol.js';

@@ -1,5 +1,5 @@
 import type { RecorderStartMetadata, RecorderStopMetadata } from '../shared/recorder-ipc.js';
-import type { ProviderAudioFormat } from '../core/providers/contracts.js';
+import type { ProviderAudioFormat } from '../core/providers/types.js';
 import type { MicrophoneDeviceInfo, MicrophoneSelection } from '../shared/microphone.js';
 import { resolveMicrophoneSelection } from '../shared/microphone.js';
 import { init as initSentryRenderer } from '@sentry/electron/renderer';

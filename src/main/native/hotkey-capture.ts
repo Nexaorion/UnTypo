@@ -1,4 +1,4 @@
-import { IPC_CHANNELS, type HotkeyCaptureInput } from '../../shared/ipc.js';
+import { IPC_CHANNELS, type HotkeyCaptureInput } from '../../shared/client-ipc.js';
 
 export type HotkeyCaptureTarget = {
   isDestroyed: () => boolean;

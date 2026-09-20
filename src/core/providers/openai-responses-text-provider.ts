@@ -4,7 +4,7 @@ import {
   type TextGenerationProvider,
   type TextProcessContext,
   type TextProcessResult,
-} from './contracts.js';
+} from './types.js';
 import {
   isProviderEventStream,
   providerConfigSchema,
@@ -13,14 +13,14 @@ import {
   readProviderJson,
   resolveProviderConfiguration,
   type ProviderConnectionConfiguration,
-} from './provider-http.js';
+} from './http-utils.js';
 import {
   createTranscriptOutputTextStream,
   parseTranscriptProcessing,
   textProviderCapabilities,
   transcriptProcessingInstructions,
-} from './text-provider-utils.js';
-import { responsesNoThinking } from './text-reasoning-policy.js';
+} from './prompt-builder.js';
+import { responsesNoThinking } from './reasoning-suppress.js';
 
 export type OpenAIResponsesTextProviderConfiguration = ProviderConnectionConfiguration;
 

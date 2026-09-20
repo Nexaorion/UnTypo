@@ -1,11 +1,11 @@
-import type { TextGenerationProvider } from '../../core/providers/contracts.js';
+import type { TextGenerationProvider } from '../../core/providers/types.js';
 import { SpeechProviderRegistry, TextProviderRegistry } from '../../core/providers/registry.js';
 import type { DiagnosticCollector } from '../diagnostics/collector.js';
 import type {
   ConfigurationService,
   ProviderProfile,
   StoredClientConfig,
-} from '../storage/configuration.js';
+} from '../storage/config-store.js';
 import { createSpeechProvider, createTextProvider } from './provider-factory.js';
 
 export interface ProviderActivationOptions {

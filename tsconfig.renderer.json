@@ -10,8 +10,8 @@
     "types": ["vite/client"]
   },
   "include": [
-    "src/capsule/**/*.ts",
-    "src/capsule/**/*.tsx",
+    "src/status-overlay/**/*.ts",
+    "src/status-overlay/**/*.tsx",
     "src/recorder/**/*.ts",
     "src/renderer/**/*.ts",
     "src/renderer/**/*.tsx",

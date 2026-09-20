@@ -1,4 +1,4 @@
-import type { ClientJsonValue } from '../../shared/ipc.js';
+import type { ClientJsonValue } from '../../shared/client-ipc.js';
 
 const sensitiveKeyPattern =
   /^(?:api.?key|authorization|body|bytes|cookie|credential|password|request.?body|response.?body|secret|signature|token|transcript|output.?text|clipboard|audio.?data|recording.?data)$/iu;

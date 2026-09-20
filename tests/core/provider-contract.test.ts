@@ -6,11 +6,11 @@ import {
   type AudioPayload,
   type DictationIntent,
   type ProcessOptions,
-} from '../../src/core/providers/contracts';
+} from '../../src/core/providers/types';
 import {
   MockDictationProvider,
   type MockProviderScenario,
-} from '../../src/core/providers/mock-provider';
+} from '../../src/core/providers/mock';
 import { DictationPipeline } from '../../src/core/providers/pipeline';
 
 interface ContractFixture extends MockProviderScenario {

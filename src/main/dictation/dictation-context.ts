@@ -1,7 +1,7 @@
 import type { DictationContext } from './coordinator.js';
-import type { WritingPreferenceLearningService } from '../personalization/learning.js';
+import type { WritingPreferenceLearningService } from '../personalization/style-learner.js';
 import type { ProviderActivationService } from '../providers/provider-activation.js';
-import type { ConfigurationService } from '../storage/configuration.js';
+import type { ConfigurationService } from '../storage/config-store.js';
 
 export interface DictationContextOptions {
   configuration: ConfigurationService;

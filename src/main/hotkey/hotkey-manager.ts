@@ -8,7 +8,7 @@ import {
 import { RendererHotkeyCapture } from '../native/hotkey-capture.js';
 import { parseHotkeyAccelerator, toElectronAccelerator } from '../native/hotkey.js';
 import { NativeHotkeyAction } from '../native/protocol.js';
-import type { ConfigurationService } from '../storage/configuration.js';
+import type { ConfigurationService } from '../storage/config-store.js';
 
 export interface HotkeyManagerOptions {
   configuration: ConfigurationService;

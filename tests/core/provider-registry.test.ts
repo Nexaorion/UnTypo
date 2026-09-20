@@ -4,7 +4,7 @@ import {
   SpeechProviderRegistry,
   TextProviderRegistry,
 } from '../../src/core/providers/registry';
-import { MockDictationProvider } from '../../src/core/providers/mock-provider';
+import { MockDictationProvider } from '../../src/core/providers/mock';
 
 describe('ProviderRegistry', () => {
   it('registers and resolves providers', () => {

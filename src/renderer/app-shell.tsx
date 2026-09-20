@@ -12,8 +12,8 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
 import { useI18n } from './i18n/context.js';
-import type { SettingsTab } from './sections/settings-dialog.js';
-import type { ClientUpdateSnapshot } from '../shared/ipc.js';
+import type { SettingsTab } from './pages/settings-shell.js';
+import type { ClientUpdateSnapshot } from '../shared/client-ipc.js';
 import { themeAlpha, themePalette } from './theme.js';
 
 export type AppPage = 'dictionary' | 'history' | 'home';

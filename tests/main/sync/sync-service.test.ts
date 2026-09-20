@@ -2,9 +2,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ConfigurationService } from '../../../src/main/storage/configuration';
+import { ConfigurationService } from '../../../src/main/storage/config-store';
 import { HistoryRepository } from '../../../src/main/storage/history';
-import { MemorySecretProtector } from '../../../src/main/storage/secret-protector';
+import { MemorySecretProtector } from '../../../src/main/storage/keychain-types';
 import { SyncService } from '../../../src/main/sync/sync-service';
 
 let temporaryDirectory: string;

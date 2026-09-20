@@ -1,4 +1,4 @@
-import type { UntypoApi } from '../shared/ipc';
+import type { UntypoApi } from '../shared/client-ipc';
 
 declare global {
   interface Window {

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
-import type { SupportedLanguage } from '../../core/providers/contracts.js';
+import type { SupportedLanguage } from '../../core/providers/types.js';
 import { messages, type MessageKey } from './messages.js';
 
 export type Translate = (key: MessageKey, vars?: Readonly<Record<string, string>>) => string;

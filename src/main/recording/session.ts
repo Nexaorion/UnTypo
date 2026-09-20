@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AudioPayload } from '../../core/providers/contracts.js';
+import type { AudioPayload } from '../../core/providers/types.js';
 import type { RecorderStartMetadata, RecorderStopMetadata } from '../../shared/recorder-ipc.js';
 import { MINIMUM_VOICE_ACTIVITY_DURATION_MS } from '../../shared/recorder-ipc.js';
 import { InMemoryAudioBuffer } from './audio-buffer.js';

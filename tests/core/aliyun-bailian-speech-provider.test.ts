@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AudioPayload } from '../../src/core/providers/contracts';
+import type { AudioPayload } from '../../src/core/providers/types';
 import {
   AliyunBailianSpeechProvider,
   type ProviderWebSocket,

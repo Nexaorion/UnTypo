@@ -6,7 +6,7 @@ import deepSeekIconUrl from '@lobehub/icons-static-svg/icons/deepseek-color.svg?
 import groqIconUrl from '@lobehub/icons-static-svg/icons/groq.svg?url';
 import openAiIconUrl from '@lobehub/icons-static-svg/icons/openai.svg?url';
 import openRouterIconUrl from '@lobehub/icons-static-svg/icons/openrouter-color.svg?url';
-import type { ProviderIconId } from '../logic/provider-catalog.js';
+import type { ProviderIconId } from '../helpers/provider-catalog.js';
 
 const colorIconUrls: Partial<Record<ProviderIconId, string>> = {
   'alibaba-cloud': alibabaCloudIconUrl,

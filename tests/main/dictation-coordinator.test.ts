@@ -4,8 +4,8 @@ import type {
   DictationIntent,
   ProviderAudioFormat,
   RealtimeTranscriptionSession,
-} from '../../src/core/providers/contracts';
-import { MockDictationProvider } from '../../src/core/providers/mock-provider';
+} from '../../src/core/providers/types';
+import { MockDictationProvider } from '../../src/core/providers/mock';
 import { SpeechProviderRegistry, TextProviderRegistry } from '../../src/core/providers/registry';
 import {
   DictationCoordinator,
@@ -14,7 +14,7 @@ import {
 } from '../../src/main/dictation/coordinator';
 import { NativeHotkeyAction } from '../../src/main/native/protocol';
 import type { NativeTargetSnapshot } from '../../src/main/native/protocol';
-import type { CapsuleErrorReason } from '../../src/shared/capsule-ipc';
+import type { CapsuleErrorReason } from '../../src/shared/overlay-ipc';
 import type { DiagnosticIssueInput } from '../../src/main/diagnostics/collector';
 import type { DictionaryCandidate } from '../../src/shared/dictionary';
 import { DEFAULT_APPLICATION_WRITING_STYLES } from '../../src/shared/personalization';
