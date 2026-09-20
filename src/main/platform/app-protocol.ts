@@ -19,8 +19,12 @@ export const registerAppScheme = (): void => {
   ]);
 };
 
+// Compiled output is dist/main/platform/; renderer assets live in dist/renderer/.
+export const resolveRendererRoot = (moduleDirectory: string): string =>
+  path.resolve(moduleDirectory, '../../renderer');
+
 export const handleAppScheme = (): void => {
-  const rendererRoot = path.resolve(__dirname, '../renderer');
+  const rendererRoot = resolveRendererRoot(__dirname);
 
   protocol.handle(SCHEME, (request) => {
     const url = new URL(request.url);
