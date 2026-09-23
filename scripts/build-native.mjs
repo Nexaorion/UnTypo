@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 const run = (command, args) =>
@@ -76,6 +76,18 @@ if (process.platform === 'darwin') {
     '/p:Platform=x64',
     '/verbosity:minimal',
   ]);
+} else if (process.platform === 'linux') {
+  await mkdir('build/Release', { recursive: true });
+  const cmake = process.env.CMAKE ?? '/usr/bin/cmake';
+  await run(cmake, [
+    '-S',
+    'native/helper',
+    '-B',
+    'build/native-linux',
+    '-DCMAKE_BUILD_TYPE=Release',
+  ]);
+  await run(cmake, ['--build', 'build/native-linux', '--config', 'Release']);
+  await chmod('build/Release/untypo_native_helper', 0o755);
 } else {
   throw new Error(`The native helper cannot be built on ${process.platform}`);
 }

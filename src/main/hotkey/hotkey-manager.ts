@@ -21,7 +21,7 @@ export class HotkeyManager {
   readonly #capture = new RendererHotkeyCapture();
   #captureActive = false;
   #pendingAccelerator?: string;
-  #darwinAccelerator?: string;
+  #desktopAccelerator?: string;
   #removeNativeListener?: () => void;
   readonly #configuration: ConfigurationService;
   readonly #diagnostics: DiagnosticCollector;
@@ -59,8 +59,8 @@ export class HotkeyManager {
       this.#logHotkeyConfiguration(accelerator, nativeHotkey);
       return;
     }
-    if (process.platform === 'darwin') {
-      this.#registerDarwinHotkey(accelerator);
+    if (process.platform === 'darwin' || process.platform === 'linux') {
+      this.#registerDesktopHotkey(accelerator);
       this.#logHotkeyConfiguration(accelerator, nativeHotkey);
       this.#pendingAccelerator = undefined;
       return;
@@ -77,7 +77,7 @@ export class HotkeyManager {
     }
     if (active) {
       this.#captureActive = true;
-      this.#unregisterDarwinHotkey();
+      this.#unregisterDesktopHotkey();
       if (sender) this.#capture.start(sender);
       return;
     }
@@ -112,12 +112,12 @@ export class HotkeyManager {
     this.#removeNativeListener = undefined;
     this.#capture.stop();
     this.#captureActive = false;
-    this.#unregisterDarwinHotkey();
+    this.#unregisterDesktopHotkey();
   }
 
-  #registerDarwinHotkey(accelerator: string): void {
+  #registerDesktopHotkey(accelerator: string): void {
     const electronAccelerator = toElectronAccelerator(accelerator);
-    if (electronAccelerator === this.#darwinAccelerator) return;
+    if (electronAccelerator === this.#desktopAccelerator) return;
     if (
       !globalShortcut.register(electronAccelerator, () => {
         this.#diagnostics.log({
@@ -135,15 +135,15 @@ export class HotkeyManager {
     ) {
       throw new NativeHotkeyRegistrationError(NATIVE_HOTKEY_ALREADY_REGISTERED);
     }
-    const previous = this.#darwinAccelerator;
-    this.#darwinAccelerator = electronAccelerator;
+    const previous = this.#desktopAccelerator;
+    this.#desktopAccelerator = electronAccelerator;
     if (previous) globalShortcut.unregister(previous);
   }
 
-  #unregisterDarwinHotkey(): void {
-    if (!this.#darwinAccelerator) return;
-    globalShortcut.unregister(this.#darwinAccelerator);
-    this.#darwinAccelerator = undefined;
+  #unregisterDesktopHotkey(): void {
+    if (!this.#desktopAccelerator) return;
+    globalShortcut.unregister(this.#desktopAccelerator);
+    this.#desktopAccelerator = undefined;
   }
 
   #logHotkeyConfiguration(

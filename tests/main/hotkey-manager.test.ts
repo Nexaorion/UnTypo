@@ -77,6 +77,18 @@ describe('HotkeyManager', () => {
     );
   });
 
+  it('registers global shortcuts on Linux desktop', async () => {
+    vi.stubGlobal('process', { ...process, platform: 'linux' });
+    const { configureHotkey, manager } = createManager();
+
+    await manager.apply(savedAccelerator);
+
+    expect(configureHotkey).not.toHaveBeenCalled();
+    expect(globalShortcut.register).toHaveBeenCalledWith('Control+Alt+Space', expect.any(Function));
+    manager.stop();
+    expect(globalShortcut.unregister).toHaveBeenCalledWith('Control+Alt+Space');
+  });
+
   it('defers a changed accelerator while capture is active', async () => {
     const { configureHotkey, manager } = createManager();
 
