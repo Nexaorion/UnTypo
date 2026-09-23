@@ -93,7 +93,7 @@ app.on('child-process-gone', (_event, details) => {
 const windowBackground = (): string => (nativeTheme.shouldUseDarkColors ? '#111111' : '#ffffff');
 
 const applicationIconPath = (): string => {
-  const fileName = process.platform === 'darwin' ? 'untypo-icon.png' : 'untypo-icon.ico';
+  const fileName = process.platform === 'win32' ? 'untypo-icon.ico' : 'untypo-icon.png';
   return app.isPackaged
     ? path.join(process.resourcesPath, fileName)
     : path.join(app.getAppPath(), 'assets', fileName);

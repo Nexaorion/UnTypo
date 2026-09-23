@@ -68,6 +68,15 @@ mac:
     - target: zip
       arch:
         - arm64
+linux:
+  category: Utility
+  icon: untypo-icon.png
+  extraResources:
+    - from: build/Release/untypo_native_helper
+      to: bin/untypo_native_helper
+  target:
+    - AppImage
+    - deb
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
