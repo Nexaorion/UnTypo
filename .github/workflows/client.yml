@@ -663,21 +663,32 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin "$RELEASE_BRANCH"
-          [[ "$(git rev-parse "origin/${RELEASE_BRANCH}")" == "$GITHUB_SHA" ]]
+          branch_head="$(git rev-parse "origin/${RELEASE_BRANCH}")"
+          is_current=false
+          if [[ "$branch_head" == "$GITHUB_SHA" ]]; then
+            is_current=true
+          else
+            echo "Skipping release because $GITHUB_SHA is no longer the $RELEASE_BRANCH branch head"
+          fi
+          echo "is_current=$is_current" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
+        if: steps.branch.outputs.is_current == 'true'
         uses: actions/setup-node@v7
         with:
           cache: npm
           node-version: 22
 
       - name: Install Linux build dependencies
+        if: steps.branch.outputs.is_current == 'true'
         run: sudo apt-get update && sudo apt-get install -y build-essential cmake libx11-dev libxkbfile-dev libsecret-1-dev fakeroot
 
       - name: Install locked dependencies
+        if: steps.branch.outputs.is_current == 'true'
         run: npm ci
 
       - name: Resolve Linux release version and tag
+        if: steps.branch.outputs.is_current == 'true'
         id: release
         run: |
           version="$(node -p "require('./package.json').version")"
@@ -687,6 +698,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Build Linux AppImage and deb packages
+        if: steps.branch.outputs.is_current == 'true'
         run: |
           if [[ "$IS_PRERELEASE" == true ]]; then
             npm run build
@@ -697,6 +709,7 @@ jobs:
           fi
 
       - name: Verify AppImage update metadata
+        if: steps.branch.outputs.is_current == 'true'
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
@@ -707,6 +720,7 @@ jobs:
           grep -F "url: $(basename "$appimage")" release/latest-linux.yml
 
       - name: Upload Linux packages and update metadata
+        if: steps.branch.outputs.is_current == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
@@ -726,4 +740,5 @@ jobs:
           (cd release && sha256sum "UnTypo-${RELEASE_VERSION}.AppImage" "untypo_${RELEASE_VERSION}_amd64.deb" \
             | awk '{printf "%s  %s\n", toupper($1), $2}') >> "$sums"
           sort -k2 -o "$sums" "$sums"
-          gh release upload "$RELEASE_TAG" "$sums" --repo "$GITHUB_REPOSITORY" --clobber
+          mv "$sums" "$sums_dir/SHA256SUMS.txt"
+          gh release upload "$RELEASE_TAG" "$sums_dir/SHA256SUMS.txt" --repo "$GITHUB_REPOSITORY" --clobber
