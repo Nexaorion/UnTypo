@@ -77,6 +77,10 @@ linux:
   target:
     - AppImage
     - deb
+deb:
+  maintainer: Nexaorion <noreply@users.noreply.github.com>
+  depends:
+    - xdotool
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

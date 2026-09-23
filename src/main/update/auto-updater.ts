@@ -25,6 +25,7 @@ interface ApplicationUpdateServiceOptions {
   diagnostics: DiagnosticCollector;
   fetchImplementation?: typeof fetch;
   isPackaged?: boolean;
+  isAppImage?: boolean;
   now?: () => number;
   onChanged: (snapshot: ClientUpdateSnapshot) => void;
   platform?: NodeJS.Platform;
@@ -37,8 +38,11 @@ interface ParsedVersion {
   prerelease: readonly string[];
 }
 
-const updatePlatform = (platform: NodeJS.Platform): 'darwin_arm64' | 'win32' | undefined => {
+const updatePlatform = (
+  platform: NodeJS.Platform,
+): 'darwin_arm64' | 'win32' | 'linux_x64' | undefined => {
   if (platform === 'darwin') return 'darwin_arm64';
+  if (platform === 'linux') return 'linux_x64';
   return platform === 'win32' ? platform : undefined;
 };
 
@@ -122,7 +126,7 @@ export class ApplicationUpdateService {
   readonly #fetch: typeof fetch;
   readonly #now: () => number;
   readonly #onChanged: (snapshot: ClientUpdateSnapshot) => void;
-  readonly #platform?: 'darwin_arm64' | 'win32';
+  readonly #platform?: 'darwin_arm64' | 'win32' | 'linux_x64';
   readonly #supported: boolean;
   readonly #updater: AppUpdater;
   readonly #version: string;
@@ -141,7 +145,11 @@ export class ApplicationUpdateService {
     this.#updater = options.updater ?? autoUpdater;
     this.#version = options.version ?? app.getVersion();
     this.#platform = updatePlatform(options.platform ?? process.platform);
-    this.#supported = (options.isPackaged ?? app.isPackaged) && this.#platform !== undefined;
+    this.#supported =
+      (options.isPackaged ?? app.isPackaged) &&
+      this.#platform !== undefined &&
+      (this.#platform !== 'linux_x64' ||
+        ((options.isAppImage ?? Boolean(process.env.APPIMAGE)) && process.arch === 'x64'));
     this.#state = {
       currentVersion: this.#version,
       status: this.#supported ? 'idle' : 'disabled',
@@ -256,6 +264,35 @@ export class ApplicationUpdateService {
       const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       timeout.unref?.();
       try {
+        if (this.#platform === 'linux_x64') {
+          const result = await this.#updater.checkForUpdates();
+          const availableVersion = normalizeVersion(result?.updateInfo.version ?? '');
+          const checkedAt = this.#now();
+          if (!result?.isUpdateAvailable || !isNewerVersion(availableVersion, this.#version)) {
+            this.setState({
+              currentVersion: this.#version,
+              lastCheckedAt: checkedAt,
+              status: 'up-to-date',
+              supported: true,
+            });
+            return this.snapshot();
+          }
+          this.setState({
+            availableVersion,
+            currentVersion: this.#version,
+            lastCheckedAt: checkedAt,
+            status: 'available',
+            supported: true,
+          });
+          this.#diagnostics.log({
+            context: { version: availableVersion },
+            message: 'Application update available',
+            scope: 'app.update',
+          });
+          if (this.#policy.autoDownload) void this.downloadUpdate();
+          return this.snapshot();
+        }
+
         const response = await this.#fetch(
           `${HAZEL_BASE_URL}/update/${this.#platform}/${encodeURIComponent(this.#version)}`,
           {

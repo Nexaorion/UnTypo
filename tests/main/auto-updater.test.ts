@@ -71,6 +71,48 @@ describe('ApplicationUpdateService', () => {
     service.stop();
   });
 
+  it('checks GitHub release metadata for packaged Linux AppImages', async () => {
+    updater.checkForUpdates.mockResolvedValue({
+      isUpdateAvailable: true,
+      updateInfo: { version: '0.2.0' },
+    });
+    const service = new ApplicationUpdateService({
+      diagnostics: { log: vi.fn() } as never,
+      fetchImplementation: vi.fn(),
+      isAppImage: true,
+      isPackaged: true,
+      onChanged: vi.fn(),
+      platform: 'linux',
+      updater: updater as unknown as AppUpdater,
+      version: '0.1.8',
+    });
+    service.start({ autoCheck: false, autoDownload: false });
+
+    await expect(service.checkForUpdates()).resolves.toMatchObject({
+      availableVersion: '0.2.0',
+      status: 'available',
+      supported: true,
+    });
+    expect(updater.checkForUpdates).toHaveBeenCalledOnce();
+    expect(updater.downloadUpdate).not.toHaveBeenCalled();
+    service.stop();
+  });
+
+  it('does not enable Linux updates outside an AppImage', () => {
+    const service = new ApplicationUpdateService({
+      diagnostics: { log: vi.fn() } as never,
+      fetchImplementation: vi.fn(),
+      isAppImage: false,
+      isPackaged: true,
+      platform: 'linux',
+      updater: updater as unknown as AppUpdater,
+      version: '0.1.8',
+    });
+
+    expect(service.snapshot()).toMatchObject({ supported: false });
+    service.stop();
+  });
+
   it('downloads a Hazel-discovered release through signed NSIS metadata', async () => {
     updater.checkForUpdates.mockResolvedValue({
       isUpdateAvailable: true,
