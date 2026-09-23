@@ -715,7 +715,7 @@ jobs:
           set -euo pipefail
           assets=("release/UnTypo-${RELEASE_VERSION}.AppImage" "release/untypo_${RELEASE_VERSION}_amd64.deb" release/latest-linux.yml)
           for file in "${assets[@]}"; do test -s "$file"; done
-          for file in "${assets[0]}"; do [[ -f "$file.blockmap" ]] && assets+=("$file.blockmap"); done
+          if [[ -f "${assets[0]}.blockmap" ]]; then assets+=("${assets[0]}.blockmap"); fi
           gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
 
           sums_dir="$RUNNER_TEMP/sha256sums-linux"
