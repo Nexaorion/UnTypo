@@ -267,7 +267,20 @@ export class ApplicationUpdateService {
       timeout.unref?.();
       try {
         if (this.#platform === 'linux_x64') {
-          const result = await this.#updater.checkForUpdates();
+          // electron-updater's checkForUpdates() accepts no AbortSignal, so
+          // race it against the request deadline to keep the 'checking'
+          // state bounded; on timeout the error surfaces as UPDATE_CHECK_FAILED.
+          const deadline = new Promise<never>((_, reject) => {
+            controller.signal.addEventListener(
+              'abort',
+              () => reject(new Error('Linux update check timed out')),
+              { once: true },
+            );
+          });
+          const result = await Promise.race([
+            this.#updater.checkForUpdates(),
+            deadline,
+          ]);
           const availableVersion = normalizeVersion(result?.updateInfo.version ?? '');
           const checkedAt = this.#now();
           if (!result?.isUpdateAvailable || !isNewerVersion(availableVersion, this.#version)) {

@@ -113,7 +113,11 @@ export const toElectronAccelerator = (accelerator: string): string => {
   if (configuration.modifiers & MOD_CONTROL) parts.push('Control');
   if (configuration.modifiers & MOD_ALT) parts.push('Alt');
   if (configuration.modifiers & MOD_SHIFT) parts.push('Shift');
-  if (configuration.modifiers & MOD_WIN) parts.push('Command');
+  if (configuration.modifiers & MOD_WIN) {
+    // Electron's global shortcuts have no effect with 'Command' on Linux;
+    // the Windows/Meta key is exposed there as 'Super' (macOS keeps 'Command').
+    parts.push(process.platform === 'linux' ? 'Super' : 'Command');
+  }
   const keyName = Object.entries(namedKeys).find(
     ([, virtualKey]) => virtualKey === configuration.virtualKey,
   )?.[0];

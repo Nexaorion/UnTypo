@@ -53,7 +53,9 @@ describe('toElectronAccelerator', () => {
   it('maps stored accelerators to Electron shortcut strings', () => {
     expect(toElectronAccelerator('Ctrl+Alt+Space')).toBe('Control+Alt+Space');
     expect(toElectronAccelerator('Control+Option+Space')).toBe('Control+Alt+Space');
-    expect(toElectronAccelerator('Win+K')).toBe('Command+K');
+    expect(toElectronAccelerator('Win+K')).toBe(
+      process.platform === 'linux' ? 'Super+K' : 'Command+K',
+    );
     expect(toElectronAccelerator('F9')).toBe('F9');
     expect(toElectronAccelerator('Ctrl+Numpad0')).toBe('Control+num0');
     expect(toElectronAccelerator('NumpadDecimal')).toBe('numdec');
