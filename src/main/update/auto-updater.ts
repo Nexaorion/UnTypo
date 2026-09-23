@@ -23,6 +23,7 @@ interface HazelRelease {
 
 interface ApplicationUpdateServiceOptions {
   diagnostics: DiagnosticCollector;
+  arch?: string;
   fetchImplementation?: typeof fetch;
   isPackaged?: boolean;
   isAppImage?: boolean;
@@ -149,7 +150,8 @@ export class ApplicationUpdateService {
       (options.isPackaged ?? app.isPackaged) &&
       this.#platform !== undefined &&
       (this.#platform !== 'linux_x64' ||
-        ((options.isAppImage ?? Boolean(process.env.APPIMAGE)) && process.arch === 'x64'));
+        ((options.isAppImage ?? Boolean(process.env.APPIMAGE)) &&
+          (options.arch ?? process.arch) === 'x64'));
     this.#state = {
       currentVersion: this.#version,
       status: this.#supported ? 'idle' : 'disabled',

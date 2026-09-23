@@ -79,6 +79,7 @@ describe('ApplicationUpdateService', () => {
     const service = new ApplicationUpdateService({
       diagnostics: { log: vi.fn() } as never,
       fetchImplementation: vi.fn(),
+      arch: 'x64',
       isAppImage: true,
       isPackaged: true,
       onChanged: vi.fn(),
