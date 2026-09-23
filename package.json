@@ -1,5 +1,6 @@
 {
   "name": "untypo",
+  "desktopName": "dev.untypo.client.desktop",
   "version": "0.2.3",
   "private": true,
   "description": "Open-source AI dictation client",
@@ -26,7 +27,8 @@
     "package:dir": "npm run build && electron-builder --dir --win",
     "package:dir:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir --mac --arm64",
     "package:win": "npm run build && electron-builder --win nsis",
-    "package:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64"
+    "package:mac": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg zip --arm64",
+    "package:linux": "npm run build && electron-builder --linux AppImage deb --publish never && node scripts/write-linux-update-metadata.mjs"
   },
   "engines": {
     "node": ">=22.12.0",

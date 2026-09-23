@@ -56,6 +56,43 @@ jobs:
       - name: Verify frontend and native helper
         run: npm run check
 
+  verify-linux:
+    name: Verify Linux and packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          cache: npm
+          node-version: 22
+
+      - name: Install Linux build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake libx11-dev libxkbfile-dev libsecret-1-dev fakeroot
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify frontend and native helper
+        run: npm run check
+
+      - name: Build Linux AppImage and deb packages
+        run: npm run package:linux
+
+      - name: Verify Linux package outputs
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          test -s "release/UnTypo-${version}.AppImage"
+          test -s "release/untypo_${version}_amd64.deb"
+          test -s release/latest-linux.yml
+
   check-version:
     name: Check preview version
     if: github.event_name == 'push' && github.ref == 'refs/heads/preview'
@@ -89,10 +126,11 @@ jobs:
 
   publish-windows-release:
     name: Publish Windows release
-    needs: [verify-frontend, check-version]
+    needs: [verify-frontend, verify-linux, check-version]
     if: >-
       always() &&
       needs.verify-frontend.result == 'success' &&
+      needs.verify-linux.result == 'success' &&
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/master' ||
         (github.ref == 'refs/heads/preview' && needs.check-version.outputs.version_changed == 'true')) &&
@@ -296,10 +334,11 @@ jobs:
 
   publish-macos-release:
     name: Publish macOS release
-    needs: [verify-macos, check-version, publish-windows-release]
+    needs: [verify-macos, verify-linux, check-version, publish-windows-release]
     if: >-
       always() &&
       needs.verify-macos.result == 'success' &&
+      needs.verify-linux.result == 'success' &&
       needs.publish-windows-release.result == 'success' &&
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/master' ||
@@ -589,3 +628,117 @@ jobs:
           if [[ -n "${UNTYPO_SIGNING_KEYCHAIN:-}" ]]; then
             security delete-keychain "$UNTYPO_SIGNING_KEYCHAIN" || true
           fi
+
+  publish-linux-release:
+    name: Publish Linux release
+    needs: [verify-linux, check-version, publish-macos-release]
+    if: >-
+      always() &&
+      needs.verify-linux.result == 'success' &&
+      needs.publish-macos-release.result == 'success' &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/master' ||
+        (github.ref == 'refs/heads/preview' && needs.check-version.outputs.version_changed == 'true')) &&
+      github.repository == 'Nexaorion/UnTypo'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    concurrency:
+      group: linux-release-${{ github.repository }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      RELEASE_BRANCH: ${{ github.ref_name }}
+      IS_PRERELEASE: ${{ github.ref == 'refs/heads/preview' }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Confirm release commit is current branch head
+        id: branch
+        run: |
+          set -euo pipefail
+          git fetch origin "$RELEASE_BRANCH"
+          branch_head="$(git rev-parse "origin/${RELEASE_BRANCH}")"
+          is_current=false
+          if [[ "$branch_head" == "$GITHUB_SHA" ]]; then
+            is_current=true
+          else
+            echo "Skipping release because $GITHUB_SHA is no longer the $RELEASE_BRANCH branch head"
+          fi
+          echo "is_current=$is_current" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        if: steps.branch.outputs.is_current == 'true'
+        uses: actions/setup-node@v7
+        with:
+          cache: npm
+          node-version: 22
+
+      - name: Install Linux build dependencies
+        if: steps.branch.outputs.is_current == 'true'
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake libx11-dev libxkbfile-dev libsecret-1-dev fakeroot
+
+      - name: Install locked dependencies
+        if: steps.branch.outputs.is_current == 'true'
+        run: npm ci
+
+      - name: Resolve Linux release version and tag
+        if: steps.branch.outputs.is_current == 'true'
+        id: release
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          tag="v${version}"
+          if [[ "$RELEASE_BRANCH" == preview ]]; then tag="preview-${tag}"; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Build Linux AppImage and deb packages
+        if: steps.branch.outputs.is_current == 'true'
+        run: |
+          if [[ "$IS_PRERELEASE" == true ]]; then
+            npm run build
+            npx electron-builder --linux AppImage deb --publish never --config.publish.tagNamePrefix=preview-v
+            node scripts/write-linux-update-metadata.mjs
+          else
+            npm run package:linux
+          fi
+
+      - name: Verify AppImage update metadata
+        if: steps.branch.outputs.is_current == 'true'
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -s release/latest-linux.yml
+          appimage="release/UnTypo-${RELEASE_VERSION}.AppImage"
+          test -s "$appimage"
+          grep -F "url: $(basename "$appimage")" release/latest-linux.yml
+
+      - name: Upload Linux packages and update metadata
+        if: steps.branch.outputs.is_current == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          assets=("release/UnTypo-${RELEASE_VERSION}.AppImage" "release/untypo_${RELEASE_VERSION}_amd64.deb" release/latest-linux.yml)
+          for file in "${assets[@]}"; do test -s "$file"; done
+          if [[ -f "${assets[0]}.blockmap" ]]; then assets+=("${assets[0]}.blockmap"); fi
+          gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
+
+          sums_dir="$RUNNER_TEMP/sha256sums-linux"
+          mkdir -p "$sums_dir"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS.txt --dir "$sums_dir"
+          sums="$(mktemp)"
+          tr -d '\r' < "$sums_dir/SHA256SUMS.txt" | grep -Eiv ' (UnTypo-[^ ]*\.AppImage|untypo_[^ ]*\.deb)$' > "$sums" || true
+          (cd release && sha256sum "UnTypo-${RELEASE_VERSION}.AppImage" "untypo_${RELEASE_VERSION}_amd64.deb" \
+            | awk '{printf "%s  %s\n", toupper($1), $2}') >> "$sums"
+          sort -k2 -o "$sums" "$sums"
+          mv "$sums" "$sums_dir/SHA256SUMS.txt"
+          gh release upload "$RELEASE_TAG" "$sums_dir/SHA256SUMS.txt" --repo "$GITHUB_REPOSITORY" --clobber

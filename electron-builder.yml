@@ -68,6 +68,20 @@ mac:
     - target: zip
       arch:
         - arm64
+linux:
+  category: Utility
+  icon: untypo-icon.png
+  syncDesktopName: true
+  extraResources:
+    - from: build/Release/untypo_native_helper
+      to: bin/untypo_native_helper
+  target:
+    - AppImage
+    - deb
+deb:
+  maintainer: Nexaorion <noreply@users.noreply.github.com>
+  depends:
+    - xdotool
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
