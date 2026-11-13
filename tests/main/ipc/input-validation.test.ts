@@ -160,6 +160,7 @@ describe('client IPC validation', () => {
     ['text', 'anthropic-text', 'anthropic-text'],
     ['speech', 'openai-compatible-speech', 'openai-speech'],
     ['speech', 'aliyun-bailian-speech', 'aliyun-bailian-speech'],
+    ['speech', 'deepseek-asr-speech', 'deepseek-asr-speech'],
   ] as const)('accepts the %s/%s provider shape', (kind, providerId, presetId) => {
     expect(
       parseProviderInput({

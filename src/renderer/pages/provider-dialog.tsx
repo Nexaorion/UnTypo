@@ -65,6 +65,7 @@ const ProviderDialogFlow = ({
   const presets = getProviderPresets(draft.kind);
   const selectedPreset = getProviderPreset(draft.presetId);
   const isAliyun = draft.providerId === 'aliyun-bailian-speech';
+  const isDeepSeekAsr = draft.providerId === 'deepseek-asr-speech';
   const isCustomText = draft.kind === 'text' && draft.presetId === 'custom-text';
 
   const errorText = (code?: ProviderFormErrorCode): string | undefined => {
@@ -265,6 +266,12 @@ const ProviderDialogFlow = ({
                 <Typography color="text.secondary" variant="caption">
                   {t('provider.aliyunWorkspaceHint')}
                 </Typography>
+              </Alert>
+            ) : null}
+
+            {isDeepSeekAsr ? (
+              <Alert severity="info">
+                <Typography variant="body2">{t('provider.deepseekAsrHint')}</Typography>
               </Alert>
             ) : null}
 

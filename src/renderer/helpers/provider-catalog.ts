@@ -13,6 +13,7 @@ export type ProviderPresetId =
   | 'anthropic-text'
   | 'custom-openai-speech'
   | 'custom-text'
+  | 'deepseek-asr-speech'
   | 'deepseek-text'
   | 'groq-speech'
   | 'openai-speech'
@@ -25,6 +26,7 @@ export interface ProviderPreset {
   id: ProviderPresetId;
   kind: ProviderKind;
   labelKey: MessageKey;
+  model?: string;
   name: string;
   providerId: ProviderAdapterId;
   supportedProviderIds?: readonly ProviderAdapterId[];
@@ -117,6 +119,16 @@ export const PROVIDER_PRESETS = [
     providerId: 'openai-compatible-speech',
   },
   {
+    baseUrl: 'https://api.deepseek.com/v1',
+    icon: 'deepseek',
+    id: 'deepseek-asr-speech',
+    kind: 'speech',
+    labelKey: 'provider.preset.deepseekAsr',
+    model: 'deepseek-asr',
+    name: 'DeepSeek ASR',
+    providerId: 'deepseek-asr-speech',
+  },
+  {
     baseUrl: 'https://dashscope.aliyuncs.com/api/v1',
     icon: 'alibaba-cloud',
     id: 'aliyun-bailian-speech',
@@ -178,11 +190,13 @@ export const resolveProviderPreset = ({
   if (exactEndpoint) return exactEndpoint;
 
   const fallbackId: ProviderPresetId =
-    kind === 'speech'
-      ? providerId === 'aliyun-bailian-speech'
+    kind === 'text'
+      ? 'custom-text'
+      : providerId === 'aliyun-bailian-speech'
         ? 'aliyun-bailian-speech'
-        : 'custom-openai-speech'
-      : 'custom-text';
+        : providerId === 'deepseek-asr-speech'
+          ? 'deepseek-asr-speech'
+          : 'custom-openai-speech';
 
   return getProviderPreset(fallbackId) ?? getDefaultProviderPreset(kind);
 };
