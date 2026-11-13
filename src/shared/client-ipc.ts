@@ -79,6 +79,7 @@ export type ModelProviderKind = 'speech' | 'text';
 export type ModelProviderId =
   | 'aliyun-bailian-speech'
   | 'anthropic-text'
+  | 'deepseek-asr-speech'
   | 'openai-compatible-speech'
   | 'openai-compatible-text'
   | 'openai-responses-text';

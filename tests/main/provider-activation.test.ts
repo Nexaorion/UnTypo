@@ -112,6 +112,35 @@ describe('ProviderActivationService', () => {
     expect(service.activeTextProvider).toBeUndefined();
   });
 
+  it('activates DeepSeek ASR as a WAV speech provider', async () => {
+    const profile: ProviderProfile = {
+      id: 'deepseek-asr-speech',
+      kind: 'speech',
+      providerId: 'deepseek-asr-speech',
+      secrets: { apiKey: 'sk-deepseek' },
+      values: {
+        baseUrl: 'https://api.deepseek.com/v1',
+        model: 'deepseek-asr',
+        name: 'DeepSeek ASR',
+        presetId: 'deepseek-asr-speech',
+      },
+    };
+    const { service } = createService({ 'deepseek-asr-speech': profile });
+
+    await service.activate(
+      createStoredConfig({
+        dictation: {
+          activeSpeechProviderProfileId: 'deepseek-asr-speech',
+          defaultTargetLanguage: 'zh-CN',
+          hotkeyAccelerator: 'Ctrl+Alt+Space',
+          language: 'zh-CN',
+        },
+      }),
+    );
+
+    expect(service.speechProviders.require('deepseek-asr-speech').preferredAudioFormat).toBe('wav');
+  });
+
   it('routes provider fetches through the logged fetch factory', () => {
     const { createLoggedFetch, service } = createService({});
 

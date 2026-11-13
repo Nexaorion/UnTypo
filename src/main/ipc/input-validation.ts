@@ -323,6 +323,7 @@ export const parseProviderInput = (value: unknown): ClientProviderInput => {
   const providerKinds: Readonly<Record<ModelProviderId, ModelProviderKind>> = {
     'aliyun-bailian-speech': 'speech',
     'anthropic-text': 'text',
+    'deepseek-asr-speech': 'speech',
     'openai-compatible-speech': 'speech',
     'openai-compatible-text': 'text',
     'openai-responses-text': 'text',

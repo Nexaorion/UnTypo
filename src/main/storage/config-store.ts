@@ -207,6 +207,7 @@ const profileIdPattern = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
 const providerKinds: Readonly<Record<ModelProviderId, ModelProviderKind>> = {
   'aliyun-bailian-speech': 'speech',
   'anthropic-text': 'text',
+  'deepseek-asr-speech': 'speech',
   'openai-compatible-speech': 'speech',
   'openai-compatible-text': 'text',
   'openai-responses-text': 'text',
