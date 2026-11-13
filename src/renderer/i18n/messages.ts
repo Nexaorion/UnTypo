@@ -262,6 +262,8 @@ export const messages = {
     'provider.chooseTextProvider': '选择文本生成提供商',
     'provider.configure': '配置模型',
     'provider.customEndpointHint': '自行填写接口地址',
+    'provider.deepseekAsrHint':
+      '使用 DeepSeek 独立语音识别接口。填写 API 密钥即可，接口地址和模型已经填好，语言会从音频自动识别。',
     'provider.edit': '编辑模型',
     'provider.empty': '暂无模型',
     'provider.emptySpeech': '还没有语音识别模型',
@@ -281,6 +283,7 @@ export const messages = {
     'provider.preset.anthropic': 'Anthropic',
     'provider.preset.custom': '自定义提供商',
     'provider.preset.deepseek': 'DeepSeek',
+    'provider.preset.deepseekAsr': 'DeepSeek 语音识别',
     'provider.preset.groq': 'Groq',
     'provider.preset.invalid': '请选择可用的提供商预设',
     'provider.preset.openai': 'OpenAI',
@@ -734,6 +737,8 @@ export const messages = {
     'provider.chooseTextProvider': 'Choose a text provider',
     'provider.configure': 'Configure model',
     'provider.customEndpointHint': 'Enter a custom endpoint',
+    'provider.deepseekAsrHint':
+      'Uses DeepSeek standalone speech-to-text. Enter an API key to use it. The endpoint and model are already filled in, and the language is detected from the audio.',
     'provider.edit': 'Edit model',
     'provider.empty': 'No models',
     'provider.emptySpeech': 'No speech recognition model yet',
@@ -753,6 +758,7 @@ export const messages = {
     'provider.preset.anthropic': 'Anthropic',
     'provider.preset.custom': 'Custom provider',
     'provider.preset.deepseek': 'DeepSeek',
+    'provider.preset.deepseekAsr': 'DeepSeek ASR',
     'provider.preset.groq': 'Groq',
     'provider.preset.invalid': 'Choose an available provider preset',
     'provider.preset.openai': 'OpenAI',

@@ -220,6 +220,40 @@ describe('setAliyunRealtimeSpeechEnabled', () => {
   });
 });
 
+describe('DeepSeek ASR preset', () => {
+  it('pre-fills the endpoint and model so only an API key is required', () => {
+    const preset = getProviderPreset('deepseek-asr-speech');
+    expect(preset).toBeDefined();
+    if (!preset) return;
+    const form = selectProviderPreset(emptyProviderForm('speech'), preset, new Set(), false);
+
+    expect(form).toMatchObject({
+      baseUrl: 'https://api.deepseek.com/v1',
+      id: 'deepseek-asr-speech',
+      kind: 'speech',
+      model: 'deepseek-asr',
+      name: 'DeepSeek ASR',
+      presetId: 'deepseek-asr-speech',
+      providerId: 'deepseek-asr-speech',
+    });
+    expect(validateProviderForm(form)).toEqual({ apiKey: 'required' });
+    expect(validateProviderForm({ ...form, apiKey: 'sk-deepseek' })).toEqual({});
+    expect(toProviderInput({ ...form, apiKey: ' sk-deepseek ' })).toEqual({
+      id: 'deepseek-asr-speech',
+      kind: 'speech',
+      providerId: 'deepseek-asr-speech',
+      secrets: { apiKey: 'sk-deepseek' },
+      values: {
+        allowInsecurePrivateEndpoint: false,
+        baseUrl: 'https://api.deepseek.com/v1',
+        model: 'deepseek-asr',
+        name: 'DeepSeek ASR',
+        presetId: 'deepseek-asr-speech',
+      },
+    });
+  });
+});
+
 describe('toProviderInput', () => {
   it('trims values and serializes the selected adapter', () => {
     const input = toProviderInput({

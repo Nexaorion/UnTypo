@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEEPSEEK_ASR_BASE_URL,
+  DEEPSEEK_ASR_MODEL,
+} from '../../../src/core/providers/deepseek-asr-speech-provider';
+import {
   createProviderProfileId,
   getProviderPreset,
   getProviderPresets,
@@ -21,6 +25,7 @@ describe('provider preset catalog', () => {
     expect(getProviderPresets('speech').map((preset) => preset.id)).toEqual([
       'openai-speech',
       'groq-speech',
+      'deepseek-asr-speech',
       'aliyun-bailian-speech',
       'custom-openai-speech',
     ]);
@@ -32,7 +37,7 @@ describe('provider preset catalog', () => {
     }
   });
 
-  it('presets provider names and endpoints without choosing model ids', () => {
+  it('presets provider names and endpoints, and a model only for fixed speech APIs', () => {
     expect(getProviderPreset('openai-text')).toMatchObject({
       baseUrl: 'https://api.openai.com/v1',
       providerId: 'openai-responses-text',
@@ -44,11 +49,22 @@ describe('provider preset catalog', () => {
     expect(getProviderPreset('deepseek-text')).toMatchObject({
       baseUrl: 'https://api.deepseek.com',
     });
+    expect(getProviderPreset('deepseek-asr-speech')).toMatchObject({
+      baseUrl: DEEPSEEK_ASR_BASE_URL,
+      icon: 'deepseek',
+      model: DEEPSEEK_ASR_MODEL,
+      name: 'DeepSeek ASR',
+      providerId: 'deepseek-asr-speech',
+    });
     expect(getProviderPreset('aliyun-bailian-speech')).toMatchObject({
       baseUrl: 'https://dashscope.aliyuncs.com/api/v1',
       providerId: 'aliyun-bailian-speech',
     });
     for (const preset of PROVIDER_PRESETS) {
+      if (preset.id === 'deepseek-asr-speech') {
+        expect(preset.model).toBe(DEEPSEEK_ASR_MODEL);
+        continue;
+      }
       expect(preset).not.toHaveProperty('model');
     }
   });
@@ -89,5 +105,21 @@ describe('provider preset catalog', () => {
         providerId: 'openai-compatible-speech',
       }).id,
     ).toBe('custom-openai-speech');
+    expect(
+      resolveProviderPreset({
+        baseUrl: DEEPSEEK_ASR_BASE_URL,
+        kind: 'speech',
+        presetId: 'legacy',
+        providerId: 'deepseek-asr-speech',
+      }).id,
+    ).toBe('deepseek-asr-speech');
+    expect(
+      resolveProviderPreset({
+        baseUrl: 'https://gateway.example/v1',
+        kind: 'speech',
+        presetId: 'legacy',
+        providerId: 'deepseek-asr-speech',
+      }).id,
+    ).toBe('deepseek-asr-speech');
   });
 });

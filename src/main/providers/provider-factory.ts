@@ -4,6 +4,7 @@ import {
   type ProviderWebSocketFactory,
 } from '../../core/providers/aliyun-bailian-speech-provider.js';
 import { AnthropicTextProvider } from '../../core/providers/anthropic-text-provider.js';
+import { DeepSeekAsrSpeechProvider } from '../../core/providers/deepseek-asr-speech-provider.js';
 import type {
   AudioPayload,
   SpeechRecognitionProvider,
@@ -105,6 +106,9 @@ export const createSpeechProvider = (
       fetchImplementation,
       createProviderWebSocket,
     );
+  }
+  if (profile.providerId === 'deepseek-asr-speech') {
+    return new DeepSeekAsrSpeechProvider(configuration, fetchImplementation);
   }
   throw new Error('Speech provider profile has an unsupported provider id');
 };
