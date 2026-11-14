@@ -1,0 +1,8 @@
+phrase: This is a connection test.
+format: 16-bit PCM WAV, mono, 16000 Hz
+duration: 1.935 seconds
+size: 61962 bytes
+generator: eSpeak NG 1.51 (GPL-3.0-or-later), voice en-us
+command: espeak-ng -v en-us -s 148 -w speech.wav "This is a connection test."
+resample: ffmpeg -i speech.wav -map_metadata -1 -fflags +bitexact -ac 1 -ar 16000 -c:a pcm_s16le connection-check.wav
+license: eSpeak NG is GPL-3.0-or-later. This file is synthesized waveform output from the command above. It does not include eSpeak NG source, its phoneme data, or a recording of a person. ffmpeg only resampled that waveform to 16 kHz PCM.

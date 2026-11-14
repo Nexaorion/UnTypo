@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import {
+  CONNECTION_CHECK_PHRASE,
+  loadConnectionCheckAudio,
+} from '../../src/core/providers/connection-check';
 import type { AudioPayload } from '../../src/core/providers/types';
 import {
   AliyunBailianSpeechProvider,
@@ -291,15 +295,16 @@ describe('AliyunBailianSpeechProvider', () => {
     expect(body.parameters).not.toHaveProperty('vocabulary');
   });
 
-  it('sends a data-URI WAV for connection testing', async () => {
+  it('sends the bundled spoken clip and checks the transcript', async () => {
     const request = vi.fn<typeof fetch>(() =>
       Promise.resolve(
-        new Response(JSON.stringify({ output: { text: 'ready' } }), {
+        new Response(JSON.stringify({ output: { text: CONNECTION_CHECK_PHRASE } }), {
           status: 200,
         }),
       ),
     );
     const provider = new AliyunBailianSpeechProvider(configuration, request);
+    const fixture = loadConnectionCheckAudio();
 
     await expect(provider.testConnection()).resolves.toBeUndefined();
 
@@ -317,9 +322,12 @@ describe('AliyunBailianSpeechProvider', () => {
       model: string;
       parameters: Record<string, unknown>;
     };
-    const audioData = body.input.messages[0]?.content[0]?.input_audio.data;
-    expect(audioData?.startsWith('data:audio/wav;base64,')).toBe(true);
+    const audioData = body.input.messages[0]?.content[0]?.input_audio.data ?? '';
+    expect(audioData.startsWith('data:audio/wav;base64,')).toBe(true);
     expect(audioData).not.toContain('http');
+    expect(Buffer.from(audioData.slice('data:audio/wav;base64,'.length), 'base64')).toEqual(
+      Buffer.from(fixture.bytes),
+    );
     expect(body.model).toBe('qwen-audio-3.0-asr-flash');
     expect(body.parameters).toEqual({
       format: 'wav',
