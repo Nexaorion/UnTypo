@@ -28,6 +28,8 @@ extraResources:
     to: untypo-trayTemplate.png
   - from: assets/untypo-trayTemplate@2x.png
     to: untypo-trayTemplate@2x.png
+  - from: assets/connection-check.wav
+    to: connection-check.wav
 win:
   executableName: UnTypo
   icon: untypo-icon.ico

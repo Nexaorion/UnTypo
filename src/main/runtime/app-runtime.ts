@@ -1,7 +1,7 @@
 import { app, dialog, shell, systemPreferences, type WebContents } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { ProviderContractError, type UserProfileContext } from '../../core/providers/types.js';
+import type { UserProfileContext } from '../../core/providers/types.js';
 import type {
   ClientDiagnosticExportRequest,
   ClientDiagnosticExportResult,
@@ -550,9 +550,6 @@ export class DesktopRuntime implements ClientBackendPort {
     try {
       await testProviderConnection(profile, this.#providers.providerFetch(profile));
     } catch (error) {
-      if (error instanceof ProviderContractError && error.code === 'EMPTY_RESULT') {
-        return { ok: true };
-      }
       this.#diagnostics.recordIssue({
         context: {
           profileId: profile.id,
