@@ -68,6 +68,15 @@ export const describeUserFacingError = (error: unknown, t: Translate): string =>
   ) {
     return t('error.providerConfiguration');
   }
+  if (normalized.includes('connection check was cancelled')) {
+    return t('error.connectionCheckCancelled');
+  }
+  if (normalized.includes('connection check returned no transcript')) {
+    return t('error.connectionCheckEmpty');
+  }
+  if (normalized.includes('connection check transcript did not match')) {
+    return t('error.connectionCheckMismatch');
+  }
   if (
     normalized.includes('api key') ||
     normalized.includes('unauthorized') ||

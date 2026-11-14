@@ -10,6 +10,7 @@ import {
   type TranscribeOptions,
 } from './types.js';
 import { audioFormatFromMimeType, audioMediaType } from './audio-format.js';
+import { finishConnectionCheck, loadConnectionCheckAudio } from './connection-check.js';
 import {
   providerConfigSchema,
   providerUrl,
@@ -62,38 +63,6 @@ const maximumPendingRealtimeAudioBytes = 2 * 1024 * 1024;
 const realtimeSampleRateHz = 16_000;
 const realtimeModel = 'qwen-audio-3.0-asr-flash-streaming';
 const synchronousModel = 'qwen-audio-3.0-asr-flash';
-const writeAscii = (view: DataView, offset: number, value: string): void => {
-  for (let index = 0; index < value.length; index += 1) {
-    view.setUint8(offset + index, value.charCodeAt(index));
-  }
-};
-
-const connectionTestWav = (): Uint8Array => {
-  const sampleRate = 16_000;
-  const samples = 1_600;
-  const dataBytes = samples * 2;
-  const buffer = new ArrayBuffer(44 + dataBytes);
-  const view = new DataView(buffer);
-  writeAscii(view, 0, 'RIFF');
-  view.setUint32(4, 36 + dataBytes, true);
-  writeAscii(view, 8, 'WAVE');
-  writeAscii(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeAscii(view, 36, 'data');
-  view.setUint32(40, dataBytes, true);
-  for (let index = 0; index < samples; index += 1) {
-    const sample = Math.round(8_000 * Math.sin((2 * Math.PI * 440 * index) / sampleRate));
-    view.setInt16(44 + index * 2, sample, true);
-  }
-  return new Uint8Array(buffer);
-};
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
@@ -607,8 +576,9 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
     };
   }
 
-  async testConnection(): Promise<void> {
+  async testConnection(options?: { audio?: AudioPayload; signal?: AbortSignal }): Promise<void> {
     if (this.#realtimeSpeechEnabled) {
+      // The realtime socket accepts silence, so this handshake does not prove recognition.
       if (!this.#webSocketFactory) {
         throw new ProviderContractError(
           'UNSUPPORTED_CAPABILITY',
@@ -628,40 +598,15 @@ export class AliyunBailianSpeechProvider implements SpeechRecognitionProvider {
       await session.finish(100);
       return;
     }
-    const wav = connectionTestWav();
-    const dataUri = `data:audio/wav;base64,${Buffer.from(wav).toString('base64')}`;
-    const response = await this.#fetch(
-      providerUrl(this.#baseUrl, '/services/aigc/multimodal-generation/generation'),
-      {
-        body: JSON.stringify({
-          input: {
-            messages: [
-              {
-                content: [
-                  {
-                    input_audio: { data: dataUri },
-                    type: 'input_audio',
-                  },
-                ],
-                role: 'user',
-              },
-            ],
-          },
-          model: this.#httpModel,
-          parameters: {
-            format: 'wav',
-            language_hints: ['en'],
-            sample_rate: '16000',
-          },
+    const audio = options?.audio ?? loadConnectionCheckAudio();
+    await finishConnectionCheck(
+      () =>
+        this.transcribe(audio, {
+          dictionary: [],
+          language: 'en-US',
+          signal: options?.signal,
         }),
-        headers: {
-          Authorization: `Bearer ${this.#apiKey}`,
-          'Content-Type': 'application/json',
-          'X-DashScope-SSE': 'disable',
-        },
-        method: 'POST',
-      },
+      options?.signal,
     );
-    await readProviderJson(response, 'Aliyun Bailian');
   }
 }

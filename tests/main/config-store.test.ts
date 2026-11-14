@@ -434,6 +434,33 @@ describe('ConfigurationService', () => {
     });
   });
 
+  it('persists a DeepSeek ASR profile that only stores the API key secret', async () => {
+    await service.upsertProvider({
+      id: 'deepseek-asr-speech',
+      kind: 'speech',
+      providerId: 'deepseek-asr-speech',
+      secrets: { apiKey: 'sk-deepseek' },
+      values: {
+        baseUrl: 'https://api.deepseek.com/v1',
+        model: 'deepseek-asr',
+        name: 'DeepSeek ASR',
+        presetId: 'deepseek-asr-speech',
+      },
+    });
+
+    await expect(service.getProvider('deepseek-asr-speech')).resolves.toMatchObject({
+      kind: 'speech',
+      providerId: 'deepseek-asr-speech',
+      secrets: { apiKey: 'sk-deepseek' },
+      values: {
+        baseUrl: 'https://api.deepseek.com/v1',
+        model: 'deepseek-asr',
+        name: 'DeepSeek ASR',
+        presetId: 'deepseek-asr-speech',
+      },
+    });
+  });
+
   it('atomically clears only the matching active role when removed', async () => {
     await service.upsertProvider({
       id: 'active-speech',

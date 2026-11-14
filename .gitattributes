@@ -1,2 +1,3 @@
 # Keep the repository canonical in Git while allowing Windows working trees.
 * text=auto eol=lf
+*.wav binary

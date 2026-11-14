@@ -1,11 +1,16 @@
-import { net } from 'electron';
+import { app, net } from 'electron';
 import {
   AliyunBailianSpeechProvider,
   type ProviderWebSocketFactory,
 } from '../../core/providers/aliyun-bailian-speech-provider.js';
 import { AnthropicTextProvider } from '../../core/providers/anthropic-text-provider.js';
+import {
+  ConnectionCheckError,
+  finishConnectionCheck,
+  loadConnectionCheckAudio,
+} from '../../core/providers/connection-check.js';
+import { DeepSeekAsrSpeechProvider } from '../../core/providers/deepseek-asr-speech-provider.js';
 import type {
-  AudioPayload,
   SpeechRecognitionProvider,
   TextGenerationProvider,
 } from '../../core/providers/types.js';
@@ -106,47 +111,24 @@ export const createSpeechProvider = (
       createProviderWebSocket,
     );
   }
+  if (profile.providerId === 'deepseek-asr-speech') {
+    return new DeepSeekAsrSpeechProvider(configuration, fetchImplementation);
+  }
   throw new Error('Speech provider profile has an unsupported provider id');
 };
 
-const createConnectionTestWav = (): AudioPayload => {
-  const channels = 1;
-  const durationMs = 1_000;
-  const sampleRateHz = 16_000;
-  const bytesPerSample = 2;
-  const sampleCount = Math.floor((sampleRateHz * durationMs) / 1_000);
-  const audioByteLength = sampleCount * channels * bytesPerSample;
-  const wav = Buffer.alloc(44 + audioByteLength);
-  wav.write('RIFF', 0, 'ascii');
-  wav.writeUInt32LE(36 + audioByteLength, 4);
-  wav.write('WAVE', 8, 'ascii');
-  wav.write('fmt ', 12, 'ascii');
-  wav.writeUInt32LE(16, 16);
-  wav.writeUInt16LE(1, 20);
-  wav.writeUInt16LE(channels, 22);
-  wav.writeUInt32LE(sampleRateHz, 24);
-  wav.writeUInt32LE(sampleRateHz * channels * bytesPerSample, 28);
-  wav.writeUInt16LE(channels * bytesPerSample, 32);
-  wav.writeUInt16LE(bytesPerSample * 8, 34);
-  wav.write('data', 36, 'ascii');
-  wav.writeUInt32LE(audioByteLength, 40);
-  for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
-    const sample = Math.round(Math.sin((2 * Math.PI * 440 * sampleIndex) / sampleRateHz) * 0x1800);
-    wav.writeInt16LE(sample, 44 + sampleIndex * bytesPerSample);
-  }
-  return {
-    bytes: new Uint8Array(wav),
-    channels,
-    durationMs,
-    mimeType: 'audio/wav',
-    sampleRateHz,
-  };
-};
+export interface ProviderConnectionTestOptions {
+  signal?: AbortSignal;
+}
 
 export const testProviderConnection = async (
   profile: ProviderProfile,
   fetchImplementation: typeof fetch = fetch,
+  options: ProviderConnectionTestOptions = {},
 ): Promise<void> => {
+  if (options.signal?.aborted) {
+    throw new ConnectionCheckError('cancelled', 'Connection check was cancelled');
+  }
   if (profile.kind === 'text') {
     const provider = createTextProvider(profile, fetchImplementation);
     await provider.processTranscript('Transcribe this connection test.', {
@@ -157,13 +139,23 @@ export const testProviderConnection = async (
     });
     return;
   }
+  const audio = loadConnectionCheckAudio(
+    app.isPackaged
+      ? { isPackaged: true, resourcesPath: process.resourcesPath }
+      : { appPath: app.getAppPath() },
+  );
   const provider = createSpeechProvider(profile, fetchImplementation);
   if (provider instanceof AliyunBailianSpeechProvider) {
-    await provider.testConnection();
+    await provider.testConnection({ audio, signal: options.signal });
     return;
   }
-  await provider.transcribe(createConnectionTestWav(), {
-    dictionary: [],
-    language: 'en-US',
-  });
+  await finishConnectionCheck(
+    () =>
+      provider.transcribe(audio, {
+        dictionary: [],
+        language: 'en-US',
+        signal: options.signal,
+      }),
+    options.signal,
+  );
 };
