@@ -6,6 +6,7 @@ import {
   NativeMessageType,
   decodeHotkeyConfigurationResult,
   decodeTargetSnapshot,
+  readNativeWindowHandle,
   decodeSelection,
   encodeHotkeyConfiguration,
   encodeNativeFrame,
@@ -21,6 +22,12 @@ const targetContextField = (value: string): Buffer => {
 };
 
 describe('native helper protocol v4', () => {
+  it('reads 32-bit X11 window ids and pointer-sized handles', () => {
+    expect(readNativeWindowHandle(Buffer.from([0x47, 0, 0, 0]))).toBe('71');
+    expect(readNativeWindowHandle(Buffer.from([0x47, 0, 0, 0, 0, 0, 0, 0]))).toBe('71');
+    expect(() => readNativeWindowHandle(Buffer.from([1, 2]))).toThrow(/too small/);
+  });
+
   it('encodes the packed C++ frame header', () => {
     const frame = encodeNativeFrame(NativeMessageType.Ping, new Uint8Array([1, 2]));
 

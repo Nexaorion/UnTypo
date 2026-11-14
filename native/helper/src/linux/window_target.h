@@ -13,4 +13,6 @@ class WindowTargetService {
   PasteResultPayload ReplaceSelection();
   void ClearSelection();
 };
+
+int RunLinuxHelperSelfTest();
 }  // namespace untypo

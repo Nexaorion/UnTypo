@@ -6,14 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const buildScript = '../../scripts/build-native.mjs';
 
-const { mkdir, readFile, rm, spawn } = vi.hoisted(() => ({
+const { chmod, mkdir, readFile, rm, spawn } = vi.hoisted(() => ({
+  chmod: vi.fn(),
   mkdir: vi.fn(),
   readFile: vi.fn(),
   rm: vi.fn(),
   spawn: vi.fn(),
 }));
 
-vi.mock('node:fs/promises', () => ({ mkdir, readFile, rm }));
+vi.mock('node:fs/promises', () => ({ chmod, mkdir, readFile, rm }));
 vi.mock('node:child_process', () => ({ spawn }));
 
 describe('macOS native build cache', () => {
@@ -78,5 +79,50 @@ describe('macOS native build cache', () => {
     await expect(import(buildScript)).rejects.toBe(error);
 
     expect(spawn).not.toHaveBeenCalled();
+  });
+});
+
+describe('linux native build', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.resetAllMocks();
+    const env = { ...process.env };
+    delete env.CMAKE;
+    vi.stubGlobal('process', { ...process, env, platform: 'linux' });
+    spawn.mockImplementation(() => {
+      const child = new EventEmitter();
+      setImmediate(() => child.emit('exit', 0));
+      return child;
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('builds with cmake and runs the helper self-test', async () => {
+    await import(buildScript);
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      1,
+      '/usr/bin/cmake',
+      ['-S', 'native/helper', '-B', 'build/native-linux', '-DCMAKE_BUILD_TYPE=Release'],
+      { stdio: 'inherit' },
+    );
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      '/usr/bin/cmake',
+      ['--build', 'build/native-linux', '--config', 'Release'],
+      { stdio: 'inherit' },
+    );
+    expect(spawn).toHaveBeenNthCalledWith(
+      3,
+      'build/Release/untypo_native_helper',
+      ['--self-test'],
+      { stdio: 'inherit' },
+    );
+    expect(chmod).toHaveBeenCalledWith('build/Release/untypo_native_helper', 0o755);
+    expect(chmod.mock.invocationCallOrder[0]).toBeLessThan(spawn.mock.invocationCallOrder[2] ?? 0);
   });
 });

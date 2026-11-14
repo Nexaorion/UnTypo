@@ -5,7 +5,7 @@ import type { SupportedLanguage, TextGenerationProvider } from '../../core/provi
 import { textProviderCapabilities } from '../../core/providers/prompt-builder.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
 import type { NativeHelperClient } from '../native/client.js';
-import { NativePasteStatus } from '../native/protocol.js';
+import { NativePasteStatus, readNativeWindowHandle } from '../native/protocol.js';
 import { SelectionWindowController } from '../selection/selection-window.js';
 import { focusSelectionFixture } from './selection-smoke-focus.js';
 import { DictationCoordinator } from '../dictation/coordinator.js';
@@ -86,7 +86,7 @@ export const runSelectionSmokeTest = async (realNative: NativeHelperClient): Pro
     : {
         captureTarget: () =>
           Promise.resolve({
-            windowHandle: target.getNativeWindowHandle().readBigUInt64LE().toString(),
+            windowHandle: readNativeWindowHandle(target.getNativeWindowHandle()),
             processId: process.pid,
             editable: true,
             higherIntegrity: false,

@@ -6,12 +6,12 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/status-0.2.3%20early-f4f4f5?style=flat-square&labelColor=18181b" alt="0.2.3 early">
-  <img src="https://img.shields.io/badge/platform-Windows%20x64%20%7C%20macOS%20arm64-f4f4f5?style=flat-square&labelColor=18181b" alt="Windows x64 and macOS arm64">
+  <img src="https://img.shields.io/badge/platform-Windows%20x64%20%7C%20macOS%20arm64%20%7C%20Linux%20x64-f4f4f5?style=flat-square&labelColor=18181b" alt="Windows x64, macOS arm64, and Linux x64">
   <img src="https://img.shields.io/badge/desktop-Electron%20%2B%20TypeScript-f4f4f5?style=flat-square&labelColor=18181b" alt="Electron and TypeScript">
   <img src="https://img.shields.io/badge/license-Apache%202.0-f4f4f5?style=flat-square&labelColor=18181b" alt="Apache 2.0">
 </p>
 
-UnTypo 是一个仍在早期开发中的听写工具，支持 Windows x64 和 macOS Apple Silicon。它把语音转成文字，再按口述内容完成润色、翻译或指令生成。
+UnTypo 是一个仍在早期开发中的听写工具，支持 Windows x64、macOS Apple Silicon 和 Linux x64。它把语音转成文字，再按口述内容完成润色、翻译或指令生成。Linux 提供 AppImage 和 deb。快捷键在 X11 和 Wayland 上都可以用。自动插入只在安装了 xdotool 的 X11 会话里尝试；Wayland 会把文字留在剪贴板，需要自己粘贴。
 
 ## 你可以用 UnTypo 做什么
 

@@ -68,46 +68,65 @@ const spawnOptions = process.platform === 'win32' ? { windowsHide: true } : {};
 
 await execFileAsync(executablePath, ['--self-test'], spawnOptions);
 
-await client.start();
-await conflictingClient.start();
-try {
-  // F19 is mapped on both Win32 and macOS; F24 is Windows-only.
-  const conflictKey = process.platform === 'win32' ? 0x87 : 0x82;
-  const alternateKey = process.platform === 'win32' ? 0x86 : 0x81;
-  await client.configureHotkey({
-    modifiers: 0x0007,
-    virtualKey: conflictKey,
-  });
-  let conflictDetected = false;
+if (process.platform === 'linux') {
+  // Linux hotkeys belong to Electron. This helper only checks the socket, not a key grab.
+  await client.start();
   try {
-    await conflictingClient.configureHotkey({
+    await client.configureHotkey({
+      modifiers: 0x0007,
+      virtualKey: 0x4b,
+    });
+    await client.ping();
+    const target = await client.captureTarget();
+    if (typeof target.windowHandle !== 'string' || target.processId < 0) {
+      throw new Error('Native helper returned an invalid target');
+    }
+    process.stdout.write('NATIVE_SMOKE_OK\n');
+  } finally {
+    await client.stop();
+  }
+} else {
+  await client.start();
+  await conflictingClient.start();
+  try {
+    // F19 is mapped on both Win32 and macOS; F24 is Windows-only.
+    const conflictKey = process.platform === 'win32' ? 0x87 : 0x82;
+    const alternateKey = process.platform === 'win32' ? 0x86 : 0x81;
+    await client.configureHotkey({
       modifiers: 0x0007,
       virtualKey: conflictKey,
     });
-  } catch (error) {
-    conflictDetected = error?.windowsErrorCode === 1409;
-  }
-  if (!conflictDetected) {
-    throw new Error('Native helper did not report a hotkey conflict');
-  }
-  if (process.platform === 'win32') {
-    const hotkeyEvent = waitForHotkey(client);
-    await sendCtrlAltShiftF24();
-    if ((await hotkeyEvent) !== 3) {
-      throw new Error('Native helper emitted an unexpected hotkey action');
+    let conflictDetected = false;
+    try {
+      await conflictingClient.configureHotkey({
+        modifiers: 0x0007,
+        virtualKey: conflictKey,
+      });
+    } catch (error) {
+      conflictDetected = error?.windowsErrorCode === 1409;
     }
+    if (!conflictDetected) {
+      throw new Error('Native helper did not report a hotkey conflict');
+    }
+    if (process.platform === 'win32') {
+      const hotkeyEvent = waitForHotkey(client);
+      await sendCtrlAltShiftF24();
+      if ((await hotkeyEvent) !== 3) {
+        throw new Error('Native helper emitted an unexpected hotkey action');
+      }
+    }
+    await conflictingClient.configureHotkey({
+      modifiers: 0,
+      virtualKey: alternateKey,
+    });
+    await client.ping();
+    await conflictingClient.ping();
+    const target = await client.captureTarget();
+    if (!target.windowHandle || target.processId < 0) {
+      throw new Error('Native helper returned an invalid target');
+    }
+    process.stdout.write('NATIVE_SMOKE_OK\n');
+  } finally {
+    await Promise.all([client.stop(), conflictingClient.stop()]);
   }
-  await conflictingClient.configureHotkey({
-    modifiers: 0,
-    virtualKey: alternateKey,
-  });
-  await client.ping();
-  await conflictingClient.ping();
-  const target = await client.captureTarget();
-  if (!target.windowHandle || target.processId < 0) {
-    throw new Error('Native helper returned an invalid target');
-  }
-  process.stdout.write('NATIVE_SMOKE_OK\n');
-} finally {
-  await Promise.all([client.stop(), conflictingClient.stop()]);
 }

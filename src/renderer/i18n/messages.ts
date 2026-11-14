@@ -348,6 +348,8 @@ export const messages = {
     'settings.diagnosticsReady': '错误收集器正在运行，暂时没有待处理问题',
     'settings.hotkey': '快捷键',
     'settings.hotkeyHint': '先按修饰键，再按空格、字母或 F 键',
+    'settings.linuxPasteHint':
+      '在 X11 上安装 xdotool 后，会尝试把结果插入当前窗口。无法确认插入时，文字会留在剪贴板。Wayland 会话只保留在剪贴板，请手动粘贴。',
     'settings.launchAtLogin': '开机启动',
     'settings.lastUpdateCheck': '上次检查：{time}',
     'settings.locale': '界面语言',
@@ -826,6 +828,8 @@ export const messages = {
     'settings.diagnosticsReady': 'The error collector is running with no pending issues',
     'settings.hotkey': 'Shortcut',
     'settings.hotkeyHint': 'Hold modifiers, then press Space, a letter, or an F key',
+    'settings.linuxPasteHint':
+      'On X11, install xdotool and UnTypo tries to insert the result into the focused window. If insertion is not confirmed, the text stays on the clipboard. On Wayland, paste it yourself from the clipboard.',
     'settings.launchAtLogin': 'Launch at login',
     'settings.lastUpdateCheck': 'Last checked: {time}',
     'settings.locale': 'Interface language',
