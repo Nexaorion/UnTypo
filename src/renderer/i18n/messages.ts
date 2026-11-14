@@ -82,8 +82,8 @@ export const messages = {
     'error.backupMissing': '该备份已不存在，请刷新列表后重试',
     'error.backupUnreadable': '备份文件已损坏或格式不受支持，无法读取',
     'error.connectionCheckCancelled': '连接检查已取消',
-    'error.connectionCheckEmpty': '语音服务已响应，但没有识别出连接检查用语',
-    'error.connectionCheckMismatch': '语音服务已响应，但识别结果与连接检查用语不一致',
+    'error.connectionCheckEmpty': '已连上，但没识别到文字',
+    'error.connectionCheckMismatch': '已连上，但识别结果不对',
     'error.devicePermission': '没有访问设备的权限，请在系统设置中允许后重试',
     'error.hotkeyConflict': '该快捷键已被其他应用占用，请换一个组合',
     'error.hotkeyUnavailable': '该快捷键无法启用',
@@ -265,8 +265,7 @@ export const messages = {
     'provider.chooseTextProvider': '选择文本生成提供商',
     'provider.configure': '配置模型',
     'provider.customEndpointHint': '自行填写接口地址',
-    'provider.deepseekAsrHint':
-      '使用 DeepSeek 独立语音识别接口。填写 API 密钥即可，接口地址和模型已经填好，语言会从音频自动识别。',
+    'provider.deepseekAsrHint': '使用 DeepSeek ASR 官方接口，填写 API Key 后即可使用。',
     'provider.edit': '编辑模型',
     'provider.empty': '暂无模型',
     'provider.emptySpeech': '还没有语音识别模型',
@@ -535,11 +534,9 @@ export const messages = {
     'error.backupMissing': 'This remote backup no longer exists. Refresh the list and try again.',
     'error.backupUnreadable':
       'The backup is damaged or uses an unsupported format and cannot be read.',
-    'error.connectionCheckCancelled': 'The connection check was cancelled.',
-    'error.connectionCheckEmpty':
-      'The speech service responded, but it did not recognize the connection phrase.',
-    'error.connectionCheckMismatch':
-      'The speech service responded, but the transcript did not match the connection phrase.',
+    'error.connectionCheckCancelled': 'Connection check cancelled.',
+    'error.connectionCheckEmpty': 'Connected, but nothing was recognized.',
+    'error.connectionCheckMismatch': "Connected, but the result doesn't match.",
     'error.devicePermission':
       'Device access is blocked. Allow access in system settings and try again.',
     'error.hotkeyConflict': 'That shortcut is already used by another app. Choose a different one.',
@@ -745,8 +742,7 @@ export const messages = {
     'provider.chooseTextProvider': 'Choose a text provider',
     'provider.configure': 'Configure model',
     'provider.customEndpointHint': 'Enter a custom endpoint',
-    'provider.deepseekAsrHint':
-      'Uses DeepSeek standalone speech-to-text. Enter an API key to use it. The endpoint and model are already filled in, and the language is detected from the audio.',
+    'provider.deepseekAsrHint': 'Uses the official DeepSeek ASR API. Enter an API key to start.',
     'provider.edit': 'Edit model',
     'provider.empty': 'No models',
     'provider.emptySpeech': 'No speech recognition model yet',
