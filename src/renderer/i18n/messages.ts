@@ -81,6 +81,9 @@ export const messages = {
     'error.backupCodeMissing': '请先设置 Backup Code，再进行同步',
     'error.backupMissing': '该备份已不存在，请刷新列表后重试',
     'error.backupUnreadable': '备份文件已损坏或格式不受支持，无法读取',
+    'error.connectionCheckCancelled': '连接检查已取消',
+    'error.connectionCheckEmpty': '语音服务已响应，但没有识别出连接检查用语',
+    'error.connectionCheckMismatch': '语音服务已响应，但识别结果与连接检查用语不一致',
     'error.devicePermission': '没有访问设备的权限，请在系统设置中允许后重试',
     'error.hotkeyConflict': '该快捷键已被其他应用占用，请换一个组合',
     'error.hotkeyUnavailable': '该快捷键无法启用',
@@ -532,6 +535,11 @@ export const messages = {
     'error.backupMissing': 'This remote backup no longer exists. Refresh the list and try again.',
     'error.backupUnreadable':
       'The backup is damaged or uses an unsupported format and cannot be read.',
+    'error.connectionCheckCancelled': 'The connection check was cancelled.',
+    'error.connectionCheckEmpty':
+      'The speech service responded, but it did not recognize the connection phrase.',
+    'error.connectionCheckMismatch':
+      'The speech service responded, but the transcript did not match the connection phrase.',
     'error.devicePermission':
       'Device access is blocked. Allow access in system settings and try again.',
     'error.hotkeyConflict': 'That shortcut is already used by another app. Choose a different one.',
