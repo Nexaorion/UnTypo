@@ -279,6 +279,11 @@ export const SettingsSection = ({ store }: { store: ClientStore }) => {
             platform={store.runtime?.platform}
             value={hotkey}
           />
+          {store.runtime?.platform === 'linux' ? (
+            <Typography color="text.secondary" variant="body2">
+              {t('settings.linuxPasteHint')}
+            </Typography>
+          ) : null}
           <SwitchField
             checked={settings.dictation.fastMode ?? false}
             description={t('settings.fastModeHint')}

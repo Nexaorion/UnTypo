@@ -2,7 +2,7 @@
 
 ## Project boundaries
 
-UnTypo is a local-first dictation client for Windows x64 and macOS arm64, built with Electron, React, strict TypeScript, and a C++ native helper. It requires Node `>=22.12` and npm `>=9`. Configuration, history, and BYOK credentials are user-local data; current source and tests are the authority on implemented behavior.
+UnTypo is a local-first dictation client for Windows x64, macOS arm64, and Linux x64, built with Electron, React, strict TypeScript, and a C++ native helper. Linux automatic paste uses xdotool on X11 only; Wayland keeps the dictated text on the clipboard. It requires Node `>=22.12` and npm `>=9`. Configuration, history, and BYOK credentials are user-local data; current source and tests are the authority on implemented behavior.
 
 Before working, run `git status --short` and inspect the affected code and adjacent tests. Preserve unrelated changes made by the user or other tasks. Do not commit, push, publish, reset, or clean the working tree unless explicitly asked.
 
@@ -23,7 +23,7 @@ For a settings control, switch, or action that looks functional but is ineffecti
 | `src/preload/`                         | Minimal, typed APIs exposed only through `contextBridge`.                                                                                   |
 | `src/renderer/`                        | Main-window React + MUI UI, i18n, state, and pure UI logic.                                                                                 |
 | `src/status-overlay/`, `src/recorder/` | Renderer code for the floating status overlay and recording windows.                                                                        |
-| `native/helper/`                       | Native hotkey, target-window, and paste behavior (Win32 and macOS).                                                                         |
+| `native/helper/`                       | Native hotkey, target-window, and paste behavior (Win32, macOS, and Linux x64). Linux paste is X11 via xdotool, not Wayland.                |
 | `tests/`                               | Vitest regression tests mirroring `core`, `main`, `preload`, `renderer`, `recorder`, and `status-overlay`.                                  |
 
 Follow the neighboring source convention of using `.js` output extensions in relative imports. Production code in `src/renderer/`, `src/status-overlay/`, and `src/recorder/` must not import Electron or Node directly; communicate through the appropriate preload API.
@@ -170,7 +170,8 @@ Follow the neighboring source convention of using `.js` output extensions in rel
 
 ## Native helper and wire protocol
 
-- When changing the wire protocol in `src/main/native/protocol.ts`, update `native/helper/src/protocol.h`, encoding/decoding, frame-length validation, the Windows and macOS helper implementations, and related tests together. Do not update only the TypeScript or C++ side.
+- When changing the wire protocol in `src/main/native/protocol.ts`, update `native/helper/src/protocol.h`, encoding/decoding, frame-length validation, the Windows, macOS, and Linux helper implementations, and related tests together. Do not update only the TypeScript or C++ side.
+- Linux hotkeys are Electron `globalShortcut`. Pass xdotool arguments without a shell. Do not claim Wayland insertion; xdotool only sees the X11 focus.
 - Do not present a native self-test, source inspection, or simulated input as complete real-world hotkey or target-window validation; state the actual scope of validation.
 - Recording and provider changes must retain format, sample information, cancellation, and error propagation. Real requests, recordings, and user dictionaries are sensitive data; do not use saved credentials for external requests without explicit authorization.
 - Provider URLs default to HTTPS. Allow HTTP only when the user explicitly enables it and the target is localhost or a private network; continue removing credentials, query parameters, and fragments from URLs.
@@ -235,6 +236,7 @@ Use `npm.cmd`/`npx.cmd` for local Windows commands and `npm`/`npx` on macOS. Run
 | NSIS installer                               | `npm run package:win`     |
 | Runnable directory package (macOS arm64)     | `npm run package:dir:mac` |
 | Local unsigned macOS DMG + zip               | `npm run package:mac`     |
+| AppImage and deb (Linux x64)                 | `npm run package:linux`   |
 
 `npm run build` runs `clean` first and recursively deletes `dist/` and `release/`; `check`, `smoke`, `smoke:native`, and the packaging commands all pass through that build step.
 Copy or inspect deliverable artifacts before running those commands.
@@ -253,7 +255,7 @@ macOS auto-update is supported via `darwin_arm64` Hazel route and signed ZIP wit
 
 When changing CI or release behavior, keep the Windows runner for NSIS publishing, keep macOS verification on `macos-latest` without publishing, and keep signed macOS publishing on `macos-15` using repository secrets so any `master` / version-changing `preview` push can ship without a manual GitHub approval.
 Use locked dependency installation and Node 22.
-The Windows and macOS release jobs must explicitly run `node node_modules/electron/install.js` after `npm ci`.
+The Windows, macOS, and Linux release jobs must explicitly run `node node_modules/electron/install.js` after `npm ci`.
 Every checkout uses `persist-credentials: false`, so a release job cannot push a branch or tag with `git`; write refs through the GitHub API with `GH_TOKEN` instead.
 Stable releases use `master`; `preview` releases only publish when the version changes.
 Inspect the current workflow's branch, tag, and release-asset logic before changing these rules.

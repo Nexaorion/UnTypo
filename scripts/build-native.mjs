@@ -88,6 +88,8 @@ if (process.platform === 'darwin') {
   ]);
   await run(cmake, ['--build', 'build/native-linux', '--config', 'Release']);
   await chmod('build/Release/untypo_native_helper', 0o755);
+  // Fail the build when the X11 paste plan or UTF-8 encoding regresses.
+  await run('build/Release/untypo_native_helper', ['--self-test']);
 } else {
   throw new Error(`The native helper cannot be built on ${process.platform}`);
 }

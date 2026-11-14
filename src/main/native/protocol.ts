@@ -148,6 +148,13 @@ export const decodeTargetSnapshot = (payload: Buffer): NativeTargetSnapshot => {
   };
 };
 
+export const readNativeWindowHandle = (handle: Buffer): string => {
+  // X11 window ids are 4 bytes. Win32 and macOS handles are pointer-sized.
+  if (handle.byteLength >= 8) return handle.readBigUInt64LE(0).toString();
+  if (handle.byteLength >= 4) return handle.readUInt32LE(0).toString();
+  throw new Error('Native window handle is too small');
+};
+
 export const encodePasteRequest = (target: NativeTargetSnapshot): Buffer => {
   const payload = Buffer.alloc(12);
   payload.writeBigUInt64LE(BigInt(target.windowHandle), 0);

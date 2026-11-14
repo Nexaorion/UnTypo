@@ -43,7 +43,10 @@ bool ValidArguments(const Arguments& arguments) {
 int main(int argc, char** argv) {
   std::signal(SIGPIPE, SIG_IGN);
   const auto arguments = ParseArguments(argc, argv);
-  if (arguments.self_test) return sizeof(untypo::FrameHeader) == 12 ? 0 : 1;
+  if (arguments.self_test) {
+    if (sizeof(untypo::FrameHeader) != 12) return 1;
+    return untypo::RunLinuxHelperSelfTest();
+  }
   if (!ValidArguments(arguments)) return 2;
 
   untypo::WindowTargetService targets;

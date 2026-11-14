@@ -277,10 +277,7 @@ export class ApplicationUpdateService {
               { once: true },
             );
           });
-          const result = await Promise.race([
-            this.#updater.checkForUpdates(),
-            deadline,
-          ]);
+          const result = await Promise.race([this.#updater.checkForUpdates(), deadline]);
           const availableVersion = normalizeVersion(result?.updateInfo.version ?? '');
           const checkedAt = this.#now();
           if (!result?.isUpdateAvailable || !isNewerVersion(availableVersion, this.#version)) {

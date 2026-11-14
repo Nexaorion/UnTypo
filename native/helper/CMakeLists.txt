@@ -17,10 +17,16 @@ if(APPLE)
     src/macos/socket_server.cpp src/macos/vk_map.cpp src/macos/window_target.mm)
   target_include_directories(untypo_native_helper PRIVATE src src/macos)
 elseif(UNIX)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(ATSPI2 REQUIRED atspi-2)
+  find_package(Threads REQUIRED)
   add_executable(untypo_native_helper
-    src/linux/hotkey_monitor.cpp src/linux/main.cpp
+    src/linux/focus_probe.cpp src/linux/hotkey_monitor.cpp src/linux/main.cpp
     src/linux/window_target.cpp src/macos/socket_server.cpp)
   target_include_directories(untypo_native_helper PRIVATE src src/linux src/macos)
+  # Headers provide the AT-SPI enums. libatspi is dlopened so a missing library cannot block startup.
+  target_include_directories(untypo_native_helper SYSTEM PRIVATE ${ATSPI2_INCLUDE_DIRS})
+  target_link_libraries(untypo_native_helper PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
 endif()
 
 target_compile_options(untypo_native_helper PRIVATE

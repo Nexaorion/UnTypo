@@ -74,10 +74,13 @@ jobs:
           node-version: 22
 
       - name: Install Linux build dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake libx11-dev libxkbfile-dev libsecret-1-dev fakeroot
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config libatspi2.0-dev libx11-dev libxkbfile-dev libsecret-1-dev fakeroot
 
       - name: Install locked dependencies
         run: npm ci
+
+      - name: Ensure Electron distribution is available
+        run: node node_modules/electron/install.js
 
       - name: Verify frontend and native helper
         run: npm run check
@@ -681,11 +684,15 @@ jobs:
 
       - name: Install Linux build dependencies
         if: steps.branch.outputs.is_current == 'true'
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake libx11-dev libxkbfile-dev libsecret-1-dev fakeroot
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config libatspi2.0-dev libx11-dev libxkbfile-dev libsecret-1-dev fakeroot
 
       - name: Install locked dependencies
         if: steps.branch.outputs.is_current == 'true'
         run: npm ci
+
+      - name: Ensure Electron distribution is available
+        if: steps.branch.outputs.is_current == 'true'
+        run: node node_modules/electron/install.js
 
       - name: Resolve Linux release version and tag
         if: steps.branch.outputs.is_current == 'true'

@@ -4,7 +4,11 @@ import type { ProcessResult } from '../../core/providers/types.js';
 import { SELECTION_CHANNELS } from '../../shared/selection-ipc.js';
 import { ElectronClipboardAdapter } from '../dictation/electron-clipboard.js';
 import type { NativeHelperClient } from '../native/client.js';
-import { NativePasteStatus, type NativeTargetSnapshot } from '../native/protocol.js';
+import {
+  NativePasteStatus,
+  readNativeWindowHandle,
+  type NativeTargetSnapshot,
+} from '../native/protocol.js';
 import { assertTrustedSender } from '../ipc/security.js';
 import { selectionBounds } from './placement.js';
 import { parseSelectionAction, SelectionSession, type SelectionContext } from './session.js';
@@ -91,7 +95,7 @@ export class SelectionWindowController {
       this.#window &&
       this.#session &&
       this.#session.state.characters > 0 &&
-      this.#window.getNativeWindowHandle().readBigUInt64LE().toString() === target.windowHandle
+      readNativeWindowHandle(this.#window.getNativeWindowHandle()) === target.windowHandle
     ) {
       this.#requestGeneration += 1;
       this.#window.hide();
