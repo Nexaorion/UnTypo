@@ -2,7 +2,11 @@
 
 ## Project boundaries
 
-UnTypo is a local-first dictation client for Windows x64, macOS arm64, and Linux x64, built with Electron, React, strict TypeScript, and a C++ native helper. Linux automatic paste uses xdotool on X11 only; Wayland keeps the dictated text on the clipboard. It requires Node `>=22.12` and npm `>=9`. Configuration, history, and BYOK credentials are user-local data; current source and tests are the authority on implemented behavior.
+UnTypo is a local-first dictation client for Windows x64, macOS arm64, and Linux x64,
+built with Electron, React, strict TypeScript, and a C++ native helper. Linux automatic
+paste uses xdotool on X11 only; Wayland keeps the dictated text on the clipboard. It
+requires Node `>=22.12` and npm `>=9`. Configuration, history, and BYOK credentials are
+user-local data; current source and tests are the authority on implemented behavior.
 
 Before working, run `git status --short` and inspect the affected code and adjacent tests. Preserve unrelated changes made by the user or other tasks. Do not commit, push, publish, reset, or clean the working tree unless explicitly asked.
 
